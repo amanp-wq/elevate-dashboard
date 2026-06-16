@@ -43,17 +43,11 @@ export default async function handler(req, res) {
 
     const token = await getAccessToken();
 
-    // Fetch ALL active users and return role names for debugging + filter
+    // Fetch users filtered by role keyword (case-insensitive)
     const ud = await zohoGet(token, `${API_DOMAIN}/crm/v2/users?type=ActiveUsers`);
     const allUsers = ud?.users || [];
+    const users = allUsers.filter(u => (u.role?.name || "").toLowerCase().includes(role.toLowerCase()));
 
-    // role param is "Builder" or "Closer" — match role name containing that keyword (case-insensitive)
-    const users = allUsers.filter(u => {
-      const roleName = (u.role?.name || "").toLowerCase();
-      return roleName.includes(role.toLowerCase());
-    });
-
-    // For debugging — return all role names if no match
     if (!users.length) {
       const roleNames = [...new Set(allUsers.map(u => u.role?.name).filter(Boolean))];
       return res.status(404).json({
@@ -70,9 +64,9 @@ export default async function handler(req, res) {
       };
     });
 
-    // Calls — use IST date range (UTC+5:30)
-    const dateStart = `${date}T00:00:00+05:30`;
-    const dateEnd   = `${date}T23:59:59+05:30`;
+    // Calls — EST timezone (UTC-5:00)
+    const dateStart = `${date}T00:00:00-05:00`;
+    const dateEnd   = `${date}T23:59:59-05:00`;
     const cd = await zohoGet(token, `${API_DOMAIN}/crm/v2/Calls?fields=Owner,Duration_in_minutes,Call_Start_Time&criteria=(Call_Start_Time:between:${dateStart},${dateEnd})&per_page=200`);
     (cd?.data || []).forEach(c => {
       const id = c.Owner?.id;
@@ -91,19 +85,19 @@ export default async function handler(req, res) {
       if (map[id]) { map[id].discoveries += 1; if (!map[id].teamLead && l.Team_Lead) map[id].teamLead = l.Team_Lead; }
     });
 
-    // Deals - qualified leads (Builder field)
+    // Deals - qualified leads
     (await fetchModule(token, "Deals", "Qualified_Lead_Date", date)).forEach(d => {
       const id = d.Builder?.id;
       if (id && map[id]) { map[id].leads += 1; if (!map[id].teamLead && d.Team_Lead) map[id].teamLead = d.Team_Lead; }
     });
 
-    // Deals - discovery (Builder field)
+    // Deals - discovery
     (await fetchModule(token, "Deals", "Discovery_Completed_Date", date)).forEach(d => {
       const id = d.Builder?.id;
       if (id && map[id]) { map[id].discoveries += 1; if (!map[id].teamLead && d.Team_Lead) map[id].teamLead = d.Team_Lead; }
     });
 
-    // Deals - presentations booked (Builder field)
+    // Deals - presentations booked
     (await fetchModule(token, "Deals", "Presentation_Booked_Date", date)).forEach(d => {
       const id = d.Builder?.id;
       if (id && map[id]) { map[id].presentations += 1; if (!map[id].teamLead && d.Team_Lead) map[id].teamLead = d.Team_Lead; }
