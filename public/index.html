@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElevateMe — Performance Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f0f; --surface: #1a1a1a; --border: #2a2a2a;
+    --text: #f0f0f0; --muted: #888; --accent: #f5a623;
+  }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; padding: 2rem 1rem; }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+  .logo { font-size: 22px; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; }
+  .logo span { color: var(--text); font-weight: 400; font-size: 15px; margin-left: 8px; opacity: 0.6; }
+
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .field label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .field input, .field select {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 14px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field select option { background: #1a1a1a; }
+
+  .btn {
+    background: var(--accent); color: #000; border: none; padding: 11px 24px;
+    border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s; white-space: nowrap;
+  }
+  .btn:hover { opacity: 0.9; }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-outline { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+
+  .status-bar { font-size: 13px; color: var(--muted); padding: 10px 0; display: none; }
+  .status-bar.show { display: flex; align-items: center; gap: 8px; }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box { background: #2a1010; border: 1px solid #6b2020; border-radius: 8px; padding: 12px 16px; color: #f88; font-size: 13px; margin-bottom: 1rem; display: none; }
+  .error-box.show { display: block; }
+
+  #results { display: none; }
+  .meta { font-size: 13px; color: var(--muted); padding: 0.75rem 0; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .tile { border-radius: 12px; padding: 14px 16px; border: 1px solid transparent; }
+  .tile-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .tile-name { font-size: 13px; font-weight: 600; }
+  .tile-tl { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+  .tile-score { font-size: 22px; font-weight: 700; text-align: right; flex-shrink: 0; margin-left: 8px; }
+  .tile-star { font-size: 14px; margin-left: 2px; }
+  .tile-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; font-size: 11px; text-align: center; }
+  .tile-kpis .val { font-weight: 600; }
+  .tile-kpis .lbl { opacity: 0.55; font-size: 10px; }
+
+  .zone-gold   { background: #1e1b10; border-color: #c8960a; color: #FAC775; }
+  .zone-green  { background: #0d1f0d; border-color: #2d6e1a; color: #7ec850; }
+  .zone-yellow { background: #1f1a0a; border-color: #7a5210; color: #d4a030; }
+  .zone-orange { background: #1f120a; border-color: #8a3a10; color: #e07040; }
+  .zone-red    { background: #1f0d0d; border-color: #8a2020; color: #e06060; }
+
+  .bottom { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .totals { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; margin-bottom: 1.5rem; }
+  .totals-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .totals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px; }
+  .total-item { text-align: center; }
+  .total-val { font-size: 20px; font-weight: 700; color: var(--accent); }
+  .total-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .total-target { font-size: 10px; color: var(--muted); opacity: 0.6; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <div class="logo">ElevateMe <span>Performance Dashboard</span></div>
+    </div>
+  </header>
+
+  <div class="controls">
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="inp-date">
+    </div>
+    <div class="field">
+      <label>Report slot</label>
+      <select id="inp-slot">
+        <option value="1pm">1 PM — Morning (10 AM – 1 PM)</option>
+        <option value="4pm">4 PM — Midday (10 AM – 4 PM)</option>
+        <option value="7pm">7 PM — End of Day (10 AM – 7 PM)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Role</label>
+      <select id="inp-role">
+        <option value="Builder">Builders</option>
+        <option value="Closer">Closers</option>
+      </select>
+    </div>
+    <div class="field" style="display:flex;align-items:flex-end">
+      <button class="btn" id="btn-gen" style="width:100%">Generate Report</button>
+    </div>
+  </div>
+
+  <div class="status-bar" id="status"><div class="spinner"></div><span id="status-text"></span></div>
+  <div class="error-box" id="error-box"></div>
+
+  <div id="results">
+    <div class="meta">
+      <span id="meta-left"></span>
+      <span id="meta-right"></span>
+    </div>
+
+    <div class="totals">
+      <div class="totals-title">Team Totals</div>
+      <div class="totals-grid" id="totals-grid"></div>
+    </div>
+
+    <div class="tiles" id="tiles"></div>
+
+    <div class="bottom">
+      <div class="legend">
+        <span><div class="dot" style="background:#c8960a"></div> Gold 110%+</span>
+        <span><div class="dot" style="background:#2d6e1a"></div> Green 95–110%</span>
+        <span><div class="dot" style="background:#7a5210"></div> Yellow 75–95%</span>
+        <span><div class="dot" style="background:#8a3a10"></div> Orange 50–75%</span>
+        <span><div class="dot" style="background:#8a2020"></div> Red &lt;50%</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SLOTS = {
+  "1pm": { fraction: 1/3, display: "10:00 AM – 1:00 PM IST" },
+  "4pm": { fraction: 2/3, display: "10:00 AM – 4:00 PM IST" },
+  "7pm": { fraction: 1,   display: "10:00 AM – 7:00 PM IST" }
+};
+const TARGETS = { calls:150, minutes:180, leads:4, discoveries:2, presentations:2 };
+const WEIGHTS = { calls:0.15, minutes:0.15, leads:0.20, discoveries:0.20, presentations:0.30 };
+
+function zone(s){ return s>=110?"gold":s>=95?"green":s>=75?"yellow":s>=50?"orange":"red"; }
+function score(b, t){
+  const cap = (v,tgt) => Math.min(150, tgt>0 ? (v/tgt)*100 : 0);
+  return Math.round(
+    cap(b.calls,t.calls)*WEIGHTS.calls +
+    cap(b.minutes,t.minutes)*WEIGHTS.minutes +
+    cap(b.leads,t.leads)*WEIGHTS.leads +
+    cap(b.discoveries,t.discoveries)*WEIGHTS.discoveries +
+    cap(b.presentations,t.presentations)*WEIGHTS.presentations
+  );
+}
+
+document.getElementById("inp-date").value = new Date().toISOString().split("T")[0];
+
+function setStatus(msg){ const el=document.getElementById("status"); el.className="status-bar"+(msg?" show":""); document.getElementById("status-text").textContent=msg||""; }
+function setError(msg){ const el=document.getElementById("error-box"); el.className="error-box"+(msg?" show":""); el.textContent=msg||""; }
+
+document.getElementById("btn-gen").onclick = async function(){
+  const date = document.getElementById("inp-date").value;
+  const slot = document.getElementById("inp-slot").value;
+  const role = document.getElementById("inp-role").value;
+  if(!date){ setError("Please select a date."); return; }
+
+  const btn = document.getElementById("btn-gen");
+  btn.disabled = true; btn.textContent = "Loading...";
+  setError(""); document.getElementById("results").style.display = "none";
+
+  try {
+    setStatus("Fetching data from Zoho CRM...");
+    const res = await fetch(`/api/report?date=${date}&slot=${slot}&role=${encodeURIComponent(role)}`);
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || "Server error");
+
+    const slotObj = SLOTS[slot];
+    const f = slotObj.fraction;
+    const t = { calls: TARGETS.calls*f, minutes: TARGETS.minutes*f, leads: TARGETS.leads*f, discoveries: TARGETS.discoveries*f, presentations: TARGETS.presentations*f };
+
+    const builders = data.builders.map(b => { const s=score(b,t); return {...b, composite:s, zone:zone(s)}; });
+    builders.sort((a,b) => b.composite - a.composite);
+
+    // Meta
+    const dl = new Date(date+"T12:00:00").toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short",year:"numeric"}).toUpperCase();
+    document.getElementById("meta-left").textContent = `${dl}  ·  ${slotObj.display}`;
+    document.getElementById("meta-right").textContent = `Targets at ${Math.round(f*100)}% of day  ·  ${builders.length} ${role}s`;
+
+    // Totals
+    const totals = { calls:0, minutes:0, leads:0, discoveries:0, presentations:0 };
+    builders.forEach(b => { totals.calls+=b.calls; totals.minutes+=b.minutes; totals.leads+=b.leads; totals.discoveries+=b.discoveries; totals.presentations+=b.presentations; });
+    const tgt = n => (builders.length * n * f).toFixed(1);
+    document.getElementById("totals-grid").innerHTML = [
+      ["calls","Calls",tgt(TARGETS.calls)],
+      ["minutes","Minutes",tgt(TARGETS.minutes)],
+      ["leads","Q. Leads",tgt(TARGETS.leads)],
+      ["discoveries","Discoveries",tgt(TARGETS.discoveries)],
+      ["presentations","Presentations",tgt(TARGETS.presentations)]
+    ].map(([k,lbl,tg]) => `<div class="total-item"><div class="total-val">${totals[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div></div>`).join("");
+
+    // Tiles
+    document.getElementById("tiles").innerHTML = builders.map(b => `
+      <div class="tile zone-${b.zone}">
+        <div class="tile-header">
+          <div>
+            <div class="tile-name">${b.name}</div>
+            ${b.teamLead ? `<div class="tile-tl">${b.teamLead}</div>` : ""}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">
+            <div class="tile-score">${b.composite}%${b.zone==="gold"?'<span class="tile-star">★</span>':''}</div>
+          </div>
+        </div>
+        <div class="tile-kpis">
+          ${[["calls",b.calls],["mins",b.minutes],["leads",b.leads],["disco",b.discoveries],["pres",b.presentations]].map(([l,v])=>`<div><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join("")}
+        </div>
+      </div>`).join("");
+
+    document.getElementById("results").style.display = "block";
+    setStatus("");
+  } catch(e) {
+    setError(e.message || "Something went wrong. Please try again.");
+    setStatus("");
+  } finally {
+    btn.disabled = false; btn.textContent = "Generate Report";
+  }
+};
+</script>
+</body>
+</html>
