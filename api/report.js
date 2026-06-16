@@ -31,21 +31,6 @@ export default async function handler(req, res) {
     return r.json();
   }
 
-  async function fetchAllUsers(token) {
-    let all = [];
-    // Try every known user type and merge results
-    const types = ["ActiveUsers", "DeactiveUsers", "AdminUsers", "StandardUsers", "AllUsers"];
-    for (const type of types) {
-      try {
-        const ud = await zohoGet(token, `${API_DOMAIN}/crm/v2/users?type=${type}&per_page=200`);
-        if (ud?.users?.length) all = all.concat(ud.users);
-      } catch(e) { /* skip unsupported types */ }
-    }
-    // Deduplicate by id
-    const seen = new Set();
-    return all.filter(u => { if (seen.has(u.id)) return false; seen.add(u.id); return true; });
-  }
-
   async function fetchAllPages(token, module, dateField, date) {
     let all = [], page = 1;
     while (true) {
@@ -64,14 +49,12 @@ export default async function handler(req, res) {
     if (!date || !slot || !role) return res.status(400).json({ error: "Missing date, slot or role" });
 
     const token = await getAccessToken();
-    const allUsers = await fetchAllUsers(token);
 
-    // Role names are like "Builder - Soham", "Closer - Tejasvi"
-    // Match any user whose role name contains the keyword
-    const users = allUsers.filter(u => {
-      const rn = (u.role?.name || "");
-      return rn.toLowerCase().includes(role.toLowerCase());
-    });
+    // Fetch only ActiveUsers — fastest single call
+    const ud = await zohoGet(token, `${API_DOMAIN}/crm/v2/users?type=ActiveUsers&per_page=200`);
+    const allUsers = ud?.users || [];
+
+    const users = allUsers.filter(u => (u.role?.name || "").toLowerCase().includes(role.toLowerCase()));
 
     if (!users.length) {
       const roleNames = [...new Set(allUsers.map(u => u.role?.name).filter(Boolean))];
@@ -87,45 +70,48 @@ export default async function handler(req, res) {
       map[u.id] = { name: u.full_name, id: u.id, teamLead: "", calls: 0, minutes: 0, leads: 0, discoveries: 0, presentations: 0 };
     });
 
-    // Calls — EST (UTC-5:00)
-    let callPage = 1;
-    while (true) {
-      const cd = await zohoGet(token, `${API_DOMAIN}/crm/v2/Calls?fields=Owner,Duration_in_minutes,Call_Start_Time&criteria=(Call_Start_Time:between:${date}T00:00:00-05:00,${date}T23:59:59-05:00)&per_page=200&page=${callPage}`);
-      if (!cd?.data?.length) break;
-      cd.data.forEach(c => {
-        const id = c.Owner?.id;
-        if (map[id]) { map[id].calls += 1; map[id].minutes += parseFloat(c.Duration_in_minutes || 0); }
-      });
-      if (!cd.info?.more_records) break;
-      callPage++;
-    }
+    // Run all data fetches in parallel for speed
+    const [callsData, leadsQL, leadsDisc, dealsQL, dealsDisc, dealsPres] = await Promise.all([
+      zohoGet(token, `${API_DOMAIN}/crm/v2/Calls?fields=Owner,Duration_in_minutes,Call_Start_Time&criteria=(Call_Start_Time:between:${date}T00:00:00-05:00,${date}T23:59:59-05:00)&per_page=200`),
+      fetchAllPages(token, "Leads", "Qualified_Lead_Date", date),
+      fetchAllPages(token, "Leads", "Discovery_Completed_Date", date),
+      fetchAllPages(token, "Deals", "Qualified_Lead_Date", date),
+      fetchAllPages(token, "Deals", "Discovery_Completed_Date", date),
+      fetchAllPages(token, "Deals", "Presentation_Booked_Date", date),
+    ]);
+
+    // Calls
+    (callsData?.data || []).forEach(c => {
+      const id = c.Owner?.id;
+      if (map[id]) { map[id].calls += 1; map[id].minutes += parseFloat(c.Duration_in_minutes || 0); }
+    });
 
     // Leads - qualified
-    (await fetchAllPages(token, "Leads", "Qualified_Lead_Date", date)).forEach(l => {
+    leadsQL.forEach(l => {
       const id = l.Owner?.id;
       if (map[id]) { map[id].leads += 1; if (!map[id].teamLead && l.Team_Lead) map[id].teamLead = l.Team_Lead; }
     });
 
     // Leads - discovery
-    (await fetchAllPages(token, "Leads", "Discovery_Completed_Date", date)).forEach(l => {
+    leadsDisc.forEach(l => {
       const id = l.Owner?.id;
       if (map[id]) { map[id].discoveries += 1; if (!map[id].teamLead && l.Team_Lead) map[id].teamLead = l.Team_Lead; }
     });
 
     // Deals - qualified leads
-    (await fetchAllPages(token, "Deals", "Qualified_Lead_Date", date)).forEach(d => {
+    dealsQL.forEach(d => {
       const id = d.Builder?.id;
       if (id && map[id]) { map[id].leads += 1; if (!map[id].teamLead && d.Team_Lead) map[id].teamLead = d.Team_Lead; }
     });
 
     // Deals - discovery
-    (await fetchAllPages(token, "Deals", "Discovery_Completed_Date", date)).forEach(d => {
+    dealsDisc.forEach(d => {
       const id = d.Builder?.id;
       if (id && map[id]) { map[id].discoveries += 1; if (!map[id].teamLead && d.Team_Lead) map[id].teamLead = d.Team_Lead; }
     });
 
     // Deals - presentations booked
-    (await fetchAllPages(token, "Deals", "Presentation_Booked_Date", date)).forEach(d => {
+    dealsPres.forEach(d => {
       const id = d.Builder?.id;
       if (id && map[id]) { map[id].presentations += 1; if (!map[id].teamLead && d.Team_Lead) map[id].teamLead = d.Team_Lead; }
     });
