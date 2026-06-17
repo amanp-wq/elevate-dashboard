@@ -22,42 +22,29 @@ export default async function handler(req, res) {
 
     const date = req.query.date || "2026-06-16";
 
-    // Test 1: Fetch last 5 calls with NO date filter to see raw data + timezone format
-    const callsRaw = await fetch("https://www.zohoapis.in/crm/v2/Calls?fields=Owner,Duration_in_minutes,Call_Start_Time&per_page=5&sort_by=Call_Start_Time&sort_order=desc", {
-      headers: { Authorization: `Zoho-oauthtoken ${token}` }
-    });
-    const callsData = await callsRaw.json();
+    const h = { Authorization: `Zoho-oauthtoken ${token}` };
 
-    // Test 2: Fetch last 5 leads with NO date filter
-    const leadsRaw = await fetch("https://www.zohoapis.in/crm/v2/Leads?fields=Owner,Qualified_Lead_Date,Discovery_Completed_Date,Team_Lead&per_page=5&sort_by=Modified_Time&sort_order=desc", {
-      headers: { Authorization: `Zoho-oauthtoken ${token}` }
-    });
-    const leadsData = await leadsRaw.json();
-
-    // Test 3: Fetch last 5 deals
-    const dealsRaw = await fetch("https://www.zohoapis.in/crm/v2/Deals?fields=Owner,Builder,Qualified_Lead_Date,Discovery_Completed_Date,Presentation_Booked_Date,Team_Lead&per_page=5&sort_by=Modified_Time&sort_order=desc", {
-      headers: { Authorization: `Zoho-oauthtoken ${token}` }
-    });
-    const dealsData = await dealsRaw.json();
+    // Try different criteria formats for date fields
+    const tests = await Promise.all([
+      // Format 1: equals with yyyy-MM-dd
+      fetch(`https://www.zohoapis.in/crm/v2/Leads?criteria=(Qualified_Lead_Date:equals:${date})&fields=Owner,Qualified_Lead_Date&per_page=5`, {headers:h}).then(r=>r.json()),
+      // Format 2: between with yyyy-MM-dd
+      fetch(`https://www.zohoapis.in/crm/v2/Leads?criteria=(Qualified_Lead_Date:between:${date},${date})&fields=Owner,Qualified_Lead_Date&per_page=5`, {headers:h}).then(r=>r.json()),
+      // Format 3: search endpoint equals
+      fetch(`https://www.zohoapis.in/crm/v2/Leads/search?criteria=(Qualified_Lead_Date:equals:${date})&fields=Owner,Qualified_Lead_Date&per_page=5`, {headers:h}).then(r=>r.json()),
+      // Format 4: calls raw last 5
+      fetch(`https://www.zohoapis.in/crm/v2/Calls?fields=Owner,Duration_in_minutes,Call_Start_Time&per_page=5&sort_by=Call_Start_Time&sort_order=desc`, {headers:h}).then(r=>r.json()),
+      // Format 5: calls with criteria
+      fetch(`https://www.zohoapis.in/crm/v2/Calls?criteria=(Call_Start_Time:between:${date}T00:00:00-05:00,${date}T23:59:59-05:00)&fields=Owner,Duration_in_minutes,Call_Start_Time&per_page=5`, {headers:h}).then(r=>r.json()),
+    ]);
 
     return res.status(200).json({
-      sample_calls: (callsData?.data || []).map(c => ({
-        owner: c.Owner?.name,
-        Call_Start_Time: c.Call_Start_Time,
-        duration: c.Duration_in_minutes
-      })),
-      sample_leads: (leadsData?.data || []).map(l => ({
-        owner: l.Owner?.name,
-        Qualified_Lead_Date: l.Qualified_Lead_Date,
-        Discovery_Completed_Date: l.Discovery_Completed_Date
-      })),
-      sample_deals: (dealsData?.data || []).map(d => ({
-        builder: d.Builder?.name,
-        owner: d.Owner?.name,
-        Qualified_Lead_Date: d.Qualified_Lead_Date,
-        Discovery_Completed_Date: d.Discovery_Completed_Date,
-        Presentation_Booked_Date: d.Presentation_Booked_Date
-      }))
+      date_tested: date,
+      leads_equals:        { count: tests[0]?.data?.length || 0, error: tests[0]?.message, sample: tests[0]?.data?.[0]?.Qualified_Lead_Date },
+      leads_between:       { count: tests[1]?.data?.length || 0, error: tests[1]?.message, sample: tests[1]?.data?.[0]?.Qualified_Lead_Date },
+      leads_search_equals: { count: tests[2]?.data?.length || 0, error: tests[2]?.message, sample: tests[2]?.data?.[0]?.Qualified_Lead_Date },
+      calls_raw_last5:     { count: tests[3]?.data?.length || 0, sample_time: tests[3]?.data?.[0]?.Call_Start_Time },
+      calls_with_criteria: { count: tests[4]?.data?.length || 0, error: tests[4]?.message },
     });
 
   } catch (e) {
