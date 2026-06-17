@@ -31,10 +31,26 @@ export default async function handler(req, res) {
     return r.json();
   }
 
-  async function fetchAllPages(token, module, dateField, date) {
+  // Search API supports proper date filtering
+  async function searchByDate(token, module, dateField, date) {
     let all = [], page = 1;
     while (true) {
-      const url = `${API_DOMAIN}/crm/v2/${module}?fields=Owner,Builder,Qualified_Lead_Date,Discovery_Completed_Date,Presentation_Booked_Date,Team_Lead&criteria=(${dateField}:equals:${date})&per_page=200&page=${page}`;
+      // Use between for date range - start and end of day
+      const url = `${API_DOMAIN}/crm/v2/${module}/search?criteria=(${dateField}:between:${date},${date})&fields=Owner,Builder,${dateField},Team_Lead&per_page=200&page=${page}`;
+      const data = await zohoGet(token, url);
+      if (!data?.data?.length) break;
+      all = all.concat(data.data);
+      if (!data.info?.more_records) break;
+      page++;
+    }
+    return all;
+  }
+
+  async function searchCalls(token, date) {
+    let all = [], page = 1;
+    while (true) {
+      // For calls use between with full datetime in EST
+      const url = `${API_DOMAIN}/crm/v2/Calls/search?criteria=(Call_Start_Time:between:${date}T00:00:00-05:00,${date}T23:59:59-05:00)&fields=Owner,Duration_in_minutes,Call_Start_Time&per_page=200&page=${page}`;
       const data = await zohoGet(token, url);
       if (!data?.data?.length) break;
       all = all.concat(data.data);
@@ -50,19 +66,14 @@ export default async function handler(req, res) {
 
     const token = await getAccessToken();
 
-    // Fetch only ActiveUsers — fastest single call
+    // Fetch users
     const ud = await zohoGet(token, `${API_DOMAIN}/crm/v2/users?type=ActiveUsers&per_page=200`);
     const allUsers = ud?.users || [];
-
     const users = allUsers.filter(u => (u.role?.name || "").toLowerCase().includes(role.toLowerCase()));
 
     if (!users.length) {
       const roleNames = [...new Set(allUsers.map(u => u.role?.name).filter(Boolean))];
-      return res.status(404).json({
-        error: `No users found matching "${role}".`,
-        available_roles: roleNames,
-        total_fetched: allUsers.length
-      });
+      return res.status(404).json({ error: `No users found matching "${role}".`, available_roles: roleNames });
     }
 
     const map = {};
@@ -70,18 +81,18 @@ export default async function handler(req, res) {
       map[u.id] = { name: u.full_name, id: u.id, teamLead: "", calls: 0, minutes: 0, leads: 0, discoveries: 0, presentations: 0 };
     });
 
-    // Run all data fetches in parallel for speed
-    const [callsData, leadsQL, leadsDisc, dealsQL, dealsDisc, dealsPres] = await Promise.all([
-      zohoGet(token, `${API_DOMAIN}/crm/v2/Calls?fields=Owner,Duration_in_minutes,Call_Start_Time&criteria=(Call_Start_Time:between:${date}T00:00:00-05:00,${date}T23:59:59-05:00)&per_page=200`),
-      fetchAllPages(token, "Leads", "Qualified_Lead_Date", date),
-      fetchAllPages(token, "Leads", "Discovery_Completed_Date", date),
-      fetchAllPages(token, "Deals", "Qualified_Lead_Date", date),
-      fetchAllPages(token, "Deals", "Discovery_Completed_Date", date),
-      fetchAllPages(token, "Deals", "Presentation_Booked_Date", date),
+    // Fetch all data in parallel using search API with proper date filter
+    const [calls, leadsQL, leadsDisc, dealsQL, dealsDisc, dealsPres] = await Promise.all([
+      searchCalls(token, date),
+      searchByDate(token, "Leads", "Qualified_Lead_Date", date),
+      searchByDate(token, "Leads", "Discovery_Completed_Date", date),
+      searchByDate(token, "Deals", "Qualified_Lead_Date", date),
+      searchByDate(token, "Deals", "Discovery_Completed_Date", date),
+      searchByDate(token, "Deals", "Presentation_Booked_Date", date),
     ]);
 
     // Calls
-    (callsData?.data || []).forEach(c => {
+    calls.forEach(c => {
       const id = c.Owner?.id;
       if (map[id]) { map[id].calls += 1; map[id].minutes += parseFloat(c.Duration_in_minutes || 0); }
     });
@@ -98,19 +109,19 @@ export default async function handler(req, res) {
       if (map[id]) { map[id].discoveries += 1; if (!map[id].teamLead && l.Team_Lead) map[id].teamLead = l.Team_Lead; }
     });
 
-    // Deals - qualified leads
+    // Deals - qualified leads (Builder field)
     dealsQL.forEach(d => {
       const id = d.Builder?.id;
       if (id && map[id]) { map[id].leads += 1; if (!map[id].teamLead && d.Team_Lead) map[id].teamLead = d.Team_Lead; }
     });
 
-    // Deals - discovery
+    // Deals - discovery (Builder field)
     dealsDisc.forEach(d => {
       const id = d.Builder?.id;
       if (id && map[id]) { map[id].discoveries += 1; if (!map[id].teamLead && d.Team_Lead) map[id].teamLead = d.Team_Lead; }
     });
 
-    // Deals - presentations booked
+    // Deals - presentations booked (Builder field)
     dealsPres.forEach(d => {
       const id = d.Builder?.id;
       if (id && map[id]) { map[id].presentations += 1; if (!map[id].teamLead && d.Team_Lead) map[id].teamLead = d.Team_Lead; }
