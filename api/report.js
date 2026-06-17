@@ -44,24 +44,30 @@ export default async function handler(req, res) {
     } catch { return null; }
   }
 
-  // Fetch calls for a specific date by sorting by Call_Start_Time DESC
-  // and stopping as soon as the page goes past the target date.
+  // Fetch calls for a specific date by sorting by Call_Start_Time DESC,
+  // requesting pages in parallel batches of 5 to avoid sequential timeout.
+  // Stops as soon as any page's oldest record goes before the target date.
   async function fetchCallsForDate(token, date, fields) {
-    let all = [], page = 1;
-    while (page <= 50) {
-      const url = `${API_DOMAIN}/crm/v2/Calls?fields=${fields}&per_page=200&page=${page}&sort_by=Call_Start_Time&sort_order=desc`;
-      const data = await zohoGet(token, url);
-      if (!data?.data?.length) break;
+    let all = [];
+    const BATCH = 5;
+    for (let start = 1; start <= 200; start += BATCH) {
+      const pages = Array.from({ length: BATCH }, (_, i) => start + i);
+      const results = await Promise.all(pages.map(p =>
+        fetch(`${API_DOMAIN}/crm/v2/Calls?fields=${fields}&per_page=200&page=${p}&sort_by=Call_Start_Time&sort_order=desc`,
+          { headers: { Authorization: `Zoho-oauthtoken ${token}` } }).then(r => r.json())
+      ));
 
-      for (const record of data.data) {
-        if (parseZohoDate(record.Call_Start_Time) === date) all.push(record);
+      let done = false;
+      for (const data of results) {
+        if (!data?.data?.length) { done = true; break; }
+        for (const record of data.data) {
+          if (parseZohoDate(record.Call_Start_Time) === date) all.push(record);
+        }
+        const oldestDate = parseZohoDate(data.data.at(-1)?.Call_Start_Time);
+        if (oldestDate && oldestDate < date) { done = true; break; }
+        if (!data.info?.more_records) { done = true; break; }
       }
-
-      // Stop once the oldest record on this page is before the target date
-      const oldestDate = parseZohoDate(data.data.at(-1)?.Call_Start_Time);
-      if (oldestDate && oldestDate < date) break;
-      if (!data.info?.more_records) break;
-      page++;
+      if (done) break;
     }
     return all;
   }
