@@ -47,17 +47,20 @@ export default async function handler(req, res) {
     return all;
   }
 
-  // Parse Zoho date "June 02, 2026" or "Jun 16, 2026 05:28 PM" → "YYYY-MM-DD"
+  // Parse Zoho date to "YYYY-MM-DD"
+  // Handles: "2026-06-16T20:00:00-04:00" (ISO with tz), "2026-06-16" (date-only), "June 02, 2026" (text)
   function parseZohoDate(val) {
     if (!val) return null;
+    // ISO datetime: extract the local date portion directly (before T)
+    const isoMatch = val.match(/^(\d{4}-\d{2}-\d{2})T/);
+    if (isoMatch) return isoMatch[1];
+    // YYYY-MM-DD already
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    // Text format "June 02, 2026" — parse on UTC to avoid day-shift
     try {
-      const d = new Date(val);
+      const d = new Date(val + " UTC");
       if (isNaN(d)) return null;
-      // Use EST offset: getTime - 5hrs to get EST date
-      const estOffset = -5 * 60; // EST = UTC-5
-      const utc = d.getTime() + d.getTimezoneOffset() * 60000;
-      const est = new Date(utc + estOffset * 60000);
-      return est.toISOString().split("T")[0]; // YYYY-MM-DD
+      return d.toISOString().split("T")[0];
     } catch { return null; }
   }
 
