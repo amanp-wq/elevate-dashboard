@@ -124,15 +124,16 @@ export default async function handler(req, res) {
       fetchByCriteria(token, "Deals", "Owner,Builder,Team_Lead", `(Presentation_Completed_Date:equals:${date})`),
     ]);
 
-    // Aggregate calls
+    // Aggregate calls — track all for breakdown, but only outbound count toward score
     calls.forEach(c => {
       const id = c.Owner?.id;
       if (!map[id]) return;
+      if (c.Call_Status === "Missed") { map[id].missed += 1; return; }
+      if (c.Call_Type === "Inbound")  { map[id].inbound += 1; return; }
+      // Outbound only
       map[id].calls += 1;
+      map[id].outbound += 1;
       map[id].minutes += (parseFloat(c.Call_Duration_in_seconds || 0) / 60);
-      if (c.Call_Status === "Missed") map[id].missed += 1;
-      else if (c.Call_Type === "Inbound") map[id].inbound += 1;
-      else map[id].outbound += 1;
     });
 
     // Aggregate leads — Qualified_Lead_Date (Owner)
