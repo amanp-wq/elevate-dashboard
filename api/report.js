@@ -70,19 +70,31 @@ export default async function handler(req, res) {
     return all;
   }
 
-  // Uses /search with between for date ranges (single date: startDate === endDate uses equals)
-  async function fetchByCriteria(token, module, fields, startDate, endDate, dateField) {
-    const criteria = startDate === endDate
-      ? `(${dateField}:equals:${startDate})`
-      : `(${dateField}:between:${startDate},${endDate})`;
-    let all = [], page = 1;
-    while (true) {
-      const url = `${API_DOMAIN}/crm/v2/${module}/search?fields=${fields}&criteria=${criteria}&per_page=200&page=${page}`;
-      const data = await zohoGet(token, url);
-      if (!data?.data?.length) break;
-      all = all.concat(data.data);
-      if (!data.info?.more_records) break;
-      page++;
+  // Zoho /search only supports `equals` — not `between`. Fetch per-day in parallel batches.
+  async function fetchByDateRange(token, module, fields, startDate, endDate, dateField) {
+    const dates = [];
+    const d = new Date(startDate + "T12:00:00Z");
+    const end = new Date(endDate + "T12:00:00Z");
+    while (d <= end) { dates.push(d.toISOString().split("T")[0]); d.setUTCDate(d.getUTCDate() + 1); }
+
+    async function fetchOneDay(date) {
+      let all = [], page = 1;
+      while (true) {
+        const url = `${API_DOMAIN}/crm/v2/${module}/search?fields=${fields}&criteria=(${dateField}:equals:${date})&per_page=200&page=${page}`;
+        const data = await zohoGet(token, url);
+        if (!data?.data?.length) break;
+        all = all.concat(data.data);
+        if (!data.info?.more_records) break;
+        page++;
+      }
+      return all;
+    }
+
+    let all = [];
+    const BATCH = 6;
+    for (let i = 0; i < dates.length; i += BATCH) {
+      const results = await Promise.all(dates.slice(i, i + BATCH).map(fetchOneDay));
+      results.forEach(r => { all = all.concat(r); });
     }
     return all;
   }
@@ -126,9 +138,9 @@ export default async function handler(req, res) {
       const CALL_FIELDS = "Owner,Call_Duration_in_seconds,Call_Start_Time,Call_Type,Call_Status";
       const [calls, presHeld, closedDeals, upfrontDeals] = await Promise.all([
         fetchCallsForRange(token, startDate, endDate, CALL_FIELDS),
-        fetchByCriteria(token, "Deals", "Owner,Team_Lead", startDate, endDate, "Presentation_Completed_Date"),
-        fetchByCriteria(token, "Deals", "Owner,Future_Booked_Upfront,Team_Lead", startDate, endDate, "Deal_Closed_Date"),
-        fetchByCriteria(token, "Deals", "Owner,Upfront_Amount,Team_Lead", startDate, endDate, "Upfront_Amount_Received_Date"),
+        fetchByDateRange(token, "Deals", "Owner,Team_Lead", startDate, endDate, "Presentation_Completed_Date"),
+        fetchByDateRange(token, "Deals", "Owner,Future_Booked_Upfront,Team_Lead", startDate, endDate, "Deal_Closed_Date"),
+        fetchByDateRange(token, "Deals", "Owner,Upfront_Amount,Team_Lead", startDate, endDate, "Upfront_Amount_Received_Date"),
       ]);
 
       calls.forEach(c => {
@@ -184,12 +196,12 @@ export default async function handler(req, res) {
     const CALL_FIELDS = "Owner,Call_Duration_in_seconds,Call_Start_Time,Call_Type,Call_Status";
     const [calls, leadsQL, leadsDisc, dealsQL, dealsDisc, dealsPB, dealsPC] = await Promise.all([
       fetchCallsForRange(token, startDate, endDate, CALL_FIELDS),
-      fetchByCriteria(token, "Leads", "Owner,Team_Lead", startDate, endDate, "Qualified_Lead_Date"),
-      fetchByCriteria(token, "Leads", "Owner,Team_Lead", startDate, endDate, "Discovery_Completed_Date"),
-      fetchByCriteria(token, "Deals", "Owner,Builder,Team_Lead", startDate, endDate, "Qualified_Lead_Date"),
-      fetchByCriteria(token, "Deals", "Owner,Builder,Team_Lead", startDate, endDate, "Discovery_Completed_Date"),
-      fetchByCriteria(token, "Deals", "Owner,Builder,Team_Lead", startDate, endDate, "Presentation_Booked_Date"),
-      fetchByCriteria(token, "Deals", "Owner,Builder,Team_Lead", startDate, endDate, "Presentation_Completed_Date"),
+      fetchByDateRange(token, "Leads", "Owner,Team_Lead", startDate, endDate, "Qualified_Lead_Date"),
+      fetchByDateRange(token, "Leads", "Owner,Team_Lead", startDate, endDate, "Discovery_Completed_Date"),
+      fetchByDateRange(token, "Deals", "Owner,Builder,Team_Lead", startDate, endDate, "Qualified_Lead_Date"),
+      fetchByDateRange(token, "Deals", "Owner,Builder,Team_Lead", startDate, endDate, "Discovery_Completed_Date"),
+      fetchByDateRange(token, "Deals", "Owner,Builder,Team_Lead", startDate, endDate, "Presentation_Booked_Date"),
+      fetchByDateRange(token, "Deals", "Owner,Builder,Team_Lead", startDate, endDate, "Presentation_Completed_Date"),
     ]);
 
     calls.forEach(c => {
