@@ -146,11 +146,11 @@ export default async function handler(req, res) {
       calls.forEach(c => {
         const id = c.Owner?.id;
         if (!map[id]) return;
+        map[id].minutes += (parseFloat(c.Call_Duration_in_seconds || 0) / 60);
         if (c.Call_Status === "Missed") { map[id].missed += 1; return; }
         if (c.Call_Type === "Inbound")  { map[id].inbound += 1; return; }
         map[id].calls += 1;
         map[id].outbound += 1;
-        map[id].minutes += (parseFloat(c.Call_Duration_in_seconds || 0) / 60);
       });
 
       presHeld.forEach(d => {
@@ -207,11 +207,11 @@ export default async function handler(req, res) {
     calls.forEach(c => {
       const id = c.Owner?.id;
       if (!map[id]) return;
+      map[id].minutes += (parseFloat(c.Call_Duration_in_seconds || 0) / 60);
       if (c.Call_Status === "Missed") { map[id].missed += 1; return; }
       if (c.Call_Type === "Inbound")  { map[id].inbound += 1; return; }
       map[id].calls += 1;
       map[id].outbound += 1;
-      map[id].minutes += (parseFloat(c.Call_Duration_in_seconds || 0) / 60);
     });
 
     leadsQL.forEach(l => { const id = l.Owner?.id; if (!map[id]) return; map[id].leads += 1; if (!map[id].teamLead && l.Team_Lead) map[id].teamLead = l.Team_Lead; });
