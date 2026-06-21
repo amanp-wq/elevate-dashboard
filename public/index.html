@@ -102,7 +102,7 @@
   .tile-info { flex: 1; min-width: 0; }
   .tile-name { font-size: 16px; font-weight: 800; }
   .tile-tl { font-size: 13px; opacity: 0.5; margin-top: 2px; }
-  .tile-score { font-size: 28px; font-weight: 900; text-align: right; flex-shrink: 0; }
+  .tile-score { font-size: 28px; font-weight: 900; text-align: right; flex-shrink: 0; text-shadow: 0 0 14px currentColor; }
   .tile-star { font-size: 16px; margin-left: 2px; }
   .tile-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; font-size: 13px; text-align: center; }
   .tile-kpis .val { font-weight: 800; font-size: 15px; }
@@ -134,6 +134,16 @@
     border-color: var(--neon-red); color: #ff4d6a;
     box-shadow: 0 0 18px rgba(255,23,68,0.2), inset 0 0 30px rgba(255,23,68,0.04);
   }
+  .zone-leave {
+    background: linear-gradient(135deg, #111114 0%, #0c0c0f 100%);
+    border-color: #2e2e38; color: #4a4a5a;
+    box-shadow: none; opacity: 0.7;
+  }
+  .zone-leave .tile-score { text-shadow: none; color: #3a3a48; }
+  .zone-leave .tile-name { color: #6a6a7a; }
+  .zone-leave .tile-tl { color: #3a3a48; }
+  .zone-leave .tile-avatar { filter: grayscale(1) brightness(0.5); border-color: #2e2e38; }
+  .zone-leave .tile-avatar-initials { background: #1e1e24; color: #3a3a48; border-color: #2e2e38; }
 
   .card-badge {
     display: inline-block; font-size: 11px; font-weight: 700;
@@ -315,19 +325,22 @@ document.getElementById("btn-gen").onclick = async function(){
         ["revenue","Revenue (Total)","—"],
       ].map(([k,lbl,tg]) => `<div class="total-item"><div class="total-val">${k==="newUpfront"||k==="futureUpfront"||k==="revenue"?"$"+tot[k].toLocaleString():tot[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${tot.inbound} in</span> <span class="bd-out">↗${tot.outbound} out</span> <span class="bd-miss">✕${tot.missed} miss</span></div>`:""}</div>`).join("");
 
-      document.getElementById("tiles").innerHTML = closers.map(c => `
-        <div class="tile zone-${c.zone}">
+      document.getElementById("tiles").innerHTML = closers.map(c => {
+        const onLeave = c.calls === 0;
+        return `
+        <div class="tile ${onLeave ? "zone-leave" : "zone-"+c.zone}">
           <div class="tile-header">
             ${avatarHtml(c.name)}
             <div class="tile-info">
               <div class="tile-name">${c.name}</div>
               ${c.teamLead ? `<div class="tile-tl">${c.teamLead}</div>` : ""}
-              ${c.calls === 0 ? ON_LEAVE_BADGE : `<div class="card-badge">${CARD_LABELS[c.zone]}</div>`}
+              ${onLeave ? ON_LEAVE_BADGE : `<div class="card-badge">${CARD_LABELS[c.zone]}</div>`}
             </div>
             <div style="text-align:right;flex-shrink:0">
-              <div class="tile-score">${c.composite}%${c.zone==="gold"?'<span class="tile-star">★</span>':''}</div>
+              <div class="tile-score">${onLeave ? "" : `${c.composite}%${c.zone==="gold"?'<span class="tile-star">★</span>':''}`}</div>
             </div>
           </div>
+          ${onLeave ? "" : `
           <div class="tile-kpis" style="grid-template-columns:repeat(4,1fr)">
             ${[["calls",c.calls],["mins",c.minutes],["pres",c.presentations],["deals",c.dealsClosed]].map(([l,v])=>`<div><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join("")}
           </div>
@@ -336,19 +349,20 @@ document.getElementById("btn-gen").onclick = async function(){
             <span class="bd-out">↗${c.outbound} out</span>
             <span class="bd-miss">✕${c.missed} miss</span>
           </div>
-          <div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(0,0,0,0.08);font-size:12px;display:flex;justify-content:space-between;gap:6px">
+          <div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.07);font-size:12px;display:flex;justify-content:space-between;gap:6px">
             <span>New: <strong>$${c.newUpfront.toLocaleString()}</strong></span>
             <span>Future: <strong>$${c.futureUpfront.toLocaleString()}</strong></span>
             <span>Rev: <strong>$${c.revenue.toLocaleString()}</strong></span>
-          </div>
-          ${c.calls === 0 ? `
+          </div>`}
+          ${onLeave ? `
           <div class="on-leave-overlay">
             <div class="on-leave-stamp">
               <div class="stamp-icon">📅</div>
               <div class="stamp-text">ON LEAVE</div>
             </div>
           </div>` : ""}
-        </div>`).join("");
+        </div>`;
+      }).join("");
 
     } else {
       const builders = data.builders.map(b => { const s=scoreBuilder(b,T); return {...b, composite:s, zone:zone(s)}; });
@@ -367,19 +381,22 @@ document.getElementById("btn-gen").onclick = async function(){
         ["presCompleted","Pres. Completed",tgt(T.presCompleted)]
       ].map(([k,lbl,tg]) => `<div class="total-item"><div class="total-val">${totals[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${totals.inbound} in</span> <span class="bd-out">↗${totals.outbound} out</span> <span class="bd-miss">✕${totals.missed} miss</span></div>`:""}</div>`).join("");
 
-      document.getElementById("tiles").innerHTML = builders.map(b => `
-        <div class="tile zone-${b.zone}">
+      document.getElementById("tiles").innerHTML = builders.map(b => {
+        const onLeave = b.calls === 0;
+        return `
+        <div class="tile ${onLeave ? "zone-leave" : "zone-"+b.zone}">
           <div class="tile-header">
             ${avatarHtml(b.name)}
             <div class="tile-info">
               <div class="tile-name">${b.name}</div>
               ${b.teamLead ? `<div class="tile-tl">${b.teamLead}</div>` : ""}
-              ${b.calls === 0 ? ON_LEAVE_BADGE : `<div class="card-badge">${CARD_LABELS[b.zone]}</div>`}
+              ${onLeave ? ON_LEAVE_BADGE : `<div class="card-badge">${CARD_LABELS[b.zone]}</div>`}
             </div>
             <div style="text-align:right;flex-shrink:0">
-              <div class="tile-score">${b.composite}%${b.zone==="gold"?'<span class="tile-star">★</span>':''}</div>
+              <div class="tile-score">${onLeave ? "" : `${b.composite}%${b.zone==="gold"?'<span class="tile-star">★</span>':''}`}</div>
             </div>
           </div>
+          ${onLeave ? "" : `
           <div class="tile-kpis">
             ${[["calls",b.calls],["mins",b.minutes],["leads",b.leads],["disco",b.discoveries],["pres.b",b.presBooked],["pres.c",b.presCompleted]].map(([l,v])=>`<div><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join("")}
           </div>
@@ -387,15 +404,16 @@ document.getElementById("btn-gen").onclick = async function(){
             <span class="bd-in">↙${b.inbound} in</span>
             <span class="bd-out">↗${b.outbound} out</span>
             <span class="bd-miss">✕${b.missed} miss</span>
-          </div>
-          ${b.calls === 0 ? `
+          </div>`}
+          ${onLeave ? `
           <div class="on-leave-overlay">
             <div class="on-leave-stamp">
               <div class="stamp-icon">📅</div>
               <div class="stamp-text">ON LEAVE</div>
             </div>
           </div>` : ""}
-        </div>`).join("");
+        </div>`;
+      }).join("");
     }
 
     document.getElementById("results").style.display = "block";
