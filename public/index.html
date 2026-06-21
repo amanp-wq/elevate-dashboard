@@ -467,9 +467,47 @@ document.getElementById("btn-gen").onclick = async function(){
     const isCloser = role.toLowerCase().includes("closer");
     const fmtDate = d => new Date(d+"T12:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}).toUpperCase();
     const dl = startDate === endDate ? fmtDate(startDate) : `${fmtDate(startDate)} – ${fmtDate(endDate)}`;
-    const days = Math.round((new Date(endDate) - new Date(startDate)) / 86400000) + 1;
-    const T = Object.fromEntries(Object.entries(TARGETS).map(([k,v]) => [k, v * days]));
-    const TC = Object.fromEntries(Object.entries(TARGETS_CLOSER).map(([k,v]) => [k, v * days]));
+
+    // ── Time-based target proration ───────────────────────────────────────────
+    // Work window: 9:00 AM – 8:00 PM EST = 11 hours
+    const WORK_START_H = 9, WORK_END_H = 20, WORK_HOURS = 11;
+
+    function getDayFraction(dateStr) {
+      const todayEST = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+      if (dateStr < todayEST) return 1;          // past date → full day
+      if (dateStr > todayEST) return 1;          // future date → full day (shouldn't happen)
+      // It's today — calculate elapsed fraction in EST
+      const nowEST = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const hDecimal = nowEST.getHours() + nowEST.getMinutes() / 60;
+      if (hDecimal <= WORK_START_H) return 0.01; // before 9AM — near zero
+      if (hDecimal >= WORK_END_H)   return 1;    // after 8PM  — full day
+      return (hDecimal - WORK_START_H) / WORK_HOURS;
+    }
+
+    // Sum fractions across date range
+    function totalDayFraction(start, end) {
+      let total = 0;
+      const d = new Date(start + "T12:00:00Z");
+      const e = new Date(end   + "T12:00:00Z");
+      while (d <= e) {
+        total += getDayFraction(d.toISOString().split("T")[0]);
+        d.setUTCDate(d.getUTCDate() + 1);
+      }
+      return total;
+    }
+
+    const effectiveDays = totalDayFraction(startDate, endDate);
+    const T  = Object.fromEntries(Object.entries(TARGETS).map(([k,v])       => [k, Math.max(1, Math.round(v * effectiveDays))]));
+    const TC = Object.fromEntries(Object.entries(TARGETS_CLOSER).map(([k,v]) => [k, Math.max(1, Math.round(v * effectiveDays))]));
+
+    // Live report timestamp in EST
+    const nowEST = new Date().toLocaleString("en-US", { timeZone:"America/New_York", hour:"numeric", minute:"2-digit", hour12:true });
+    const todayEST = new Date().toLocaleDateString("en-CA", { timeZone:"America/New_York" });
+    const isLive = endDate === todayEST;
+    const pct = Math.round(getDayFraction(endDate) * 100);
+    const timeLabel = isLive
+      ? `Pulled at ${nowEST} EST · ${pct}% of workday`
+      : `Full day · 100%`;
     const CARD_LABELS = { gold:"Golden Card", green:"Green Card", yellow:"Yellow Card", orange:"Orange Card", red:"Red Card" };
     const ON_LEAVE_BADGE = `<div class="card-badge on-leave-badge">🏖 On Leave</div>`;
 
@@ -481,7 +519,8 @@ document.getElementById("btn-gen").onclick = async function(){
       ><div class="tile-avatar-initials" style="display:none">${initials}</div>`;
     }
 
-    document.getElementById("meta-left").textContent = `${dl}  ·  ${DISPLAY}`;
+    document.getElementById("meta-left").innerHTML =
+      `${dl} &nbsp;·&nbsp; ${DISPLAY} &nbsp;<span style="color:${isLive?"#ffab00":"var(--muted)"}">· ${timeLabel}</span>`;
     document.getElementById("closer-rules").className = "closer-rules" + (isCloser ? " show" : "");
 
     if (isCloser) {
