@@ -24,10 +24,15 @@
   }
   .container { max-width: 1100px; margin: 0 auto; }
 
-  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 0; flex-wrap: wrap; gap: 1rem;
+    background: #ffffff; border-radius: 0 0 14px 14px;
+    padding: 14px 24px; margin: -2rem -1rem 2rem -1rem;
+  }
   .logo { display: flex; align-items: center; gap: 12px; }
-  .logo-img { height: 32px; width: auto; display: block; filter: brightness(1.1); }
-  .logo-sub { font-size: 15px; font-weight: 400; color: var(--muted); letter-spacing: 0.2px; }
+  .logo-img { height: 36px; width: auto; display: block; }
+  .logo-sub { font-size: 15px; font-weight: 400; color: #888; letter-spacing: 0.2px; }
 
   .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
   .field label { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
