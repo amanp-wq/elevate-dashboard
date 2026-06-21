@@ -212,6 +212,36 @@
   .bt-rank.r2 { color: #c0c0c0; text-shadow: 0 0 6px #c0c0c0; }
   .bt-rank.r3 { color: #cd7f32; text-shadow: 0 0 6px #cd7f32; }
 
+  /* Team Leader cards */
+  .tl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 1.5rem; }
+  .tl-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .tl-card-header { padding: 20px 22px 14px; border-bottom: 1px solid var(--border); }
+  .tl-name { font-size: 20px; font-weight: 900; margin-bottom: 4px; }
+  .tl-score-row { display: flex; align-items: flex-end; gap: 12px; margin-top: 10px; }
+  .tl-score { font-size: 48px; font-weight: 900; line-height: 1; }
+  .tl-score-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .tl-reward { display: inline-flex; align-items: center; gap: 6px; font-size: 18px; font-weight: 900; padding: 6px 14px; border-radius: 24px; border: 1.5px solid currentColor; margin-top: 10px; }
+  .tl-reward-label { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.8px; }
+  .tl-stats { display: flex; gap: 16px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .tl-stats strong { color: var(--text); font-size: 14px; }
+  .tl-members { padding: 10px 0; }
+  .tl-member-row { display: flex; align-items: center; gap: 10px; padding: 8px 22px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .tl-member-row:last-child { border-bottom: none; }
+  .tl-member-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1.5px solid rgba(255,255,255,0.1); }
+  .tl-member-avatar-init { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; border: 1.5px solid rgba(255,255,255,0.08); }
+  .tl-member-info { flex: 1; min-width: 0; }
+  .tl-member-name { font-size: 13px; font-weight: 700; }
+  .tl-member-type { font-size: 11px; color: var(--muted); }
+  .tl-member-score { font-size: 15px; font-weight: 900; text-align: right; }
+  .tl-member-bar-wrap { width: 50px; height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-top: 3px; }
+  .tl-member-bar { height: 3px; border-radius: 2px; }
+  .tl-on-leave { font-size: 10px; color: #5a5a8a; font-weight: 700; letter-spacing: 0.5px; }
+  .tl-reward-table { margin: 12px 22px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); font-size: 12px; }
+  .tl-reward-row { display: flex; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .tl-reward-row:last-child { border-bottom: none; }
+  .tl-reward-row.active-tier { background: rgba(255,255,255,0.06); }
+  .tl-section-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding: 8px 22px 4px; }
+
   /* Closer explanation banner */
   .closer-rules { display:none; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; margin-bottom: 1.5rem; }
   .closer-rules.show { display: block; }
@@ -279,6 +309,7 @@
       <select id="inp-role">
         <option value="Builder">Builders</option>
         <option value="Closer">Closers</option>
+        <option value="Team Leader">Team Leaders</option>
       </select>
     </div>
     <div class="field" style="display:flex;align-items:flex-end">
@@ -325,6 +356,29 @@
       </div>
     </div>
 
+    <div class="closer-rules" id="tl-rules">
+      <div class="closer-rules-title">How Team Leader Scores Work</div>
+      <div class="closer-rules-grid">
+        <div class="cr-section">
+          <div class="cr-section-title">📊 Team Health Score</div>
+          <div class="cr-row"><span class="cr-kpi">Formula</span><span class="cr-detail">Sum of active member scores ÷ active member count</span></span></div>
+          <div class="cr-row"><span class="cr-kpi">Active member</span><span class="cr-detail">Anyone with at least 1 call logged</span></span></div>
+          <div class="cr-row"><span class="cr-kpi">On Leave</span><span class="cr-detail">0 calls — excluded from health score</span></div>
+          <div class="cr-row" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08)">
+            <span class="cr-detail">Each member scored against their own role (Builder or Closer) KPIs + deal override rules apply to Closers</span>
+          </div>
+        </div>
+        <div class="cr-section">
+          <div class="cr-section-title">💰 Weekly Reward Tiers</div>
+          <div class="cr-row"><span class="override-badge" style="color:#ffd740;border-color:#ffd740;font-size:11px;padding:2px 8px">110%+</span><span class="cr-detail" style="color:#ffd740;font-weight:700">₹5,000</span></div>
+          <div class="cr-row"><span class="override-badge" style="color:#00e676;border-color:#00e676;font-size:11px;padding:2px 8px">95–109%</span><span class="cr-detail" style="color:#00e676;font-weight:700">₹3,000</span></div>
+          <div class="cr-row"><span class="override-badge" style="color:#40c4ff;border-color:#40c4ff;font-size:11px;padding:2px 8px">85–94%</span><span class="cr-detail" style="color:#40c4ff;font-weight:700">₹2,000</span></div>
+          <div class="cr-row"><span class="override-badge" style="color:#ffab00;border-color:#ffab00;font-size:11px;padding:2px 8px">75–84%</span><span class="cr-detail" style="color:#ffab00;font-weight:700">₹1,000</span></div>
+          <div class="cr-row"><span class="override-badge" style="color:#6b7499;border-color:#6b7499;font-size:11px;padding:2px 8px">Below 75%</span><span class="cr-detail" style="color:#6b7499;font-weight:700">₹0</span></div>
+        </div>
+      </div>
+    </div>
+
     <div class="totals">
       <div class="totals-title">Team Totals</div>
       <div class="totals-grid" id="totals-grid"></div>
@@ -339,6 +393,7 @@
       </div>
     </div>
 
+    <div class="tl-grid" id="tl-grid" style="display:none"></div>
     <div class="tiles" id="tiles"></div>
 
     <div class="bottom">
@@ -535,6 +590,120 @@ function zoneCloser(c, score){
   return zone(score);                       // else use normal score-based zone
 }
 
+const ZONE_NEON = { gold:"#ffd740", green:"#00e676", yellow:"#ffab00", orange:"#ff6d00", red:"#ff4d6a" };
+
+function tlReward(score) {
+  if (score >= 110) return { amt: 5000, label: "₹5,000" };
+  if (score >= 95)  return { amt: 3000, label: "₹3,000" };
+  if (score >= 85)  return { amt: 2000, label: "₹2,000" };
+  if (score >= 75)  return { amt: 1000, label: "₹1,000" };
+  return { amt: 0, label: "₹0" };
+}
+
+function renderTLView(teams, T, TC) {
+  document.getElementById("tiles").style.display = "none";
+  document.getElementById("tl-grid").style.display = "grid";
+
+  const REWARD_TIERS = [
+    { label:"110%+",    reward:"₹5,000", min:110 },
+    { label:"95–109%",  reward:"₹3,000", min:95  },
+    { label:"85–94%",   reward:"₹2,000", min:85  },
+    { label:"75–84%",   reward:"₹1,000", min:75  },
+    { label:"Below 75%",reward:"₹0",     min:0   },
+  ];
+
+  const html = ["Soham","Tejasvi","Mamta Das"].map(tlName => {
+    const team = teams[tlName] || { builders:[], closers:[] };
+
+    // Score each member
+    const scoredBuilders = team.builders.map(b => {
+      const s = scoreBuilder(b, T);
+      return { ...b, composite: s, zone: zone(s), type: "Builder" };
+    });
+    const scoredClosers = team.closers.map(c => {
+      const s = scoreCloser(c, TC);
+      return { ...c, composite: s, zone: zoneCloser(c, s), type: "Closer" };
+    });
+
+    const allMembers = [...scoredBuilders, ...scoredClosers];
+    const activeMembers = allMembers.filter(m => m.calls > 0);
+    const onLeaveCount = allMembers.length - activeMembers.length;
+
+    const healthScore = activeMembers.length > 0
+      ? Math.round(activeMembers.reduce((sum, m) => sum + m.composite, 0) / activeMembers.length)
+      : 0;
+
+    const z = zone(healthScore);
+    const neon = ZONE_NEON[z] || "#aaa";
+    const reward = tlReward(healthScore);
+
+    // Member rows sorted by score desc, on-leave at bottom
+    const sorted = [
+      ...activeMembers.sort((a,b) => b.composite - a.composite),
+      ...allMembers.filter(m => m.calls === 0)
+    ];
+
+    const memberRows = sorted.map(m => {
+      const onLeave = m.calls === 0;
+      const mColor = onLeave ? "#3a3a48" : (ZONE_NEON[m.zone] || "#aaa");
+      const slug = m.name.toLowerCase().replace(/\s+/g,"-");
+      const initials = m.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+      const barW = onLeave ? 0 : Math.min(100, (m.composite/150)*100).toFixed(0);
+      return `<div class="tl-member-row">
+        <img class="tl-member-avatar" src="/photos/${slug}.png"
+          onerror="this.onerror=null;this.src='/photos/${slug}.jfif';this.onerror=function(){this.style.display='none';this.nextElementSibling.style.display='flex';};">
+        <div class="tl-member-avatar-init" style="display:none;color:${mColor}">${initials}</div>
+        <div class="tl-member-info">
+          <div class="tl-member-name" style="color:${mColor}">${m.name}</div>
+          <div class="tl-member-type">${m.type}</div>
+        </div>
+        <div style="text-align:right">
+          ${onLeave
+            ? `<div class="tl-on-leave">ON LEAVE</div>`
+            : `<div class="tl-member-score" style="color:${mColor};text-shadow:0 0 8px ${mColor}">${m.composite}%</div>
+               <div class="tl-member-bar-wrap"><div class="tl-member-bar" style="width:${barW}%;background:${mColor}"></div></div>`
+          }
+        </div>
+      </div>`;
+    }).join("");
+
+    const rewardRows = REWARD_TIERS.map(t => {
+      const active = healthScore >= t.min && (t.min === 110 ? true : healthScore < REWARD_TIERS[REWARD_TIERS.indexOf(t)-1]?.min || 999);
+      const isActive = reward.label === t.reward;
+      return `<div class="tl-reward-row ${isActive?"active-tier":""}">
+        <span style="color:${isActive?neon:"var(--muted)"}">${t.label}</span>
+        <span style="color:${isActive?neon:"var(--muted)"};font-weight:${isActive?800:400}">${t.reward}</span>
+      </div>`;
+    }).join("");
+
+    return `<div class="tl-card">
+      <div class="tl-card-header">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="tl-name" style="color:${neon};text-shadow:0 0 12px ${neon}">${tlName}</div>
+            <div class="tl-score-label">Team Health Score</div>
+          </div>
+          <div style="text-align:right">
+            <div class="tl-score" style="color:${neon};text-shadow:0 0 18px ${neon}">${healthScore}%</div>
+          </div>
+        </div>
+        <div class="tl-reward" style="color:${neon}">${reward.label} <span style="font-size:13px;opacity:0.7">weekly reward</span></div>
+        <div class="tl-stats">
+          <span><strong>${activeMembers.length}</strong> active</span>
+          <span><strong>${onLeaveCount}</strong> on leave</span>
+          <span><strong>${allMembers.length}</strong> total</span>
+        </div>
+      </div>
+      <div class="tl-section-label">Members</div>
+      <div class="tl-members">${memberRows}</div>
+      <div class="tl-section-label">Reward Structure</div>
+      <div class="tl-reward-table">${rewardRows}</div>
+    </div>`;
+  }).join("");
+
+  document.getElementById("tl-grid").innerHTML = html;
+}
+
 // Initialise: fire Today preset, hide manual date fields
 setPreset("today", document.querySelector(".preset-btn.active"));
 
@@ -559,6 +728,7 @@ document.getElementById("btn-gen").onclick = async function(){
     if(!res.ok) throw new Error(data.error || "Server error");
 
     const isCloser = role.toLowerCase().includes("closer");
+    const isTL = role === "Team Leader";
     const fmtDate = d => new Date(d+"T12:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}).toUpperCase();
     const dl = startDate === endDate ? fmtDate(startDate) : `${fmtDate(startDate)} – ${fmtDate(endDate)}`;
 
@@ -616,6 +786,22 @@ document.getElementById("btn-gen").onclick = async function(){
     document.getElementById("meta-left").innerHTML =
       `${dl} &nbsp;·&nbsp; ${DISPLAY} &nbsp;<span style="color:${isLive?"#ffab00":"var(--muted)"}">· ${timeLabel}</span>`;
     document.getElementById("closer-rules").className = "closer-rules" + (isCloser ? " show" : "");
+    document.getElementById("tl-rules").className = "closer-rules" + (isTL ? " show" : "");
+
+    if (isTL) {
+      document.getElementById("meta-right").textContent = "3 Teams";
+      document.getElementById("totals-grid").innerHTML = "";
+      document.getElementById("breakdown-toggle").style.display = "none";
+      document.getElementById("breakdown-table-wrap").classList.remove("show");
+      renderTLView(data.teams, T, TC);
+      document.getElementById("results").style.display = "block";
+      setStatus("");
+      return;
+    }
+
+    document.getElementById("tl-grid").style.display = "none";
+    document.getElementById("tiles").style.display = "";
+    document.getElementById("breakdown-toggle").style.display = "";
 
     if (isCloser) {
       const closers = data.closers.map(c => { const s=scoreCloser(c,TC); return {...c, composite:s, zone:zoneCloser(c,s)}; });

@@ -124,7 +124,85 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: `No users found matching "${role}".`, available_roles: roleNames });
     }
 
-    const isCloser = role.toLowerCase().includes("closer");
+    const isCloser   = role.toLowerCase().includes("closer");
+    const isTeamLead = role.toLowerCase().includes("team leader");
+
+    // ── TEAM LEADER REPORT ───────────────────────────────────────────────────
+    if (isTeamLead) {
+      function getTLName(roleName) {
+        if (roleName.includes("Soham"))   return "Soham";
+        if (roleName.includes("Tejasvi")) return "Tejasvi";
+        if (roleName.includes("Mamta"))   return "Mamta Das";
+        return null;
+      }
+
+      const tlMembers = allUsers.filter(u => {
+        const r = u.role?.name || "";
+        return getTLName(r) && (r.includes("Builder") || r.includes("Closer"));
+      });
+
+      const builderMap = {}, closerMap = {};
+      tlMembers.forEach(u => {
+        const tl = getTLName(u.role.name);
+        const isC = u.role.name.includes("Closer");
+        const base = { name: u.full_name, id: u.id, tlName: tl,
+          calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0 };
+        if (isC) closerMap[u.id]  = { ...base, presentations: 0, dealsClosed: 0, newUpfront: 0, futureUpfront: 0 };
+        else     builderMap[u.id] = { ...base, leads: 0, discoveries: 0, presBooked: 0, presCompleted: 0 };
+      });
+
+      const CF = "Owner,Call_Duration_in_seconds,Call_Start_Time,Call_Type,Call_Status";
+      const [calls, presHeld, closedDeals, upfrontDeals,
+             leadsQL, leadsDisc, dealsQL, dealsDisc, dealsPB, dealsPC] = await Promise.all([
+        fetchCallsForRange(token, startDate, endDate, CF),
+        fetchByDateRange(token, "Deals", "Owner,Team_Lead",                        startDate, endDate, "Presentation_Completed_Date"),
+        fetchByDateRange(token, "Deals", "Owner,Future_Booked_Upfront,Team_Lead",  startDate, endDate, "Deal_Closed_Date"),
+        fetchByDateRange(token, "Deals", "Owner,Upfront_Amount,Team_Lead",         startDate, endDate, "Upfront_Amount_Received_Date"),
+        fetchByDateRange(token, "Leads", "Owner,Team_Lead",                        startDate, endDate, "Qualified_Lead_Date"),
+        fetchByDateRange(token, "Leads", "Owner,Team_Lead",                        startDate, endDate, "Discovery_Completed_Date"),
+        fetchByDateRange(token, "Deals", "Owner,Builder,Team_Lead",                startDate, endDate, "Qualified_Lead_Date"),
+        fetchByDateRange(token, "Deals", "Owner,Builder,Team_Lead",                startDate, endDate, "Discovery_Completed_Date"),
+        fetchByDateRange(token, "Deals", "Owner,Builder,Team_Lead",                startDate, endDate, "Presentation_Booked_Date"),
+        fetchByDateRange(token, "Deals", "Owner,Builder,Team_Lead",                startDate, endDate, "Presentation_Completed_Date"),
+      ]);
+
+      calls.forEach(c => {
+        const id = c.Owner?.id;
+        const mins = parseFloat(c.Call_Duration_in_seconds || 0) / 60;
+        const map = builderMap[id] ? builderMap : closerMap[id] ? closerMap : null;
+        if (!map) return;
+        map[id].minutes += mins;
+        if (c.Call_Status === "Missed") { map[id].missed += 1; }
+        else if (c.Call_Type === "Inbound") { map[id].inbound += 1; }
+        else { map[id].calls += 1; map[id].outbound += 1; }
+      });
+
+      // Builder KPIs
+      leadsQL.forEach(l  => { const id=l.Owner?.id;   if(builderMap[id]) builderMap[id].leads++; });
+      leadsDisc.forEach(l => { const id=l.Owner?.id;   if(builderMap[id]) builderMap[id].discoveries++; });
+      dealsQL.forEach(d   => { const id=d.Builder?.id; if(builderMap[id]) builderMap[id].leads++; });
+      dealsDisc.forEach(d => { const id=d.Builder?.id; if(builderMap[id]) builderMap[id].discoveries++; });
+      dealsPB.forEach(d   => { const id=d.Builder?.id; if(builderMap[id]) builderMap[id].presBooked++; });
+      dealsPC.forEach(d   => { const id=d.Builder?.id; if(builderMap[id]) builderMap[id].presCompleted++; });
+
+      // Closer KPIs
+      presHeld.forEach(d    => { const id=d.Owner?.id; if(closerMap[id]) closerMap[id].presentations++; });
+      closedDeals.forEach(d => { const id=d.Owner?.id; if(closerMap[id]) closerMap[id].futureUpfront += parseFloat(d.Future_Booked_Upfront||0); });
+      upfrontDeals.forEach(d=> { const id=d.Owner?.id; if(closerMap[id]) { closerMap[id].dealsClosed++; closerMap[id].newUpfront += parseFloat(d.Upfront_Amount||0); } });
+
+      const roundCloser = c => ({ ...c, minutes:Math.round(c.minutes), newUpfront:Math.round(c.newUpfront), futureUpfront:Math.round(c.futureUpfront), revenue:Math.round(c.newUpfront+c.futureUpfront) });
+      const roundBuilder = b => ({ ...b, minutes:Math.round(b.minutes) });
+
+      const teams = {};
+      ["Soham","Tejasvi","Mamta Das"].forEach(tl => {
+        teams[tl] = {
+          builders: Object.values(builderMap).filter(b=>b.tlName===tl).map(roundBuilder),
+          closers:  Object.values(closerMap).filter(c=>c.tlName===tl).map(roundCloser),
+        };
+      });
+
+      return res.status(200).json({ teams, startDate, endDate, slot, role });
+    }
 
     // ── CLOSER REPORT ────────────────────────────────────────────────────────
     if (isCloser) {
