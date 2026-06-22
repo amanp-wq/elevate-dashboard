@@ -410,18 +410,18 @@
           </div>
         </div>
         <div class="cr-section">
-          <div class="cr-section-title">⚡ Deal Override Rules</div>
+          <div class="cr-section-title">⚡ Deal Bonus</div>
           <div class="override-row">
-            <span class="override-badge" style="color:#ffd740;border-color:#ffd740">🏆 Gold Card</span>
-            <span class="override-desc">2 or more deals closed — <strong style="color:#ffd740">automatic Gold</strong> regardless of calls, minutes or presentations</span>
+            <span class="override-badge" style="color:#ffd740;border-color:#ffd740">2+ Deals</span>
+            <span class="override-desc"><strong style="color:#ffd740">+80%</strong> added to overall score</span>
           </div>
           <div class="override-row">
-            <span class="override-badge" style="color:#00e676;border-color:#00e676">✅ Green Card</span>
-            <span class="override-desc">1 deal closed — <strong style="color:#00e676">automatic Green</strong> regardless of calls, minutes or presentations</span>
+            <span class="override-badge" style="color:#00e676;border-color:#00e676">1 Deal</span>
+            <span class="override-desc"><strong style="color:#00e676">+40%</strong> added to overall score</span>
           </div>
           <div class="override-row">
-            <span class="override-badge" style="color:#6b7499;border-color:#6b7499">Score-based</span>
-            <span class="override-desc">0 deals closed — card tier determined by weighted KPI score</span>
+            <span class="override-badge" style="color:#6b7499;border-color:#6b7499">0 Deals</span>
+            <span class="override-desc">No bonus — card tier by KPI score only</span>
           </div>
         </div>
       </div>
@@ -639,18 +639,18 @@ function scoreBuilder(b, t){
 
 function scoreCloser(c, t){
   const cap = (v,tgt) => Math.min(150, tgt>0 ? (v/tgt)*100 : 0);
-  return Math.round(
+  const kpiScore = Math.round(
     cap(c.calls,t.calls)*WEIGHTS_CLOSER.calls +
     cap(c.minutes,t.minutes)*WEIGHTS_CLOSER.minutes +
     cap(c.presentations,t.presentations)*WEIGHTS_CLOSER.presentations
   );
+  const dealBonus = c.dealsClosed >= 2 ? 80 : c.dealsClosed === 1 ? 40 : 0;
+  return Math.min(200, kpiScore + dealBonus);
 }
 
 function zoneCloser(c, score){
-  if (c.calls === 0) return "red";
-  if (c.dealsClosed >= 2) return "gold";   // 2+ deals → Gold Card override
-  if (c.dealsClosed >= 1) return "green";  // 1 deal  → Green Card override
-  return zone(score);                       // else use normal score-based zone
+  if (c.calls === 0 && c.dealsClosed === 0) return "red";
+  return zone(score);
 }
 
 const ZONE_NEON = { gold:"#ffd740", green:"#00e676", yellow:"#ffab00", orange:"#ff6d00", red:"#ff4d6a" };
