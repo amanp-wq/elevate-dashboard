@@ -421,7 +421,7 @@
           </div>
           <div class="override-row">
             <span class="override-badge" style="color:#6b7499;border-color:#6b7499">0 Deals</span>
-            <span class="override-desc">KPI score only — max <strong style="color:#6b7499">100%</strong> — no multiplier</span>
+            <span class="override-desc">KPI score only — up to <strong style="color:#6b7499">150%</strong> — Gold Card achievable through overachievement</span>
           </div>
         </div>
       </div>
@@ -638,15 +638,15 @@ function scoreBuilder(b, t){
 }
 
 function scoreCloser(c, t){
-  const cap = (v,tgt) => Math.min(100, tgt>0 ? (v/tgt)*100 : 0);
+  const cap = (v,tgt) => Math.min(150, tgt>0 ? (v/tgt)*100 : 0);
   const kpiScore =
     cap(c.calls,t.calls)*WEIGHTS_CLOSER.calls +
     cap(c.minutes,t.minutes)*WEIGHTS_CLOSER.minutes +
     cap(c.presentations,t.presentations)*WEIGHTS_CLOSER.presentations;
-  // 0 deals: ×1.0 cap 100 | 1 deal: ×1.25 floor 95 | 2+ deals: ×1.50 floor 110
+  // 0 deals: full KPI score (up to 150%) | 1 deal: ×1.25 floor 95 | 2+ deals: ×1.50 floor 110
   if (c.dealsClosed >= 2) return Math.round(Math.max(kpiScore * 1.50, 110));
   if (c.dealsClosed === 1) return Math.round(Math.max(kpiScore * 1.25, 95));
-  return Math.round(Math.min(kpiScore, 100));
+  return Math.round(kpiScore);
 }
 
 function zoneCloser(c, score){
