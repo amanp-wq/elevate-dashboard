@@ -300,7 +300,8 @@ async function saveAttendance(date, markedBy) {
       apikey: SUPABASE_ANON,
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates"
+      Prefer: "resolution=merge-duplicates",
+      "X-Upsert": "true"
     },
     body: JSON.stringify(records)
   });
