@@ -783,6 +783,22 @@ document.getElementById("btn-gen").onclick = async function(){
 
   try {
     setStatus("Fetching data from Zoho CRM...");
+    // Log activity
+    _supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return;
+      fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          email: session.user.email,
+          full_name: session.user.user_metadata?.full_name || "",
+          avatar_url: session.user.user_metadata?.avatar_url || "",
+          action: "view_report",
+          role: role,
+          date_range: `${startDate} to ${endDate}`
+        })
+      }).catch(() => {});
+    });
     const res = await fetch(`/api/report?startDate=${startDate}&endDate=${endDate}&slot=7pm&role=${encodeURIComponent(role)}`);
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || "Server error");

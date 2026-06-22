@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElevateMe — Admin Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080b14; --surface: #0f1322; --border: #1e2640;
+    --text: #e8eaf6; --muted: #6b7499;
+    --accent: #ff4d3a; --green: #00e676; --gold: #ffd740;
+  }
+  body { background: var(--bg); color: var(--text); font-family: "Nunito Sans", sans-serif; min-height: 100vh; }
+  header {
+    background: #000; padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { font-size: 20px; font-weight: 800; }
+  .logo span { color: var(--accent); }
+  .header-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
+  .header-right img { width: 28px; height: 28px; border-radius: 50%; }
+  .header-right strong { color: var(--text); }
+  #btn-signout {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 8px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+  }
+  #btn-signout:hover { border-color: var(--accent); color: var(--accent); }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
+  h1 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+  .page-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+
+  /* Stats row */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px 24px;
+  }
+  .stat-val { font-size: 36px; font-weight: 800; }
+  .stat-lbl { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+  .stat-active .stat-val { color: var(--green); text-shadow: 0 0 12px var(--green); }
+  .stat-total .stat-val { color: var(--gold); }
+
+  /* Active users */
+  .section-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+  .active-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 32px; }
+  .active-chip {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid #00e67633; border-radius: 40px;
+    padding: 8px 16px 8px 8px;
+  }
+  .active-chip img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+  .active-chip-init {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(0,230,118,0.1); display: flex; align-items: center;
+    justify-content: center; font-size: 12px; font-weight: 800; color: var(--green);
+  }
+  .active-chip-name { font-size: 13px; font-weight: 700; }
+  .active-chip-time { font-size: 11px; color: var(--muted); }
+  .online-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); flex-shrink: 0; }
+
+  /* Activity table */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .user-cell { display: flex; align-items: center; gap: 10px; }
+  .user-cell img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+  .user-cell-init {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(255,255,255,0.06); display: flex; align-items: center;
+    justify-content: center; font-size: 10px; font-weight: 800; color: var(--muted);
+  }
+  .badge {
+    display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 20px; border: 1px solid; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge-builder { color: #40c4ff; border-color: #40c4ff33; background: #40c4ff11; }
+  .badge-closer  { color: #ff6b9d; border-color: #ff6b9d33; background: #ff6b9d11; }
+  .badge-tl      { color: var(--gold); border-color: #ffd74033; background: #ffd74011; }
+  .time-cell { color: var(--muted); font-size: 12px; }
+
+  /* Auth overlay */
+  #auth-overlay {
+    position: fixed; inset: 0; z-index: 9999; background: #080b14;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .auth-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 48px 40px; text-align: center; max-width: 380px; width: 90%;
+  }
+  .auth-logo { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+  .auth-logo span { color: var(--accent); }
+  .auth-sub { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .auth-admin-note { font-size: 12px; color: var(--gold); margin-bottom: 28px; }
+  .auth-google-btn {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    width: 100%; padding: 14px; border-radius: 12px;
+    background: #fff; color: #1a1a1a; font-size: 15px; font-weight: 700;
+    border: none; cursor: pointer;
+  }
+  .auth-google-btn img { width: 20px; height: 20px; }
+  .auth-error { margin-top: 14px; font-size: 13px; color: #ff4d6a; min-height: 18px; }
+
+  #access-denied {
+    display: none; position: fixed; inset: 0; z-index: 9999; background: #080b14;
+    align-items: center; justify-content: center; flex-direction: column; gap: 12px;
+  }
+  #access-denied h2 { color: var(--accent); font-size: 22px; }
+  #access-denied p { color: var(--muted); font-size: 14px; }
+  #access-denied button {
+    margin-top: 16px; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); border-radius: 10px; padding: 10px 24px; cursor: pointer; font-size: 14px;
+  }
+
+  .refresh-btn {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 6px 14px; font-size: 12px; cursor: pointer; margin-left: auto; display: block; margin-bottom: 12px;
+  }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .empty { text-align: center; color: var(--muted); padding: 40px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">Elevate<span>Me</span></div>
+    <div class="auth-sub">Admin Panel</div>
+    <div class="auth-admin-note">⚡ Restricted to admin accounts only</div>
+    <button class="auth-google-btn" id="btn-google-signin">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+      Sign in with Google
+    </button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<div id="access-denied">
+  <h2>Access Denied</h2>
+  <p>This panel is restricted to admin accounts only.</p>
+  <button onclick="supabaseClient.auth.signOut().then(()=>location.reload())">Sign out</button>
+</div>
+
+<header>
+  <div class="logo">Elevate<span>Me</span> <span style="font-size:13px;color:var(--muted);font-weight:600">Admin Panel</span></div>
+  <div class="header-right">
+    <img id="user-avatar" src="" style="display:none">
+    <strong id="user-name"></strong>
+    <button id="btn-signout">Sign out</button>
+  </div>
+</header>
+
+<div class="container" id="main-content" style="display:none">
+  <h1>User Activity</h1>
+  <div class="page-sub" id="last-updated">Loading...</div>
+
+  <div class="stats-row">
+    <div class="stat-card stat-active">
+      <div class="stat-val" id="stat-active">—</div>
+      <div class="stat-lbl">Active now (last 30 min)</div>
+    </div>
+    <div class="stat-card stat-total">
+      <div class="stat-val" id="stat-total">—</div>
+      <div class="stat-lbl">Total unique users</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="stat-reports">—</div>
+      <div class="stat-lbl">Reports generated (all time)</div>
+    </div>
+  </div>
+
+  <div class="section-title">Active Users</div>
+  <div class="active-grid" id="active-grid"></div>
+
+  <div style="display:flex;align-items:center;margin-bottom:12px">
+    <div class="section-title" style="margin-bottom:0">Activity Log</div>
+    <button class="refresh-btn" id="btn-refresh">↻ Refresh</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Email</th>
+          <th>Report Type</th>
+          <th>Date Range</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody id="activity-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL  = "https://ugghpsupgqycsnvssseo.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnZ2hwc3VwZ3F5Y3NudnNzc2VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMzc1NjAsImV4cCI6MjA5NzcxMzU2MH0.8DY8CP-F3o2loh2Ierkjm1iVyA9qOXPwpzHFIqY5vZI";
+const ADMIN_EMAILS  = ["aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro"];
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+let currentSession = null;
+
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h/24)}d ago`;
+}
+
+function fmtTime(dateStr) {
+  return new Date(dateStr).toLocaleString("en-IN", {
+    day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true
+  });
+}
+
+function badgeClass(role) {
+  if (!role) return "";
+  if (role.toLowerCase().includes("closer")) return "badge badge-closer";
+  if (role.toLowerCase().includes("team")) return "badge badge-tl";
+  return "badge badge-builder";
+}
+
+function avatarHtml(row, size = 28) {
+  const init = (row.full_name || row.email || "?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  if (row.avatar_url) return `<img src="${row.avatar_url}" width="${size}" height="${size}" style="border-radius:50%;object-fit:cover" onerror="this.style.display='none'">`;
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.4)}px;font-weight:800;color:var(--muted)">${init}</div>`;
+}
+
+async function loadActivity() {
+  if (!currentSession) return;
+  const token = currentSession.access_token;
+  const r = await fetch("/api/admin", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!r.ok) return;
+  const { activity, active_users } = await r.json();
+
+  // Stats
+  const uniqueUsers = [...new Set(activity.map(a => a.email))];
+  document.getElementById("stat-active").textContent  = active_users.length;
+  document.getElementById("stat-total").textContent   = uniqueUsers.length;
+  document.getElementById("stat-reports").textContent = activity.length;
+  document.getElementById("last-updated").textContent = `Last updated ${new Date().toLocaleTimeString("en-IN", {hour:"numeric",minute:"2-digit",hour12:true})}`;
+
+  // Active users chips
+  const grid = document.getElementById("active-grid");
+  if (active_users.length === 0) {
+    grid.innerHTML = `<div style="color:var(--muted);font-size:13px">No active users in the last 30 minutes.</div>`;
+  } else {
+    grid.innerHTML = active_users.map(u => `
+      <div class="active-chip">
+        ${avatarHtml(u, 32)}
+        <div>
+          <div class="active-chip-name">${u.full_name || u.email}</div>
+          <div class="active-chip-time">${timeAgo(u.created_at)}</div>
+        </div>
+        <div class="online-dot"></div>
+      </div>
+    `).join("");
+  }
+
+  // Activity table
+  const tbody = document.getElementById("activity-tbody");
+  if (activity.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">No activity recorded yet.</td></tr>`;
+  } else {
+    tbody.innerHTML = activity.map(a => `
+      <tr>
+        <td><div class="user-cell">${avatarHtml(a, 28)}<span>${a.full_name || "—"}</span></div></td>
+        <td style="color:var(--muted)">${a.email}</td>
+        <td>${a.role ? `<span class="${badgeClass(a.role)}">${a.role}</span>` : "—"}</td>
+        <td style="font-size:12px;color:var(--muted)">${a.date_range || "—"}</td>
+        <td class="time-cell">${fmtTime(a.created_at)}</td>
+      </tr>
+    `).join("");
+  }
+}
+
+function showApp(user) {
+  document.getElementById("auth-overlay").style.display = "none";
+  document.getElementById("access-denied").style.display = "none";
+  document.getElementById("main-content").style.display = "block";
+  document.getElementById("user-name").textContent = user.user_metadata?.full_name || user.email;
+  const av = document.getElementById("user-avatar");
+  if (user.user_metadata?.avatar_url) { av.src = user.user_metadata.avatar_url; av.style.display = ""; }
+  loadActivity();
+}
+
+supabaseClient.auth.getSession().then(({ data: { session } }) => {
+  if (session?.user) {
+    currentSession = session;
+    if (ADMIN_EMAILS.includes(session.user.email)) {
+      showApp(session.user);
+    } else {
+      document.getElementById("auth-overlay").style.display = "none";
+      document.getElementById("access-denied").style.display = "flex";
+    }
+  }
+});
+
+supabaseClient.auth.onAuthStateChange((_e, session) => {
+  currentSession = session;
+  if (session?.user) {
+    if (ADMIN_EMAILS.includes(session.user.email)) {
+      showApp(session.user);
+    } else {
+      document.getElementById("auth-overlay").style.display = "none";
+      document.getElementById("access-denied").style.display = "flex";
+    }
+  }
+});
+
+document.getElementById("btn-google-signin").onclick = async () => {
+  document.getElementById("auth-error").textContent = "";
+  const { error } = await supabaseClient.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: "https://elevate-dashboard-iota.vercel.app/admin.html" }
+  });
+  if (error) document.getElementById("auth-error").textContent = error.message;
+};
+
+document.getElementById("btn-signout").onclick = async () => {
+  await supabaseClient.auth.signOut();
+  location.reload();
+};
+
+document.getElementById("btn-refresh").onclick = () => loadActivity();
+
+// Auto-refresh every 60 seconds
+setInterval(() => loadActivity(), 60000);
+</script>
+</body>
+</html>
