@@ -8,7 +8,6 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  // Verify admin email from Authorization header
   const token = (req.headers.authorization || "").replace("Bearer ", "");
   if (!token) return res.status(401).json({ error: "Unauthorized" });
 
@@ -17,12 +16,10 @@ export default async function handler(req, res) {
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` }
   });
   const user = await userRes.json();
-  if (!user?.email || !ADMIN_EMAILS.includes(user.email)) {
-    return res.status(403).json({ error: "Access denied — admin only" });
-  }
+  if (!user?.email) return res.status(401).json({ error: "Unauthorized" });
 
   if (req.method === "POST") {
-    // Log activity
+    // Any authenticated @elevateme.pro user can log activity
     const { email, full_name, avatar_url, action, role, date_range } = req.body;
     await fetch(`${SUPABASE_URL}/rest/v1/user_activity`, {
       method: "POST",
@@ -33,6 +30,11 @@ export default async function handler(req, res) {
       body: JSON.stringify({ email, full_name, avatar_url, action, role, date_range })
     });
     return res.status(200).json({ ok: true });
+  }
+
+  // GET — admin only
+  if (!ADMIN_EMAILS.includes(user.email)) {
+    return res.status(403).json({ error: "Access denied — admin only" });
   }
 
   // GET — return activity log
