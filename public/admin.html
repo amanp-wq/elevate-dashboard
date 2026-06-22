@@ -28,6 +28,14 @@
     border-radius: 8px; padding: 4px 12px; font-size: 12px; cursor: pointer;
   }
   #btn-signout:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-links { display: flex; gap: 8px; margin-right: 16px; }
+  .nav-btn {
+    padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
+    border: 1px solid var(--border); color: var(--muted); text-decoration: none;
+    transition: all 0.2s; background: none;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
   .container { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
   h1 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
@@ -151,10 +159,13 @@
 
 <header>
   <div class="logo">Elevate<span>Me</span> <span style="font-size:13px;color:var(--muted);font-weight:600">Admin Panel</span></div>
-  <div class="header-right">
-    <img id="user-avatar" src="" style="display:none">
-    <strong id="user-name"></strong>
-    <button id="btn-signout">Sign out</button>
+  <div style="display:flex;align-items:center">
+    <div class="nav-links" id="nav-links" style="display:none"></div>
+    <div class="header-right">
+      <img id="user-avatar" src="" style="display:none">
+      <strong id="user-name"></strong>
+      <button id="btn-signout">Sign out</button>
+    </div>
   </div>
 </header>
 
@@ -288,6 +299,20 @@ async function loadActivity() {
   }
 }
 
+function buildNav(email) {
+  const currentPage = window.location.pathname;
+  const pages = [
+    { label: "Dashboard", href: "/" },
+    { label: "Attendance", href: "/attendance.html" },
+    { label: "Admin Panel", href: "/admin.html" }
+  ];
+  const navEl = document.getElementById("nav-links");
+  navEl.innerHTML = pages.map(p =>
+    `<a href="${p.href}" class="nav-btn${currentPage === p.href || (p.href==='/' && currentPage==='/index.html') ? ' active' : ''}">${p.label}</a>`
+  ).join("");
+  navEl.style.display = "flex";
+}
+
 function showApp(user) {
   document.getElementById("auth-overlay").style.display = "none";
   document.getElementById("access-denied").style.display = "none";
@@ -295,6 +320,7 @@ function showApp(user) {
   document.getElementById("user-name").textContent = user.user_metadata?.full_name || user.email;
   const av = document.getElementById("user-avatar");
   if (user.user_metadata?.avatar_url) { av.src = user.user_metadata.avatar_url; av.style.display = ""; }
+  buildNav(user.email);
   loadActivity();
 }
 

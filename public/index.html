@@ -299,6 +299,16 @@
   .auth-error { margin-top: 16px; font-size: 13px; color: #ff4d6a; min-height: 20px; }
   .auth-domain-note { margin-top: 24px; font-size: 11px; color: #3a3f5c; }
 
+  /* ── Nav links ────────────────────────────────────────────────────────────── */
+  .nav-links { display: flex; gap: 8px; margin-right: 16px; }
+  .nav-btn {
+    padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
+    border: 1px solid var(--border); color: var(--muted); text-decoration: none;
+    transition: all 0.2s; background: none;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
   /* ── User bar ─────────────────────────────────────────────────────────────── */
   #user-bar {
     display: none; align-items: center; gap: 10px;
@@ -328,7 +338,7 @@
       Sign in with Google
     </button>
     <div class="auth-error" id="auth-error"></div>
-    <div class="auth-domain-note">Access restricted to @elevateme.pro accounts</div>
+    <div class="auth-domain-note">Access restricted to approved accounts</div>
   </div>
 </div>
 <div class="container">
@@ -337,6 +347,7 @@
       <img src="/e92c4bab-2eb7-4e8f-bc76-e00992442f1f.png" alt="ElevateMe" class="logo-img">
       <span class="logo-sub">Performance Dashboard</span>
     </div>
+    <div class="nav-links" id="nav-links" style="display:none"></div>
     <div id="user-bar">
       <img id="user-avatar" src="" alt="">
       <span id="user-name"></span>
@@ -753,6 +764,24 @@ setPreset("today", document.querySelector(".preset-btn.active"));
 function setStatus(msg){ const el=document.getElementById("status"); el.className="status-bar"+(msg?" show":""); document.getElementById("status-text").textContent=msg||""; }
 function setError(msg){ const el=document.getElementById("error-box"); el.className="error-box"+(msg?" show":""); el.textContent=msg||""; }
 
+// Fetch leave data for date range from Supabase attendance table
+async function fetchLeaveMap(startDate, endDate) {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/attendance?date=gte.${startDate}&date=lte.${endDate}&status=eq.leave&select=person_name,date`;
+    const r = await fetch(url, {
+      headers: {
+        apikey: SUPABASE_ANON,
+        Authorization: `Bearer ${SUPABASE_ANON}`
+      }
+    });
+    if (!r.ok) return {};
+    const rows = await r.json();
+    const map = {};
+    rows.forEach(row => { map[row.person_name] = (map[row.person_name] || 0) + 1; });
+    return map;
+  } catch { return {}; }
+}
+
 document.getElementById("btn-gen").onclick = async function(){
   const startDate = document.getElementById("inp-start").value;
   const endDate   = document.getElementById("inp-end").value;
@@ -782,6 +811,7 @@ document.getElementById("btn-gen").onclick = async function(){
         })
       }).catch(() => {});
     });
+    const leaveMap = await fetchLeaveMap(startDate, endDate);
     const res = await fetch(`/api/report?startDate=${startDate}&endDate=${endDate}&slot=7pm&role=${encodeURIComponent(role)}`);
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || "Server error");
@@ -823,6 +853,14 @@ document.getElementById("btn-gen").onclick = async function(){
     const T  = Object.fromEntries(Object.entries(TARGETS).map(([k,v])       => [k, Math.max(1, Math.round(v * effectiveDays))]));
     const TC = Object.fromEntries(Object.entries(TARGETS_CLOSER).map(([k,v]) => [k, Math.max(1, Math.round(v * effectiveDays))]));
 
+    // Per-person targets accounting for leave days
+    function personTargets(name, baseT) {
+      const leaveDays = leaveMap[name] || 0;
+      const adjDays = Math.max(0.1, effectiveDays - leaveDays);
+      const ratio = adjDays / effectiveDays;
+      return Object.fromEntries(Object.entries(baseT).map(([k,v]) => [k, Math.max(1, Math.round(v * ratio))]));
+    }
+
     // Live report timestamp in EST
     const nowEST = new Date().toLocaleString("en-US", { timeZone:"America/New_York", hour:"numeric", minute:"2-digit", hour12:true });
     const todayEST = new Date().toLocaleDateString("en-CA", { timeZone:"America/New_York" });
@@ -863,7 +901,7 @@ document.getElementById("btn-gen").onclick = async function(){
     document.getElementById("breakdown-toggle").style.display = "";
 
     if (isCloser) {
-      const closers = data.closers.map(c => { const s=scoreCloser(c,TC); return {...c, composite:s, zone:zoneCloser(c,s)}; });
+      const closers = data.closers.map(c => { const s=scoreCloser(c,personTargets(c.name,TC)); return {...c, composite:s, zone:zoneCloser(c,s)}; });
       closers.sort((a,b) => b.composite - a.composite);
       document.getElementById("meta-right").textContent = `${closers.length} Closer${closers.length!==1?"s":""}`;
 
@@ -881,7 +919,7 @@ document.getElementById("btn-gen").onclick = async function(){
       ].map(([k,lbl,tg]) => `<div class="total-item"><div class="total-val">${k==="newUpfront"||k==="futureUpfront"||k==="revenue"?"$"+tot[k].toLocaleString():tot[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${tot.inbound} in</span> <span class="bd-out">↗${tot.outbound} out</span> <span class="bd-miss">✕${tot.missed} miss</span></div>`:""}</div>`).join("");
 
       document.getElementById("tiles").innerHTML = closers.map(c => {
-        const onLeave = c.calls === 0;
+        const onLeave = (leaveMap[c.name] || 0) >= effectiveDays;
         return `
         <div class="tile ${onLeave ? "zone-leave" : "zone-"+c.zone}">
           <div class="tile-header">
@@ -920,7 +958,7 @@ document.getElementById("btn-gen").onclick = async function(){
       }).join("");
 
     } else {
-      const builders = data.builders.map(b => { const s=scoreBuilder(b,T); return {...b, composite:s, zone:zone(s)}; });
+      const builders = data.builders.map(b => { const s=scoreBuilder(b,personTargets(b.name,T)); return {...b, composite:s, zone:zone(s)}; });
       builders.sort((a,b) => b.composite - a.composite);
       document.getElementById("meta-right").textContent = `${builders.length} Builder${builders.length!==1?"s":""}`;
 
@@ -937,7 +975,7 @@ document.getElementById("btn-gen").onclick = async function(){
       ].map(([k,lbl,tg]) => `<div class="total-item"><div class="total-val">${totals[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${totals.inbound} in</span> <span class="bd-out">↗${totals.outbound} out</span> <span class="bd-miss">✕${totals.missed} miss</span></div>`:""}</div>`).join("");
 
       document.getElementById("tiles").innerHTML = builders.map(b => {
-        const onLeave = b.calls === 0;
+        const onLeave = (leaveMap[b.name] || 0) >= effectiveDays;
         return `
         <div class="tile ${onLeave ? "zone-leave" : "zone-"+b.zone}">
           <div class="tile-header">
@@ -983,7 +1021,7 @@ document.getElementById("btn-gen").onclick = async function(){
         { label:"Deals Closed",    field:"dealsClosed",    target:"—",              weight:0, override:true },
       ];
       renderBreakdownTable(
-        data.closers.map(c=>{ const s=scoreCloser(c,TC); return {...c, composite:s, zone:zoneCloser(c,s)}; }).sort((a,b)=>b.composite-a.composite),
+        data.closers.map(c=>{ const s=scoreCloser(c,personTargets(c.name,TC)); return {...c, composite:s, zone:zoneCloser(c,s)}; }).sort((a,b)=>b.composite-a.composite),
         closerKpis, TC, WEIGHTS_CLOSER, true
       );
     } else {
@@ -996,7 +1034,7 @@ document.getElementById("btn-gen").onclick = async function(){
         { label:"Pres. Completed",    field:"presCompleted",   target:T.presCompleted,  weight:WEIGHTS.presCompleted },
       ];
       renderBreakdownTable(
-        data.builders.map(b=>({...b, composite:scoreBuilder(b,T), zone:zone(scoreBuilder(b,T))})).sort((a,b)=>b.composite-a.composite),
+        data.builders.map(b=>({...b, composite:scoreBuilder(b,personTargets(b.name,T)), zone:zone(scoreBuilder(b,personTargets(b.name,T)))})).sort((a,b)=>b.composite-a.composite),
         builderKpis, T, WEIGHTS, false
       );
     }
@@ -1016,11 +1054,32 @@ const SUPABASE_URL  = "https://ugghpsupgqycsnvssseo.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnZ2hwc3VwZ3F5Y3NudnNzc2VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMzc1NjAsImV4cCI6MjA5NzcxMzU2MH0.8DY8CP-F3o2loh2Ierkjm1iVyA9qOXPwpzHFIqY5vZI";
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
+const ALLOWED_EMAILS = [
+  "aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro",
+  "tejasvi.p@elevateme.pro", "soham.b@elevateme.pro", "mamta.d@elevateme.pro"
+];
+const ADMIN_EMAILS = ["aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro"];
+
 const authOverlay  = document.getElementById("auth-overlay");
 const authError    = document.getElementById("auth-error");
 const userBar      = document.getElementById("user-bar");
 const userAvatar   = document.getElementById("user-avatar");
 const userName     = document.getElementById("user-name");
+
+function buildNav(email) {
+  const isAdmin = ADMIN_EMAILS.includes(email);
+  const currentPage = window.location.pathname;
+  const pages = [
+    { label: "Dashboard", href: "/" },
+    { label: "Attendance", href: "/attendance.html" },
+    ...(isAdmin ? [{ label: "Admin Panel", href: "/admin.html" }] : [])
+  ];
+  const navEl = document.getElementById("nav-links");
+  navEl.innerHTML = pages.map(p =>
+    `<a href="${p.href}" class="nav-btn${currentPage === p.href || (p.href==='/' && (currentPage==='/index.html' || currentPage==='/')) ? ' active' : ''}">${p.label}</a>`
+  ).join("");
+  navEl.style.display = "flex";
+}
 
 function showApp(user) {
   authOverlay.style.display = "none";
@@ -1028,11 +1087,13 @@ function showApp(user) {
   userName.textContent = user.user_metadata?.full_name || user.email;
   userAvatar.src = user.user_metadata?.avatar_url || "";
   userAvatar.style.display = user.user_metadata?.avatar_url ? "" : "none";
+  buildNav(user.email);
 }
 
 function showAuth(errorMsg) {
   authOverlay.style.display = "flex";
   userBar.style.display = "none";
+  document.getElementById("nav-links").style.display = "none";
   if (errorMsg) authError.textContent = errorMsg;
 }
 
@@ -1040,11 +1101,11 @@ function showAuth(errorMsg) {
 _supabase.auth.getSession().then(({ data: { session } }) => {
   if (session?.user) {
     const email = session.user.email || "";
-    if (email.endsWith("@elevateme.pro")) {
+    if (ALLOWED_EMAILS.includes(email)) {
       showApp(session.user);
     } else {
       _supabase.auth.signOut();
-      showAuth("Access denied. Only @elevateme.pro accounts are allowed.");
+      showAuth("Access denied. Your account is not authorized.");
     }
   } else {
     showAuth();
@@ -1055,11 +1116,11 @@ _supabase.auth.getSession().then(({ data: { session } }) => {
 _supabase.auth.onAuthStateChange((_event, session) => {
   if (session?.user) {
     const email = session.user.email || "";
-    if (email.endsWith("@elevateme.pro")) {
+    if (ALLOWED_EMAILS.includes(email)) {
       showApp(session.user);
     } else {
       _supabase.auth.signOut();
-      showAuth("Access denied. Only @elevateme.pro accounts are allowed.");
+      showAuth("Access denied. Your account is not authorized.");
     }
   } else {
     showAuth();
