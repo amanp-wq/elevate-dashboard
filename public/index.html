@@ -664,13 +664,6 @@ function renderTLView(teams, T, TC) {
   document.getElementById("tiles").style.display = "none";
   document.getElementById("tl-grid").style.display = "grid";
 
-  const REWARD_TIERS = [
-    { label:"110%+",    reward:"₹5,000", min:110 },
-    { label:"95–109%",  reward:"₹3,000", min:95  },
-    { label:"85–94%",   reward:"₹2,000", min:85  },
-    { label:"75–84%",   reward:"₹1,000", min:75  },
-    { label:"Below 75%",reward:"₹0",     min:0   },
-  ];
 
   const html = ["Soham","Tejasvi","Mamta Das"].map(tlName => {
     const team = teams[tlName] || { builders:[], closers:[] };
@@ -727,14 +720,6 @@ function renderTLView(teams, T, TC) {
       </div>`;
     }).join("");
 
-    const rewardRows = REWARD_TIERS.map(t => {
-      const active = healthScore >= t.min && (t.min === 110 ? true : healthScore < REWARD_TIERS[REWARD_TIERS.indexOf(t)-1]?.min || 999);
-      const isActive = reward.label === t.reward;
-      return `<div class="tl-reward-row ${isActive?"active-tier":""}">
-        <span style="color:${isActive?neon:"var(--muted)"}">${t.label}</span>
-        <span style="color:${isActive?neon:"var(--muted)"};font-weight:${isActive?800:400}">${t.reward}</span>
-      </div>`;
-    }).join("");
 
     return `<div class="tl-card">
       <div class="tl-card-header">
@@ -756,8 +741,6 @@ function renderTLView(teams, T, TC) {
       </div>
       <div class="tl-section-label">Members</div>
       <div class="tl-members">${memberRows}</div>
-      <div class="tl-section-label">Reward Structure</div>
-      <div class="tl-reward-table">${rewardRows}</div>
     </div>`;
   }).join("");
 
