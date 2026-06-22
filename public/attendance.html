@@ -191,19 +191,27 @@ const ALLOWED_EMAILS = [
 const ADMIN_EMAILS = ["aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro"];
 
 const TEAM_MEMBERS = [
-  { name: "Aryan Sharma",       team: "Soham",     role: "Builder" },
-  { name: "Yashraj Modasara",   team: "Soham",     role: "Builder" },
-  { name: "Shivam Rathi",       team: "Soham",     role: "Builder" },
-  { name: "Lekhraj Prajapati",  team: "Soham",     role: "Builder" },
-  { name: "Maharshi Patel",     team: "Soham",     role: "Builder" },
-  { name: "Nupur Vyas",         team: "Soham",     role: "Closer"  },
-  { name: "Avni Gajjar",        team: "Soham",     role: "Closer"  },
-  { name: "Dhruvil Chauhan",    team: "Tejasvi",   role: "Builder" },
-  { name: "Nishant Sharma",     team: "Tejasvi",   role: "Builder" },
-  { name: "Mamta Das",          team: "Tejasvi",   role: "Closer"  },
-  { name: "Aakash Patel",       team: "Mamta Das", role: "Builder" },
-  { name: "Rahul Verma",        team: "Mamta Das", role: "Builder" },
-  { name: "Priya Singh",        team: "Mamta Das", role: "Closer"  },
+  // Team Soham
+  { name: "Yashraj Modasara",  team: "Soham",     role: "Builder" },
+  { name: "Aryan Sharma",      team: "Soham",     role: "Builder" },
+  { name: "Dhruvil Chauhan",   team: "Soham",     role: "Builder" },
+  { name: "Avni Gajjar",       team: "Soham",     role: "Builder" },
+  { name: "Maharshi Patel",    team: "Soham",     role: "Builder" },
+  { name: "Harsh Bhojak",      team: "Soham",     role: "Closer"  },
+  { name: "Nikunj Patel",      team: "Soham",     role: "Closer"  },
+  // Team Tejasvi
+  { name: "Lekhraj Prajapati", team: "Tejasvi",   role: "Builder" },
+  { name: "Nupur Vyas",        team: "Tejasvi",   role: "Builder" },
+  { name: "Yash Mishra",       team: "Tejasvi",   role: "Closer"  },
+  { name: "Kartik Deshawar",   team: "Tejasvi",   role: "Closer"  },
+  { name: "Abhijeet Das",      team: "Tejasvi",   role: "Closer"  },
+  // Team Mamta Das
+  { name: "Shivam Rathi",      team: "Mamta Das", role: "Builder" },
+  { name: "Soumya Singh",      team: "Mamta Das", role: "Builder" },
+  { name: "Nishant Sharma",    team: "Mamta Das", role: "Builder" },
+  { name: "Pranali Mishra",    team: "Mamta Das", role: "Closer"  },
+  { name: "Meet Patel",        team: "Mamta Das", role: "Closer"  },
+  { name: "Vidhi Patel",       team: "Mamta Das", role: "Closer"  },
 ];
 
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
