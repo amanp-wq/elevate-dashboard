@@ -410,18 +410,18 @@
           </div>
         </div>
         <div class="cr-section">
-          <div class="cr-section-title">⚡ Deal Bonus</div>
+          <div class="cr-section-title">⚡ Deal Floor Rules</div>
           <div class="override-row">
             <span class="override-badge" style="color:#ffd740;border-color:#ffd740">2+ Deals</span>
-            <span class="override-desc"><strong style="color:#ffd740">+80%</strong> added to overall score</span>
+            <span class="override-desc">Score guaranteed <strong style="color:#ffd740">≥ 110%</strong> — higher KPI score kept if better</span>
           </div>
           <div class="override-row">
             <span class="override-badge" style="color:#00e676;border-color:#00e676">1 Deal</span>
-            <span class="override-desc"><strong style="color:#00e676">+40%</strong> added to overall score</span>
+            <span class="override-desc">Score guaranteed <strong style="color:#00e676">≥ 95%</strong> — higher KPI score kept if better</span>
           </div>
           <div class="override-row">
             <span class="override-badge" style="color:#6b7499;border-color:#6b7499">0 Deals</span>
-            <span class="override-desc">No bonus — card tier by KPI score only</span>
+            <span class="override-desc">No floor — card tier by KPI score only</span>
           </div>
         </div>
       </div>
@@ -644,8 +644,10 @@ function scoreCloser(c, t){
     cap(c.minutes,t.minutes)*WEIGHTS_CLOSER.minutes +
     cap(c.presentations,t.presentations)*WEIGHTS_CLOSER.presentations
   );
-  const dealBonus = c.dealsClosed >= 2 ? 80 : c.dealsClosed === 1 ? 40 : 0;
-  return Math.min(200, kpiScore + dealBonus);
+  // Deal floor: 2+ deals → guaranteed ≥110%, 1 deal → guaranteed ≥95%
+  if (c.dealsClosed >= 2) return Math.max(kpiScore, 110);
+  if (c.dealsClosed === 1) return Math.max(kpiScore, 95);
+  return kpiScore;
 }
 
 function zoneCloser(c, score){
