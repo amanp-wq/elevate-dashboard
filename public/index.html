@@ -734,7 +734,7 @@ document.getElementById("btn-gen").onclick = async function(){
 
     // ── Time-based target proration ───────────────────────────────────────────
     // Work window: 9:00 AM – 8:00 PM EST = 11 hours
-    const WORK_START_H = 9, WORK_END_H = 20, WORK_HOURS = 11;
+    const WORK_START_H = 10.5, WORK_END_H = 20.5, WORK_HOURS = 10;
 
     function getDayFraction(dateStr) {
       const todayEST = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
@@ -952,14 +952,14 @@ document.getElementById("btn-gen").onclick = async function(){
   }
 };
 
-// ── Auto-refresh every 3 minutes during working hours (9AM–8PM EST) ──────────
+// ── Auto-refresh every 3 minutes during working hours (10:30AM–8:30PM EST) ───
 const AUTO_REFRESH_MS = 3 * 60 * 1000;
 let autoRefreshTimer = null;
 
 function isWithinWorkHours() {
   const nowEST = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
   const h = nowEST.getHours() + nowEST.getMinutes() / 60;
-  return h >= 9 && h < 20;
+  return h >= 10.5 && h < 20.5;
 }
 
 function scheduleAutoRefresh() {
