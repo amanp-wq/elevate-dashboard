@@ -1036,21 +1036,20 @@ document.getElementById("btn-gen").onclick = async function(){
   }
 };
 
-// Restore last report if returning from another tab
-(function restoreLastReport() {
+// Restore last report if returning from another tab — called after auth succeeds
+function tryRestoreReport() {
   const saved = sessionStorage.getItem("lastReport");
   if (!saved) return;
   try {
-    const { startDate, endDate, role, data, leaveMap } = JSON.parse(saved);
-    // Restore date inputs and role
+    const { startDate, endDate, role } = JSON.parse(saved);
+    // Restore preset buttons + inputs
     document.getElementById("inp-start").value = startDate;
     document.getElementById("inp-end").value   = endDate;
     document.getElementById("inp-role").value  = role;
-    // Simulate a click to re-render using cached data
-    // We re-trigger the onclick which will hit the 3-min Supabase cache anyway
+    // Click generate — hits Supabase cache (no Zoho call)
     document.getElementById("btn-gen").click();
   } catch(_) { sessionStorage.removeItem("lastReport"); }
-})();
+}
 
 // ── Supabase Auth ─────────────────────────────────────────────────────────────
 const SUPABASE_URL  = "https://ugghpsupgqycsnvssseo.supabase.co";
@@ -1084,6 +1083,7 @@ function buildNav(email) {
   navEl.style.display = "flex";
 }
 
+let _appShown = false;
 function showApp(user) {
   authOverlay.style.display = "none";
   userBar.style.display = "flex";
@@ -1091,6 +1091,7 @@ function showApp(user) {
   userAvatar.src = user.user_metadata?.avatar_url || "";
   userAvatar.style.display = user.user_metadata?.avatar_url ? "" : "none";
   buildNav(user.email);
+  if (!_appShown) { _appShown = true; tryRestoreReport(); }
 }
 
 function showAuth(errorMsg) {
