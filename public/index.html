@@ -410,18 +410,18 @@
           </div>
         </div>
         <div class="cr-section">
-          <div class="cr-section-title">⚡ Deal Floor Rules</div>
+          <div class="cr-section-title">⚡ Deal Multiplier</div>
           <div class="override-row">
             <span class="override-badge" style="color:#ffd740;border-color:#ffd740">2+ Deals</span>
-            <span class="override-desc">Score guaranteed <strong style="color:#ffd740">≥ 110%</strong> — higher KPI score kept if better</span>
+            <span class="override-desc">KPI × <strong style="color:#ffd740">1.50</strong> — min <strong style="color:#ffd740">110%</strong> → guaranteed <strong style="color:#ffd740">Gold Card</strong> — max 150%</span>
           </div>
           <div class="override-row">
             <span class="override-badge" style="color:#00e676;border-color:#00e676">1 Deal</span>
-            <span class="override-desc">Score guaranteed <strong style="color:#00e676">≥ 95%</strong> — higher KPI score kept if better</span>
+            <span class="override-desc">KPI × <strong style="color:#00e676">1.25</strong> — min <strong style="color:#00e676">95%</strong> → guaranteed <strong style="color:#00e676">Green Card</strong> — max 125%</span>
           </div>
           <div class="override-row">
             <span class="override-badge" style="color:#6b7499;border-color:#6b7499">0 Deals</span>
-            <span class="override-desc">No floor — card tier by KPI score only</span>
+            <span class="override-desc">KPI score only — max <strong style="color:#6b7499">100%</strong> — no multiplier</span>
           </div>
         </div>
       </div>
@@ -638,16 +638,15 @@ function scoreBuilder(b, t){
 }
 
 function scoreCloser(c, t){
-  const cap = (v,tgt) => Math.min(150, tgt>0 ? (v/tgt)*100 : 0);
-  const kpiScore = Math.round(
+  const cap = (v,tgt) => Math.min(100, tgt>0 ? (v/tgt)*100 : 0);
+  const kpiScore =
     cap(c.calls,t.calls)*WEIGHTS_CLOSER.calls +
     cap(c.minutes,t.minutes)*WEIGHTS_CLOSER.minutes +
-    cap(c.presentations,t.presentations)*WEIGHTS_CLOSER.presentations
-  );
-  // Deal floor: 2+ deals → guaranteed ≥110%, 1 deal → guaranteed ≥95%
-  if (c.dealsClosed >= 2) return Math.max(kpiScore, 110);
-  if (c.dealsClosed === 1) return Math.max(kpiScore, 95);
-  return kpiScore;
+    cap(c.presentations,t.presentations)*WEIGHTS_CLOSER.presentations;
+  // 0 deals: ×1.0 cap 100 | 1 deal: ×1.25 floor 95 | 2+ deals: ×1.50 floor 110
+  if (c.dealsClosed >= 2) return Math.round(Math.max(kpiScore * 1.50, 110));
+  if (c.dealsClosed === 1) return Math.round(Math.max(kpiScore * 1.25, 95));
+  return Math.round(Math.min(kpiScore, 100));
 }
 
 function zoneCloser(c, score){
