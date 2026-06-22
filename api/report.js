@@ -1,8 +1,47 @@
+const SUPABASE_URL  = process.env.SUPABASE_URL;
+const SUPABASE_KEY  = process.env.SUPABASE_ANON_KEY;
+const CACHE_TTL_MS  = 3 * 60 * 1000; // 3 minutes
+
+async function getCached(key) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/report_cache?cache_key=eq.${encodeURIComponent(key)}&select=data,created_at`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+  });
+  const rows = await r.json();
+  if (!rows?.length) return null;
+  const age = Date.now() - new Date(rows[0].created_at).getTime();
+  if (age > CACHE_TTL_MS) return null;
+  return rows[0].data;
+}
+
+async function setCached(key, data) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return;
+  await fetch(`${SUPABASE_URL}/rest/v1/report_cache`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json", Prefer: "resolution=merge-duplicates"
+    },
+    body: JSON.stringify({ cache_key: key, data, created_at: new Date().toISOString() })
+  });
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
+
+  // ── Cache check ───────────────────────────────────────────────────────────
+  const { startDate, endDate, role } = req.query;
+  const cacheKey = `${role}|${startDate}|${endDate}`;
+  try {
+    const cached = await getCached(cacheKey);
+    if (cached) {
+      res.setHeader("X-Cache", "HIT");
+      return res.status(200).json(cached);
+    }
+  } catch(_) { /* cache miss — proceed normally */ }
 
   const CLIENT_ID     = process.env.ZOHO_CLIENT_ID;
   const CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
@@ -201,7 +240,9 @@ export default async function handler(req, res) {
         };
       });
 
-      return res.status(200).json({ teams, startDate, endDate, slot, role });
+      const result = { teams, startDate, endDate, slot, role };
+      setCached(cacheKey, result).catch(() => {});
+      return res.status(200).json(result);
     }
 
     // ── CLOSER REPORT ────────────────────────────────────────────────────────
@@ -260,7 +301,9 @@ export default async function handler(req, res) {
         futureUpfront: Math.round(b.futureUpfront),
         revenue: Math.round(b.newUpfront + b.futureUpfront),
       }));
-      return res.status(200).json({ closers, startDate, endDate, slot, role });
+      const result = { closers, startDate, endDate, slot, role };
+      setCached(cacheKey, result).catch(() => {});
+      return res.status(200).json(result);
     }
 
     // ── BUILDER REPORT ───────────────────────────────────────────────────────
@@ -300,7 +343,9 @@ export default async function handler(req, res) {
     dealsPC.forEach(d => { const id = d.Builder?.id; if (!id || !map[id]) return; map[id].presCompleted += 1; if (!map[id].teamLead && d.Team_Lead) map[id].teamLead = d.Team_Lead; });
 
     const builders = Object.values(map).map(b => ({ ...b, minutes: Math.round(b.minutes) }));
-    return res.status(200).json({ builders, startDate, endDate, slot, role });
+    const result = { builders, startDate, endDate, slot, role };
+    setCached(cacheKey, result).catch(() => {});
+    return res.status(200).json(result);
 
   } catch (e) {
     return res.status(500).json({ error: e.message || "Internal server error" });
