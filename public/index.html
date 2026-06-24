@@ -778,7 +778,7 @@ document.getElementById("btn-gen").onclick = async function(){
   setError(""); document.getElementById("results").style.display = "none";
 
   try {
-    setStatus("Fetching data from Zoho CRM...");
+    setStatus("Loading...");
     // Log activity
     _supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) return;
@@ -799,6 +799,8 @@ document.getElementById("btn-gen").onclick = async function(){
     const res = await fetch(`/api/report?startDate=${startDate}&endDate=${endDate}&slot=7pm&role=${encodeURIComponent(role)}`);
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || "Server error");
+    const fromCache = res.headers.get("X-Cache") === "HIT";
+    setStatus(fromCache ? "Loaded from cache ⚡" : "Fetched from Zoho CRM");
 
     const isCloser = role.toLowerCase().includes("closer");
     const isTL = role === "Team Leader";
