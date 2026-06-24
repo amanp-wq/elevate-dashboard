@@ -1040,17 +1040,30 @@ document.getElementById("btn-gen").onclick = async function(){
 // Restore last report if returning from another tab — called after auth succeeds
 function tryRestoreReport() {
   const saved = sessionStorage.getItem("lastReport");
-  if (!saved) return;
-  try {
-    const { startDate, endDate, role } = JSON.parse(saved);
-    // Restore preset buttons + inputs
-    document.getElementById("inp-start").value = startDate;
-    document.getElementById("inp-end").value   = endDate;
-    document.getElementById("inp-role").value  = role;
-    // Click generate — hits Supabase cache (no Zoho call)
-    document.getElementById("btn-gen").click();
-  } catch(_) { sessionStorage.removeItem("lastReport"); }
+  if (saved) {
+    try {
+      const { startDate, endDate, role } = JSON.parse(saved);
+      document.getElementById("inp-start").value = startDate;
+      document.getElementById("inp-end").value   = endDate;
+      document.getElementById("inp-role").value  = role;
+      document.getElementById("btn-gen").click();
+      return;
+    } catch(_) { sessionStorage.removeItem("lastReport"); }
+  }
+  // No saved report — auto-load today's data with default role (Builder)
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  document.getElementById("inp-start").value = today;
+  document.getElementById("inp-end").value   = today;
+  document.getElementById("inp-role").value  = "Builder";
+  document.getElementById("btn-gen").click();
 }
+
+// Auto-fire report when role dropdown changes
+document.getElementById("inp-role").addEventListener("change", () => {
+  const start = document.getElementById("inp-start").value;
+  const end   = document.getElementById("inp-end").value;
+  if (start && end) document.getElementById("btn-gen").click();
+});
 
 // ── Supabase Auth ─────────────────────────────────────────────────────────────
 const SUPABASE_URL  = "https://ugghpsupgqycsnvssseo.supabase.co";
