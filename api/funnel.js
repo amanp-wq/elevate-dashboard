@@ -165,13 +165,13 @@ export default async function handler(req, res) {
       { stage: "Closed Won",      count: closedDeals.length,                                                          icon: "🏆" },
     ];
 
-    // BDE list from Zoho users
-    let bdes = [];
-    try {
-      const ud = await fetch(`${API_DOMAIN}/crm/v2/users?type=ActiveUsers&per_page=200`, { headers: { Authorization: `Zoho-oauthtoken ${token}` } });
-      const udata = await ud.json();
-      bdes = (udata?.users || []).filter(u => (u.role?.name || "").toLowerCase().includes("builder")).map(u => u.full_name).sort();
-    } catch (_) {}
+    // BDE list — hardcoded from CRM data (BDE Name field in Leads module)
+    const bdes = [
+      "Sunil Patel", "Ajay Darbar", "Prem Thakar", "Ronak Khant",
+      "Jiya Chandrawanshi", "Dhanraj Solanki", "Bhoomi Barot", "Kinjal Menaria",
+      "Shruti Mori", "Heer Nakum", "Meet Patel", "Shreya Lathiya",
+      "Supratim Dutta", "Soumya Singh", "Varun Singh", "Ved Sutariya"
+    ].sort();
 
     const result = {
       funnel, bdes,
