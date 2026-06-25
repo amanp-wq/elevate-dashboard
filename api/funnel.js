@@ -113,7 +113,7 @@ export default async function handler(req, res) {
     function lcCriteria(extra) {
       const parts = [];
       if (teamLead) parts.push(`(Team_Lead:equals:${teamLead})`);
-      if (source)   parts.push(`(Lead_Source_BDE_:equals:${source})`);
+      if (source)   parts.push(`(Lead_Source__BDE_:equals:${source})`);
       if (bde)      parts.push(`(BDE__Name_:equals:${bde})`);
       if (extra)    parts.push(`(${extra})`);
       return parts.length ? parts.join("AND") : null;
@@ -121,7 +121,7 @@ export default async function handler(req, res) {
     function dCriteria(extra) {
       const parts = [];
       if (teamLead) parts.push(`(Team_Lead:equals:${teamLead})`);
-      if (source)   parts.push(`(Lead_Source_BDE_:equals:${source})`);
+      if (source)   parts.push(`(Lead_Source__BDE_:equals:${source})`);
       if (bde)      parts.push(`(BDE_Name:equals:${bde})`);
       if (extra)    parts.push(`(${extra})`);
       return parts.length ? parts.join("AND") : null;
