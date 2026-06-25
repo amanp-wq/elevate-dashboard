@@ -455,15 +455,16 @@ function showApp(user) {
 }
 
 _supabase.auth.getSession().then(({ data: { session } }) => {
-  if (session?.user && ALLOWED_EMAILS.includes(session.user.email)) {
+  if (session?.user && ADMIN_EMAILS.includes(session.user.email)) {
     showApp(session.user);
   } else if (session?.user) {
     _supabase.auth.signOut();
+    document.getElementById("auth-error").textContent = "Access denied. Admin accounts only.";
   }
 });
 
 _supabase.auth.onAuthStateChange((_e, session) => {
-  if (session?.user && ALLOWED_EMAILS.includes(session.user.email)) {
+  if (session?.user && ADMIN_EMAILS.includes(session.user.email)) {
     showApp(session.user);
   }
 });
