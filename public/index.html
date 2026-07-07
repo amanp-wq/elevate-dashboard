@@ -22,7 +22,7 @@
     background-image: radial-gradient(ellipse at 20% 10%, rgba(196,72,56,0.06) 0%, transparent 50%),
                       radial-gradient(ellipse at 80% 80%, rgba(0,230,118,0.04) 0%, transparent 50%);
   }
-  .container { max-width: 1100px; margin: 0 auto; }
+  .container { max-width: 1600px; margin: 0 auto; }
 
   header {
     display: flex; align-items: center; justify-content: space-between;
@@ -69,7 +69,7 @@
   #results { display: none; }
   .meta { font-size: 15px; color: var(--muted); padding: 0.75rem 0; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 
-  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 1.5rem; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 1.5rem; }
   .tile {
     border-radius: 14px; padding: 18px 20px; border: 1px solid transparent;
     position: relative; overflow: hidden;
