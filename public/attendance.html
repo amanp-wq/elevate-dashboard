@@ -134,6 +134,21 @@
     background: rgba(100,100,120,0.1); border-color: #444455; color: #888899;
   }
   .toggle-btn:hover { transform: scale(1.04); }
+
+  /* ── Mobile responsive ────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    header { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+    .nav-links { flex-wrap: wrap; margin-right: 0; }
+    .date-row { flex-direction: column !important; align-items: stretch !important; }
+    .save-btn { width: 100% !important; margin-left: 0 !important; }
+  }
+
+  @media (max-width: 480px) {
+    header { padding: 8px 10px; }
+    .nav-btn { padding: 5px 10px; font-size: 11px; }
+    .date-row { flex-direction: column !important; align-items: stretch !important; gap: 10px; }
+    .save-btn { width: 100% !important; margin-left: 0 !important; }
+  }
 </style>
 </head>
 <body>

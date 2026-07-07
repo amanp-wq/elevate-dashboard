@@ -322,6 +322,34 @@
     transition: border-color 0.2s, color 0.2s;
   }
   #btn-signout:hover { border-color: #ff4d6a; color: #ff4d6a; }
+
+  /* ── Mobile responsive ────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    body { padding: 0.5rem; }
+    header {
+      padding: 10px 14px;
+      margin: -0.5rem -0.5rem 1.5rem -0.5rem;
+    }
+    .controls { grid-template-columns: 1fr; }
+    .tiles { grid-template-columns: repeat(2, 1fr) !important; }
+    .tile-avatar, .tile-avatar-initials { width: 52px !important; height: 52px !important; font-size: 20px !important; }
+    .nav-btn { padding: 5px 10px; font-size: 11px; }
+  }
+
+  @media (max-width: 480px) {
+    body { padding: 0.5rem; }
+    header { padding: 8px 10px; }
+    .logo-sub { display: none; }
+    #user-name { display: none; }
+    .controls { grid-template-columns: 1fr; }
+    .tiles { grid-template-columns: 1fr !important; }
+    .tl-grid { grid-template-columns: 1fr !important; }
+    .closer-rules-grid { grid-template-columns: 1fr !important; }
+    .tile-score { font-size: 2rem !important; }
+    .tl-score { font-size: 32px !important; }
+    .tile-avatar, .tile-avatar-initials { width: 52px !important; height: 52px !important; font-size: 18px !important; }
+    .nav-btn { padding: 4px 8px; font-size: 10px; }
+  }
 </style>
 </head>
 <body>

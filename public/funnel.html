@@ -115,6 +115,25 @@
   .auth-error { margin-top: 14px; font-size: 13px; color: #ff4d6a; min-height: 18px; }
 
   #results { display: none; }
+
+  /* ── Mobile responsive ────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    header { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+    .nav-links { flex-wrap: wrap; margin-right: 0; }
+    .controls-row .field { flex: 1 1 100%; }
+    .stage-cards { grid-template-columns: repeat(2, 1fr) !important; }
+    .funnel-label { width: 90px !important; min-width: 90px !important; font-size: 12px; }
+    .conv-table-wrap { overflow-x: auto !important; }
+  }
+
+  @media (max-width: 480px) {
+    header { padding: 8px 10px; }
+    .stage-cards { grid-template-columns: 1fr !important; }
+    .funnel-label { width: 90px !important; min-width: 90px !important; }
+    .funnel-meta { display: none !important; }
+    .nav-btn { padding: 5px 10px; font-size: 11px; }
+    .conv-table-wrap { overflow-x: auto !important; }
+  }
 </style>
 </head>
 <body>

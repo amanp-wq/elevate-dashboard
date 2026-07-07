@@ -162,6 +162,23 @@
   .type-cache  { color: var(--green); border-color: #00e67644; background: #00e67611; }
   .type-cron   { color: var(--gold); border-color: #ffd74044; background: #ffd74011; }
   .type-skip   { color: var(--muted); border-color: #6b749944; background: #6b749911; }
+
+  /* ── Mobile responsive ────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    header { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+    .nav-links { flex-wrap: wrap; margin-right: 0; }
+    .stats-row { grid-template-columns: 1fr; }
+    .api-stats { grid-template-columns: repeat(2, 1fr) !important; }
+    .table-wrap { overflow-x: auto !important; }
+  }
+
+  @media (max-width: 480px) {
+    header { padding: 8px 10px; }
+    .stats-row { grid-template-columns: 1fr; }
+    .api-stats { grid-template-columns: 1fr !important; }
+    .nav-btn { padding: 5px 10px; font-size: 11px; }
+    .table-wrap { overflow-x: auto !important; }
+  }
 </style>
 </head>
 <body>
