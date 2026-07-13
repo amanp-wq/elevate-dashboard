@@ -686,7 +686,7 @@ function zoneCloser(c, score){
 const ZONE_NEON = { gold:"#ffd740", green:"#00e676", yellow:"#ffab00", orange:"#ff6d00", red:"#ff4d6a" };
 
 
-function renderTLView(teams, T, TC, leaveMap = {}) {
+function renderTLView(teams, T, TC, leaveMap = {}, personTargets = null, effectiveDays = 1) {
   document.getElementById("tiles").style.display = "none";
   document.getElementById("tl-grid").style.display = "grid";
 
@@ -694,22 +694,30 @@ function renderTLView(teams, T, TC, leaveMap = {}) {
   const html = ["Soham","Tejasvi","Mamta Das"].map(tlName => {
     const team = teams[tlName] || { builders:[], closers:[] };
 
-    // Score each member
+    // A member counts as "on leave" only if they were on leave for the ENTIRE
+    // period (matches the tile view). One leave day in a month no longer counts.
+    const isOnLeave = name => (leaveMap[name] || 0) >= effectiveDays;
+
+    // Score each member against their leave-adjusted target (consistent with tiles)
     const scoredBuilders = team.builders.map(b => {
-      const s = scoreBuilder(b, T);
+      const tgt = personTargets ? personTargets(b.name, T) : T;
+      const s = scoreBuilder(b, tgt);
       return { ...b, composite: s, zone: zone(s), type: "Builder" };
     });
     const scoredClosers = team.closers.map(c => {
-      const s = scoreCloser(c, TC);
+      const tgt = personTargets ? personTargets(c.name, TC) : TC;
+      const s = scoreCloser(c, tgt);
       return { ...c, composite: s, zone: zoneCloser(c, s), type: "Closer" };
     });
 
     const allMembers = [...scoredBuilders, ...scoredClosers];
-    const activeMembers = allMembers.filter(m => m.calls > 0);
-    const onLeaveCount = allMembers.length - activeMembers.length;
+    // Include every present member in the TL bucket — even those with 0 calls.
+    // Only members on leave the whole period are excluded (they have no target).
+    const presentMembers = allMembers.filter(m => !isOnLeave(m.name));
+    const onLeaveCount = allMembers.length - presentMembers.length;
 
-    const healthScore = activeMembers.length > 0
-      ? Math.round(activeMembers.reduce((sum, m) => sum + m.composite, 0) / activeMembers.length)
+    const healthScore = presentMembers.length > 0
+      ? Math.round(presentMembers.reduce((sum, m) => sum + m.composite, 0) / presentMembers.length)
       : 0;
 
     const z = zone(healthScore);
@@ -717,12 +725,12 @@ function renderTLView(teams, T, TC, leaveMap = {}) {
 
     // Member rows sorted by score desc, on-leave at bottom
     const sorted = [
-      ...activeMembers.sort((a,b) => b.composite - a.composite),
-      ...allMembers.filter(m => m.calls === 0)
+      ...presentMembers.slice().sort((a,b) => b.composite - a.composite),
+      ...allMembers.filter(m => isOnLeave(m.name))
     ];
 
     const memberRows = sorted.map(m => {
-      const onLeave = (leaveMap[m.name] || 0) >= 1;
+      const onLeave = isOnLeave(m.name);
       const mColor = onLeave ? "#3a3a48" : (ZONE_NEON[m.zone] || "#aaa");
       const slug = m.name.toLowerCase().replace(/\s+/g,"-");
       const initials = m.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
@@ -758,7 +766,7 @@ function renderTLView(teams, T, TC, leaveMap = {}) {
           </div>
         </div>
         <div class="tl-stats">
-          <span><strong>${activeMembers.length}</strong> active</span>
+          <span><strong>${presentMembers.length}</strong> active</span>
           <span><strong>${onLeaveCount}</strong> on leave</span>
           <span><strong>${allMembers.length}</strong> total</span>
         </div>
@@ -905,7 +913,7 @@ document.getElementById("btn-gen").onclick = async function(){
       document.getElementById("totals-grid").innerHTML = "";
       document.getElementById("breakdown-toggle").style.display = "none";
       document.getElementById("breakdown-table-wrap").classList.remove("show");
-      renderTLView(data.teams, T, TC, leaveMap);
+      renderTLView(data.teams, T, TC, leaveMap, personTargets, effectiveDays);
       document.getElementById("results").style.display = "block";
       setStatus("");
       return;
