@@ -211,6 +211,18 @@ async function fetchRows(start, end){
   return r.json();
 }
 
+// Leave marks come from the LIVE Supabase attendance table (where the team
+// actually marks present/leave). Returns a Set of "person_name|date".
+async function fetchLeaveSet(start, end){
+  try {
+    const url = `${AUTH_URL}/rest/v1/attendance?date=gte.${start}&date=lte.${end}&status=eq.leave&select=person_name,date`;
+    const r = await fetch(url, { headers:{ apikey:AUTH_ANON, Authorization:`Bearer ${AUTH_ANON}` } });
+    if (!r.ok) return new Set();
+    const rows = await r.json();
+    return new Set((rows || []).map(x => `${x.person_name}|${x.date}`));
+  } catch { return new Set(); }
+}
+
 function aggregate(rows){
   const map = {};
   rows.forEach(row => {
@@ -228,7 +240,7 @@ function aggregate(rows){
     m.presBooked += row.pres_booked; m.presCompleted += row.pres_completed;
     m.presentations += row.presentations; m.dealsClosed += row.deals_closed;
     m.newUpfront += Number(row.new_upfront); m.futureUpfront += Number(row.future_upfront);
-    m.days += 1; if (row.on_leave) m.leaveDays += 1;
+    m.days += 1; if (_leaveSet.has(`${row.person_name}|${row.date}`)) m.leaveDays += 1;
   });
   return Object.values(map);
 }
@@ -293,7 +305,7 @@ function renderSummary(people){
 function renderDaily(rows){
   const head = ["Date","Name","Role","TL","Calls","In","Out","Miss","Mins","Leads","Disco","Pres.B","Pres.C","Pres","Deals","Score","Status"];
   const body = rows.map(r => {
-    const status = r.on_leave ? `<span class="st-leave">Leave</span>`
+    const status = _leaveSet.has(`${r.person_name}|${r.date}`) ? `<span class="st-leave">Leave</span>`
       : `<span style="color:${ZONE_COLOR[r.zone]||'var(--text)'}">${r.score}%</span>`;
     return `<tr>
       <td>${r.date}</td><td class="name">${r.person_name}</td><td>${r.role}</td><td>${r.team_lead||'—'}</td>
@@ -307,6 +319,7 @@ function renderDaily(rows){
 
 let _rawRows = [];   // last fetched range (unfiltered)
 let _range = { start:"", end:"" };
+let _leaveSet = new Set();   // "person_name|date" marked leave (from live attendance)
 
 // Rebuild the Person dropdown from fetched data (preserve current selection)
 function populatePersons(){
@@ -353,7 +366,8 @@ async function load(){
   btn.disabled = true; btn.textContent = "Loading...";
   document.getElementById("status").textContent = "Loading saved data…";
   try {
-    _rawRows = await fetchRows(start, end);
+    const [rows, leaveSet] = await Promise.all([ fetchRows(start, end), fetchLeaveSet(start, end) ]);
+    _rawRows = rows; _leaveSet = leaveSet;
     _range = { start, end };
     populatePersons();
     applyAndRender();
