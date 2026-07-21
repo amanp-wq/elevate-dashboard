@@ -119,6 +119,7 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   const { startDate, endDate, bde = "", teamLead = "", source = "" } = req.query;
+  if (req.query.debug === "client") return res.status(200).json({ clientId: (process.env.ZOHO_CLIENT_ID || "").slice(0, 22) });
   if (!startDate || !endDate) return res.status(400).json({ error: "Missing startDate or endDate" });
 
   const cacheKey = `funnel|${startDate}|${endDate}|${bde}|${teamLead}|${source}`;
