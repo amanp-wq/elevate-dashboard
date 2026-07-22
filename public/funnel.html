@@ -452,9 +452,10 @@ const ADMIN_EMAILS = ["aman.p@elevateme.pro","satish.r@elevateme.pro","shani@ele
 function buildNav(email) {
   const isAdmin = ADMIN_EMAILS.includes(email);
   const pages = [
-    { label: "Dashboard",   href: "/" },
-    { label: "Funnel",      href: "/funnel.html" },
-    { label: "Attendance",  href: "/attendance.html" },
+    { label: "Dashboard", href: "/" },
+    { label: "History", href: "/history.html" },
+    ...(isAdmin ? [{ label: "Funnel", href: "/funnel.html" }, { label: "BDE", href: "/bde.html" }, { label: "BD Scorecard", href: "/bde-scorecard.html" }] : []),
+    { label: "Attendance", href: "/attendance.html" },
     ...(isAdmin ? [{ label: "Admin Panel", href: "/admin.html" }] : [])
   ];
   const cur = window.location.pathname;

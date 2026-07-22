@@ -199,9 +199,19 @@ const NAV = [
   { label:"Admin Panel", href:"/admin.html" },
 ];
 
-function buildNav() {
-  document.getElementById("nav-links").innerHTML = NAV.map(n =>
-    `<a href="${n.href}" class="nav-btn${n.active?" active":""}">${n.label}</a>`
+const ADMIN_EMAILS = ["aman.p@elevateme.pro","satish.r@elevateme.pro","shani@elevateme.pro","prachit@elevateme.pro"];
+function buildNav(email) {
+  const isAdmin = ADMIN_EMAILS.includes(email);
+  const cur = window.location.pathname;
+  const pages = [
+    { label:"Dashboard", href:"/" },
+    { label:"History", href:"/history.html" },
+    ...(isAdmin ? [{ label:"Funnel", href:"/funnel.html" }, { label:"BDE", href:"/bde.html" }, { label:"BD Scorecard", href:"/bde-scorecard.html" }] : []),
+    { label:"Attendance", href:"/attendance.html" },
+    ...(isAdmin ? [{ label:"Admin Panel", href:"/admin.html" }] : []),
+  ];
+  document.getElementById("nav-links").innerHTML = pages.map(p =>
+    `<a href="${p.href}" class="nav-btn${(cur===p.href||(p.href==='/'&&(cur==='/'||cur==='/index.html')))?' active':''}">${p.label}</a>`
   ).join("");
 }
 
@@ -467,7 +477,7 @@ _auth.auth.getSession().then(({ data: { session } }) => {
   const email = session?.user?.email || "";
   if (session?.user && ALLOWED_EMAILS.includes(email)) {
     document.body.style.visibility = "";
-    buildNav();
+    buildNav(email);
     const today = todayEST();
     document.getElementById("inp-start").value = today;
     document.getElementById("inp-end").value   = today;

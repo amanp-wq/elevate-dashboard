@@ -23,9 +23,10 @@
   .logo-img { height:36px; width:auto; display:block; }
   .logo-sub { font-size:15px; font-weight:400; color:#888; letter-spacing:0.2px; }
   .nav-links { display:flex; gap:8px; flex-wrap:wrap; }
-  .nav-btn { padding:7px 14px; border-radius:8px; font-size:13px; font-weight:700; color:var(--muted);
-    text-decoration:none; border:1px solid var(--border); background:var(--surface); }
-  .nav-btn.active, .nav-btn:hover { color:var(--text); border-color:var(--green); }
+  .nav-btn { padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700; color:var(--muted);
+    text-decoration:none; border:1px solid var(--border); background:none; transition:all .2s; }
+  .nav-btn:hover { border-color:#ff4d3a; color:#ff4d3a; }
+  .nav-btn.active { background:#ff4d3a; color:#fff; border-color:#ff4d3a; }
   .container { width:100%; padding:1.5rem; max-width:1500px; margin:0 auto; }
   .controls { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:1rem; align-items:end; }
   .field label { display:block; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
@@ -79,11 +80,7 @@
     <img src="/e92c4bab-2eb7-4e8f-bc76-e00992442f1f.png" alt="ElevateMe" class="logo-img">
     <span class="logo-sub">BDE Scorecard</span>
   </div>
-  <div class="nav-links">
-    <a href="/" class="nav-btn">Dashboard</a>
-    <a href="/bde.html" class="nav-btn">BD Funnel</a>
-    <a href="/bde-scorecard.html" class="nav-btn active">BD Scorecard</a>
-  </div>
+  <div class="nav-links" id="nav-links"></div>
 </header>
 
 <div class="container">
@@ -113,6 +110,23 @@ const ALLOWED_EMAILS = [
   "prachit@elevateme.pro","dhanraj.s@elevateme.pro"
 ];
 const _auth = supabase.createClient(AUTH_URL, AUTH_ANON);
+
+// Shared nav (same links + gating on every page)
+const ADMIN_EMAILS = ["aman.p@elevateme.pro","satish.r@elevateme.pro","shani@elevateme.pro","prachit@elevateme.pro"];
+function buildNav(email){
+  const isAdmin = ADMIN_EMAILS.includes(email);
+  const cur = window.location.pathname;
+  const pages = [
+    { label:"Dashboard", href:"/" },
+    { label:"History", href:"/history.html" },
+    ...(isAdmin ? [{ label:"Funnel", href:"/funnel.html" }, { label:"BDE", href:"/bde.html" }, { label:"BD Scorecard", href:"/bde-scorecard.html" }] : []),
+    { label:"Attendance", href:"/attendance.html" },
+    ...(isAdmin ? [{ label:"Admin Panel", href:"/admin.html" }] : []),
+  ];
+  document.getElementById("nav-links").innerHTML = pages.map(p =>
+    `<a href="${p.href}" class="nav-btn${(cur===p.href||(p.href==='/'&&(cur==='/'||cur==='/index.html')))?' active':''}">${p.label}</a>`
+  ).join("");
+}
 
 // ── Team scorecard config ────────────────────────────────────────────────────
 // Each team: members (exact CRM names) + KPIs. Each KPI: how to read the actual
@@ -295,6 +309,7 @@ _auth.auth.getSession().then(({ data: { session } }) => {
   const email = session?.user?.email || "";
   if (session?.user && ALLOWED_EMAILS.includes(email)) {
     document.body.style.visibility = "";
+    buildNav(email);
     setPreset("month");
     load();
   } else {
