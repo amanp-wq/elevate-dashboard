@@ -110,6 +110,14 @@
   .tile-score { font-size: 28px; font-weight: 900; text-align: right; flex-shrink: 0; text-shadow: 0 0 14px currentColor; }
   .tile-star { font-size: 16px; margin-left: 2px; }
   .tile-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; font-size: 13px; text-align: center; }
+  .edit-target-btn { margin:8px 0; background:transparent; border:1px solid #ff4d3a; color:#ff4d3a; border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer; }
+  .edit-target-btn:hover { background:#ff4d3a; color:#fff; }
+  .edit-panel { margin:8px 0; padding:10px; border:1px solid rgba(255,255,255,0.1); border-radius:8px; background:rgba(255,255,255,0.02); }
+  .edit-panel h5 { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+  .edit-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
+  .edit-row label { font-size:12px; }
+  .edit-row input { width:80px; background:#111; border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:6px; padding:4px 6px; font-size:12px; }
+  .btn-save-target { margin-top:4px; background:#ff4d3a; border:none; color:#fff; border-radius:6px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; }
   .tile-kpis .val { font-weight: 800; font-size: 15px; }
   .tile-kpis .lbl { opacity: 0.5; font-size: 11px; margin-top: 1px; }
 
@@ -583,6 +591,72 @@ const TARGETS_CLOSER = { calls:60, minutes:120, presentations:2 };
 const WEIGHTS_CLOSER = { calls:0.40, minutes:0.20, presentations:0.40 };
 // Deal override: 1 deal = Green Card, 2+ deals = Gold Card (ignores score)
 
+// ── Editable monthly targets (team-lead override, persisted in Supabase) ──────
+// Which Builders/Closers each team lead may edit targets for; admins may edit all.
+const TL_MEMBERS = {
+  "soham.b@elevateme.pro": ["Yashraj Modasara","Aryan Sharma","Dhruvil Chauhan","Avni Gajjar","Maharshi Patel","Harsh Bhojak","Nikunj Patel"],
+  "tejasvi.p@elevateme.pro": ["Lekhraj Prajapati","Nupur Vyas","Yash Mishra","Kartik Deshawar","Abhijeet Das"],
+  "mamta.d@elevateme.pro": ["Shivam Rathi","Soumya Singh","Nishant Sharma","Pranali Mishra","Meet Patel","Vidhi Patel"],
+};
+let CURRENT_EMAIL = "";
+function canEditTargets(name){
+  return ADMIN_EMAILS.includes(CURRENT_EMAIL) || (TL_MEMBERS[CURRENT_EMAIL]||[]).includes(name);
+}
+
+const WORKING_DAYS_PER_MONTH = 22; // basis for converting a stored "monthly target" into a daily rate
+let TARGET_OVERRIDES = {}; // { [person_name]: { [kpi_key]: monthly_target } }
+async function loadTargetOverrides(){
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,monthly_target`, {
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
+    });
+    if (!r.ok) return;
+    const rows = await r.json();
+    TARGET_OVERRIDES = {};
+    rows.forEach(row => { (TARGET_OVERRIDES[row.person_key] ||= {})[row.kpi_label] = row.monthly_target; });
+  } catch { TARGET_OVERRIDES = {}; }
+}
+let MEMBER_KPI_KEYS = {}; // name -> kpi keys shown on their card, for save() to read inputs back in order
+async function saveTargets(name, uid){
+  const keys = MEMBER_KPI_KEYS[name] || [];
+  const updates = keys.map((k,i) => ({
+    person_key: name, kpi_label: k,
+    monthly_target: Number(document.getElementById(`${uid}-in-${i}`).value) || 0,
+    updated_by: CURRENT_EMAIL, updated_at: new Date().toISOString()
+  }));
+  try {
+    const { data: { session } } = await _supabase.auth.getSession();
+    const token = session?.access_token || SUPABASE_ANON;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?on_conflict=person_key,kpi_label`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify(updates)
+    });
+    if (!r.ok) throw new Error("Save failed: " + r.status);
+    document.getElementById("btn-gen").click();
+  } catch(e){ alert("Save failed: " + e.message); }
+}
+function toggleEditPanel(uid){
+  const el = document.getElementById(uid);
+  el.style.display = el.style.display === "none" ? "block" : "none";
+}
+const KPI_LABELS = { calls:"Calls", minutes:"Minutes", leads:"Q. Leads", discoveries:"Discoveries", presBooked:"Pres. Booked", presCompleted:"Pres. Completed", presentations:"Presentations" };
+function editPanel(name, kpiKeys, defaultsDaily, uid){
+  MEMBER_KPI_KEYS[name] = kpiKeys;
+  const overrides = TARGET_OVERRIDES[name] || {};
+  return `<div class="edit-panel" id="${uid}" style="display:none">
+    <h5>Edit Monthly Target — ${name}</h5>
+    ${kpiKeys.map((k,i) => {
+      const monthly = overrides[k] != null ? overrides[k] : Math.round(defaultsDaily[k] * WORKING_DAYS_PER_MONTH);
+      return `<div class="edit-row">
+        <label>${KPI_LABELS[k]||k}</label>
+        <input type="number" min="0" id="${uid}-in-${i}" value="${monthly}" />
+      </div>`;
+    }).join("")}
+    <button class="btn-save-target" onclick="saveTargets('${name.replace(/'/g,"\\'")}', '${uid}')">Save Target</button>
+  </div>`;
+}
+
 function zone(s){ return s>=110?"gold":s>=95?"green":s>=75?"yellow":s>=50?"orange":"red"; }
 
 function toggleBreakdown(){
@@ -833,6 +907,7 @@ document.getElementById("btn-gen").onclick = async function(){
       }).catch(() => {});
     });
     const leaveMap = await fetchLeaveMap(startDate, endDate);
+    await loadTargetOverrides();
     const res = await fetch(`/api/report?startDate=${startDate}&endDate=${endDate}&slot=7pm&role=${encodeURIComponent(role)}`);
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || "Server error");
@@ -876,12 +951,16 @@ document.getElementById("btn-gen").onclick = async function(){
     const T  = Object.fromEntries(Object.entries(TARGETS).map(([k,v])       => [k, Math.max(1, Math.round(v * effectiveDays))]));
     const TC = Object.fromEntries(Object.entries(TARGETS_CLOSER).map(([k,v]) => [k, Math.max(1, Math.round(v * effectiveDays))]));
 
-    // Per-person targets accounting for leave days
-    function personTargets(name, baseT) {
+    // Per-person targets accounting for leave days and any team-lead monthly-target override
+    function personTargets(name, baseDailyRates) {
       const leaveDays = leaveMap[name] || 0;
       const adjDays = Math.max(0.1, effectiveDays - leaveDays);
       const ratio = adjDays / effectiveDays;
-      return Object.fromEntries(Object.entries(baseT).map(([k,v]) => [k, Math.max(1, Math.round(v * ratio))]));
+      const overrides = TARGET_OVERRIDES[name] || {};
+      return Object.fromEntries(Object.entries(baseDailyRates).map(([k,v]) => {
+        const dailyRate = overrides[k] != null ? overrides[k] / WORKING_DAYS_PER_MONTH : v;
+        return [k, Math.max(1, Math.round(dailyRate * effectiveDays * ratio))];
+      }));
     }
 
     // Live report timestamp in EST
@@ -924,7 +1003,7 @@ document.getElementById("btn-gen").onclick = async function(){
     document.getElementById("breakdown-toggle").style.display = "";
 
     if (isCloser) {
-      const closers = data.closers.map(c => { const s=scoreCloser(c,personTargets(c.name,TC)); return {...c, composite:s, zone:zoneCloser(c,s)}; });
+      const closers = data.closers.map(c => { const s=scoreCloser(c,personTargets(c.name,TARGETS_CLOSER)); return {...c, composite:s, zone:zoneCloser(c,s)}; });
       closers.sort((a,b) => b.composite - a.composite);
       document.getElementById("meta-right").textContent = `${closers.length} Closer${closers.length!==1?"s":""}`;
 
@@ -943,6 +1022,8 @@ document.getElementById("btn-gen").onclick = async function(){
 
       document.getElementById("tiles").innerHTML = closers.map(c => {
         const onLeave = (leaveMap[c.name] || 0) >= effectiveDays;
+        const canEdit = canEditTargets(c.name);
+        const editUid = "ed-" + c.name.replace(/[^a-z0-9]/gi,"");
         return `
         <div class="tile ${onLeave ? "zone-leave" : "zone-"+c.zone}">
           <div class="tile-header">
@@ -956,6 +1037,8 @@ document.getElementById("btn-gen").onclick = async function(){
               <div class="tile-score">${onLeave ? "" : `${c.composite}%${c.zone==="gold"?'<span class="tile-star">★</span>':''}`}</div>
             </div>
           </div>
+          ${canEdit ? `<button class="edit-target-btn" onclick="toggleEditPanel('${editUid}')">✎ Edit Monthly Target</button>` : ""}
+          ${canEdit ? editPanel(c.name, ["calls","minutes","presentations"], TARGETS_CLOSER, editUid) : ""}
           ${onLeave ? "" : `
           <div class="tile-kpis" style="grid-template-columns:repeat(4,1fr)">
             ${[["calls",c.calls],["mins",c.minutes],["pres",c.presentations],["deals",c.dealsClosed]].map(([l,v])=>`<div><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join("")}
@@ -981,7 +1064,7 @@ document.getElementById("btn-gen").onclick = async function(){
       }).join("");
 
     } else {
-      const builders = data.builders.map(b => { const s=scoreBuilder(b,personTargets(b.name,T)); return {...b, composite:s, zone:zone(s)}; });
+      const builders = data.builders.map(b => { const s=scoreBuilder(b,personTargets(b.name,TARGETS)); return {...b, composite:s, zone:zone(s)}; });
       builders.sort((a,b) => b.composite - a.composite);
       document.getElementById("meta-right").textContent = `${builders.length} Builder${builders.length!==1?"s":""}`;
 
@@ -999,6 +1082,8 @@ document.getElementById("btn-gen").onclick = async function(){
 
       document.getElementById("tiles").innerHTML = builders.map(b => {
         const onLeave = (leaveMap[b.name] || 0) >= effectiveDays;
+        const canEdit = canEditTargets(b.name);
+        const editUid = "ed-" + b.name.replace(/[^a-z0-9]/gi,"");
         return `
         <div class="tile ${onLeave ? "zone-leave" : "zone-"+b.zone}">
           <div class="tile-header">
@@ -1012,6 +1097,8 @@ document.getElementById("btn-gen").onclick = async function(){
               <div class="tile-score">${onLeave ? "" : `${b.composite}%${b.zone==="gold"?'<span class="tile-star">★</span>':''}`}</div>
             </div>
           </div>
+          ${canEdit ? `<button class="edit-target-btn" onclick="toggleEditPanel('${editUid}')">✎ Edit Monthly Target</button>` : ""}
+          ${canEdit ? editPanel(b.name, ["calls","minutes","leads","discoveries","presBooked","presCompleted"], TARGETS, editUid) : ""}
           ${onLeave ? "" : `
           <div class="tile-kpis">
             ${[["calls",b.calls],["mins",b.minutes],["leads",b.leads],["disco",b.discoveries],["pres.b",b.presBooked],["pres.c",b.presCompleted]].map(([l,v])=>`<div><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join("")}
@@ -1165,6 +1252,7 @@ function buildNav(email) {
 
 let _appShown = false;
 function showApp(user) {
+  CURRENT_EMAIL = user.email || "";
   authOverlay.style.display = "none";
   userBar.style.display = "flex";
   userName.textContent = user.user_metadata?.full_name || user.email;

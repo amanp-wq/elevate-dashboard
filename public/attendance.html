@@ -122,6 +122,7 @@
   }
   .role-builder { color: #40c4ff; border-color: #40c4ff44; background: #40c4ff11; }
   .role-closer  { color: #ff6b9d; border-color: #ff6b9d44; background: #ff6b9d11; }
+  .role-bd      { color: #ffb84d; border-color: #ffb84d44; background: #ffb84d11; }
 
   .toggle-btn {
     padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700;
@@ -228,6 +229,16 @@ const TEAM_MEMBERS = [
   { name: "Pranali Mishra",    team: "Mamta Das", role: "Closer"  },
   { name: "Meet Patel",        team: "Mamta Das", role: "Closer"  },
   { name: "Vidhi Patel",       team: "Mamta Das", role: "Closer"  },
+  // Team Dhanraj Solanki (BD)
+  { name: "Ronak Khant",           team: "Dhanraj Solanki", role: "BD" },
+  { name: "Jiya Chandrawanshi",    team: "Dhanraj Solanki", role: "BD" },
+  { name: "Bhoomi Barot",          team: "Dhanraj Solanki", role: "BD" },
+  { name: "Sunil Patel",           team: "Dhanraj Solanki", role: "BD" },
+  // Two different "Meet Patel"s exist — this one is BD, keyed distinctly so attendance never collides with the Closer above.
+  { name: "Meet Patel (BD)", display: "Meet Patel", team: "Dhanraj Solanki", role: "BD" },
+  // Team Prem Thakar (BD)
+  { name: "Heer Nakum",  team: "Prem Thakar", role: "BD" },
+  { name: "Ajay Darbar", team: "Prem Thakar", role: "BD" },
 ];
 
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -258,21 +269,23 @@ function buildNav(email) {
 }
 
 function renderTeams() {
-  const teams = ["Soham", "Tejasvi", "Mamta Das"];
+  const teams = ["Soham", "Tejasvi", "Mamta Das", "Dhanraj Solanki", "Prem Thakar"];
   const container = document.getElementById("teams-container");
   container.innerHTML = teams.map(team => {
     const members = TEAM_MEMBERS.filter(m => m.team === team);
+    if (!members.length) return "";
     return `
       <div class="team-section">
         <div class="team-title">Team ${team}</div>
         ${members.map(m => {
           const status = attendance[m.name] || 'present';
           const isLeave = status === 'leave';
+          const label = m.display || m.name;
           return `
             <div class="member-row${isLeave ? ' on-leave' : ''}" id="row-${m.name.replace(/\s+/g,'-')}">
-              <div class="avatar">${initials(m.name)}</div>
+              <div class="avatar">${initials(label)}</div>
               <div class="member-info">
-                <div class="member-name">${m.name}</div>
+                <div class="member-name">${label}</div>
                 <span class="role-badge role-${m.role.toLowerCase()}">${m.role}</span>
               </div>
               <button class="toggle-btn ${isLeave ? 'leave' : 'present'}"

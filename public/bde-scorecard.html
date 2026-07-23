@@ -67,6 +67,14 @@
   .fn-toggle { cursor:pointer; user-select:none; }
   .fn-toggle:hover { color:var(--text); }
   .fn-arrow { display:inline-block; width:10px; }
+  .edit-target-btn { margin:8px 0; background:transparent; border:1px solid #ff4d3a; color:#ff4d3a; border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer; }
+  .edit-target-btn:hover { background:#ff4d3a; color:#fff; }
+  .edit-panel { margin:8px 0; padding:10px; border:1px solid var(--border); border-radius:8px; background:rgba(255,255,255,0.02); }
+  .edit-panel h5 { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+  .edit-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
+  .edit-row label { font-size:12px; color:var(--text); }
+  .edit-row input { width:80px; background:#111; border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 6px; font-size:12px; }
+  .btn-save-target { margin-top:4px; background:#ff4d3a; border:none; color:#fff; border-radius:6px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; }
   .fn-row { display:grid; grid-template-columns:1fr auto auto auto auto; gap:7px; font-size:12px; padding:3px 0; align-items:center; }
   .fn-row.fn-head { color:var(--muted); font-size:9.5px; text-transform:uppercase; letter-spacing:.3px; border-bottom:1px solid var(--border); padding-bottom:4px; }
   .fn-lbl { color:var(--text); }
@@ -202,12 +210,85 @@ function workingDays(start,end){
   return Math.max(1,n);
 }
 
+// ── Editable monthly targets (team-lead override, persisted in Supabase) ──────
+// Two different real people are both named "Meet Patel" (a Closer under Mamta
+// Das, and the BD Referral member here) — key the BD one distinctly so their
+// stored overrides never collide.
+const PERSON_KEY_OVERRIDES = { "Meet Patel": "Meet Patel (BD)" };
+const pkey = m => PERSON_KEY_OVERRIDES[m] || m;
+
+// Which BD members each team lead may edit targets for; admins may edit all.
+const TL_MEMBERS = {
+  "dhanraj.s@elevateme.pro": ["Ronak Khant","Jiya Chandrawanshi","Bhoomi Barot","Sunil Patel","Meet Patel"],
+  "prem.t@elevateme.pro":    ["Heer Nakum","Ajay Darbar"],
+};
+let CURRENT_EMAIL = "";
+function canEditTargets(member){
+  return ADMIN_EMAILS.includes(CURRENT_EMAIL) || (TL_MEMBERS[CURRENT_EMAIL]||[]).includes(member);
+}
+
+let TARGET_OVERRIDES = {}; // { [person_key]: { [kpi_label]: monthly_target } }
+async function loadTargetOverrides(){
+  try {
+    const r = await fetch(`${AUTH_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,monthly_target`, {
+      headers: { apikey: AUTH_ANON, Authorization: `Bearer ${AUTH_ANON}` }
+    });
+    if (!r.ok) return;
+    const rows = await r.json();
+    TARGET_OVERRIDES = {};
+    rows.forEach(row => { (TARGET_OVERRIDES[row.person_key] ||= {})[row.kpi_label] = row.monthly_target; });
+  } catch { TARGET_OVERRIDES = {}; }
+}
+async function saveTargets(member, uid){
+  const labels = MEMBER_KPIS[member] || [];
+  const key = pkey(member);
+  const updates = labels.map((lbl,i) => ({
+    person_key: key, kpi_label: lbl,
+    monthly_target: Number(document.getElementById(`${uid}-in-${i}`).value) || 0,
+    updated_by: CURRENT_EMAIL, updated_at: new Date().toISOString()
+  }));
+  try {
+    const { data: { session } } = await _auth.auth.getSession();
+    const token = session?.access_token || AUTH_ANON;
+    const r = await fetch(`${AUTH_URL}/rest/v1/kpi_target_overrides?on_conflict=person_key,kpi_label`, {
+      method: "POST",
+      headers: { apikey: AUTH_ANON, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify(updates)
+    });
+    if (!r.ok) throw new Error("Save failed: " + r.status);
+    await load();
+  } catch(e){ alert("Save failed: " + e.message); }
+}
+function toggleEditPanel(uid){
+  const el = document.getElementById(uid);
+  el.style.display = el.style.display === "none" ? "block" : "none";
+}
+
+let MEMBER_KPIS = {}; // member -> kpi labels, for save() to read inputs back in order
+function editPanel(member, kpis, uid){
+  const overrides = TARGET_OVERRIDES[pkey(member)] || {};
+  return `<div class="edit-panel" id="${uid}" style="display:none">
+    <h5>Edit Monthly Target — ${member}</h5>
+    ${kpis.map((k,i) => {
+      const monthly = overrides[k.label] != null ? overrides[k.label] : Math.round(k.dailyTarget * WORKING_DAYS_PER_MONTH);
+      return `<div class="edit-row">
+        <label>${k.label}</label>
+        <input type="number" min="0" id="${uid}-in-${i}" value="${monthly}" />
+      </div>`;
+    }).join("")}
+    <button class="btn-save-target" onclick="saveTargets('${member.replace(/'/g,"\\'")}', '${uid}')">Save Target</button>
+  </div>`;
+}
+
+const WORKING_DAYS_PER_MONTH = 22; // basis for converting a stored "monthly target" into a daily rate
 function scoreMember(member, kpis, bmap, wDays){
   const b = bmap[member.toLowerCase()] || {};
+  const overrides = TARGET_OVERRIDES[pkey(member)] || {};
   let score = 0;
   const rows = kpis.map(k => {
     const actual = k.get(b);
-    const target = Math.round(k.dailyTarget * wDays);
+    const dailyRate = overrides[k.label] != null ? overrides[k.label] / WORKING_DAYS_PER_MONTH : k.dailyTarget;
+    const target = Math.max(1, Math.round(dailyRate * wDays));
     const pct = target>0 ? Math.min(150, actual/target*100) : 0;
     score += pct * k.weight;
     return { label:k.label, note:k.note, actual, target, pct:Math.round(pct), weight:k.weight };
@@ -247,10 +328,13 @@ function funnelSection(b, uid){
 }
 
 function tile(member, role, kpis, bmap, wDays){
+  MEMBER_KPIS[member] = kpis.map(k=>k.label);
   const { score, rows } = scoreMember(member, kpis, bmap, wDays);
   const b = bmap[member.toLowerCase()] || {};
   const z = ZONE(score); const col = ZCOL[z];
   const initials = member.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  const editUid = "ed-" + member.replace(/[^a-z0-9]/gi,"");
+  const canEdit = canEditTargets(member);
   return `<div class="card">
     <div class="card-top">
       <div class="card-id">
@@ -262,6 +346,8 @@ function tile(member, role, kpis, bmap, wDays){
         <div class="card-badge" style="color:${col};border-color:${col}">${ZLBL[z]}</div>
       </div>
     </div>
+    ${canEdit ? `<button class="edit-target-btn" onclick="toggleEditPanel('${editUid}')">✎ Edit Monthly Target</button>` : ""}
+    ${canEdit ? editPanel(member, kpis, editUid) : ""}
     ${rows.map(r=>{
       const rc = r.pct>=110?"var(--gold)":r.pct>=95?"var(--green)":r.pct>=75?"var(--yellow)":r.pct>=50?"var(--orange)":"var(--red)";
       return `<div class="kpi-row">
@@ -305,6 +391,7 @@ async function load(){
   btn.disabled = true; btn.textContent = "Loading...";
   document.getElementById("status").textContent = "Fetching BDE data from Zoho…";
   try {
+    await loadTargetOverrides();
     const res = await fetch(`/api/bde?startDate=${start}&endDate=${end}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Server error");
@@ -326,6 +413,7 @@ document.body.style.visibility = "hidden";
 _auth.auth.getSession().then(({ data: { session } }) => {
   const email = session?.user?.email || "";
   if (session?.user && ALLOWED_EMAILS.includes(email)) {
+    CURRENT_EMAIL = email;
     document.body.style.visibility = "";
     buildNav(email);
     setPreset("month");
