@@ -269,7 +269,7 @@ export default async function handler(req, res) {
   const isCron = !!CRON_SECRET && secret === CRON_SECRET;
   if (!isCron) {
     const user = await requireUser(req, { adminOnly: true });
-    if (!user) return res.status(401).json({ error: "Unauthorized" });
+    if (user.error) return res.status(401).json({ error: user.error });
   }
 
   try {

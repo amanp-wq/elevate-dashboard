@@ -16,20 +16,22 @@ export const ALLOWED_EMAILS = [
 ];
 export const ADMIN_EMAILS = ["aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro", "prachit@elevateme.pro"];
 
-// Returns { email } for a valid, allow-listed session token, or null.
+// Returns { email } for a valid, allow-listed session token, or { error } describing why not.
 // Pass { adminOnly: true } to additionally require ADMIN_EMAILS membership.
 export async function requireUser(req, { adminOnly = false } = {}) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return { error: "Server misconfigured: SUPABASE_URL/SUPABASE_ANON_KEY not set" };
+
   const token = (req.headers.authorization || "").replace("Bearer ", "");
-  if (!token) return null;
+  if (!token) return { error: "No token sent" };
 
   const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` },
   });
-  if (!r.ok) return null;
+  if (!r.ok) return { error: `Token rejected by Supabase (${r.status})` };
   const user = await r.json();
-  if (!user?.email) return null;
-  if (!ALLOWED_EMAILS.includes(user.email)) return null;
-  if (adminOnly && !ADMIN_EMAILS.includes(user.email)) return null;
+  if (!user?.email) return { error: "No email on Supabase user" };
+  if (!ALLOWED_EMAILS.includes(user.email)) return { error: `Email not allow-listed: ${user.email}` };
+  if (adminOnly && !ADMIN_EMAILS.includes(user.email)) return { error: `Email not admin: ${user.email}` };
 
   return { email: user.email };
 }

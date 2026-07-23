@@ -59,7 +59,7 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   const user = await requireUser(req);
-  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  if (user.error) return res.status(401).json({ error: user.error });
 
   // ── Cache check ───────────────────────────────────────────────────────────
   const q0 = req.method === "POST" ? req.body : req.query;
