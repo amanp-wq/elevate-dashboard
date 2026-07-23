@@ -1,6 +1,8 @@
+import { requireUser } from "./_lib/auth.js";
+
 const SUPABASE_URL  = process.env.SUPABASE_URL;
 const SUPABASE_KEY  = process.env.SUPABASE_ANON_KEY;
-const CRON_SECRET   = process.env.CRON_SECRET || "elevate2024";
+const CRON_SECRET   = process.env.CRON_SECRET; // no fallback — unset means this path is closed
 
 const CLIENT_ID     = process.env.ZOHO_CLIENT_ID;
 const CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
@@ -255,12 +257,20 @@ async function refreshRole(token, allUsers, role, date) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", "https://elevate-dashboard-iota.vercel.app");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-cron-secret");
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  // Verify cron secret
-  const secret = req.headers["x-cron-secret"] || req.query.secret;
-  if (secret !== CRON_SECRET) return res.status(401).json({ error: "Unauthorized" });
+  // Two legitimate callers: Vercel's scheduler (x-cron-secret header, never sent
+  // to the browser) or an admin manually clicking "force refresh" (their own
+  // Supabase session token). No client-side secret in query params anymore.
+  const secret = req.headers["x-cron-secret"];
+  const isCron = !!CRON_SECRET && secret === CRON_SECRET;
+  if (!isCron) {
+    const user = await requireUser(req, { adminOnly: true });
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+  }
 
   try {
     // Check if anyone was active in last 30 min (skip check if force=true)

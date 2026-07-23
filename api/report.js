@@ -1,3 +1,5 @@
+import { requireUser } from "./_lib/auth.js";
+
 const SUPABASE_URL  = process.env.SUPABASE_URL;
 const SUPABASE_KEY  = process.env.SUPABASE_ANON_KEY;
 const CACHE_TTL_MS  = 20 * 60 * 1000; // 20 minutes — matches proactive refresh interval
@@ -51,13 +53,17 @@ async function logAPI(type, role, date_range, triggered_by, duration_ms) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", "https://elevate-dashboard-iota.vercel.app");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(200).end();
 
+  const user = await requireUser(req);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
   // ── Cache check ───────────────────────────────────────────────────────────
-  const { startDate, endDate, role } = req.query;
+  const q0 = req.method === "POST" ? req.body : req.query;
+  const { startDate, endDate, role } = q0;
   const cacheKey = `${role}|${startDate}|${endDate}`;
   const t0 = Date.now();
   try {

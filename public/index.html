@@ -859,7 +859,10 @@ document.getElementById("btn-gen").onclick = async function(){
     });
     const leaveMap = await fetchLeaveMap(startDate, endDate);
     await loadTargetOverrides();
-    const res = await fetch(`/api/report?startDate=${startDate}&endDate=${endDate}&slot=7pm&role=${encodeURIComponent(role)}`);
+    const { data: { session: reportSession } } = await _supabase.auth.getSession();
+    const res = await fetch(`/api/report?startDate=${startDate}&endDate=${endDate}&slot=7pm&role=${encodeURIComponent(role)}`, {
+      headers: { Authorization: `Bearer ${reportSession?.access_token || ""}` }
+    });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || "Server error");
     const fromCache = res.headers.get("X-Cache") === "HIT";
@@ -1133,7 +1136,10 @@ document.getElementById("btn-force-refresh").onclick = async function() {
   btn.disabled = true; btn.textContent = "↻ Refreshing...";
   setStatus("Forcing fresh data from Zoho CRM...");
   try {
-    const res = await fetch("/api/refresh?secret=elevate2024&force=true");
+    const { data: { session: refreshSession } } = await _supabase.auth.getSession();
+    const res = await fetch("/api/refresh?force=true", {
+      headers: { Authorization: `Bearer ${refreshSession?.access_token || ""}` }
+    });
     const data = await res.json();
     if (data.ok) {
       setStatus("Cache refreshed ✓ — loading fresh data...");

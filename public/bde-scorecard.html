@@ -330,7 +330,10 @@ async function load(){
   document.getElementById("status").textContent = "Fetching BDE data from Zoho…";
   try {
     await loadTargetOverrides();
-    const res = await fetch(`/api/bde?startDate=${start}&endDate=${end}`);
+    const { data: { session: bdeSession } } = await _auth.auth.getSession();
+    const res = await fetch(`/api/bde?startDate=${start}&endDate=${end}`, {
+      headers: { Authorization: `Bearer ${bdeSession?.access_token || ""}` }
+    });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Server error");
     const cache = res.headers.get("X-Cache")==="HIT";

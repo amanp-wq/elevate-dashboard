@@ -411,7 +411,10 @@ document.getElementById("btn-gen").onclick = async function() {
     if (teamLead) params.set("teamLead", teamLead);
     if (source)   params.set("source", source);
 
-    const res  = await fetch(`/api/funnel?${params}`);
+    const { data: { session: funnelSession } } = await _supabase.auth.getSession();
+    const res  = await fetch(`/api/funnel?${params}`, {
+      headers: { Authorization: `Bearer ${funnelSession?.access_token || ""}` }
+    });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Server error");
 

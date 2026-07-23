@@ -1,3 +1,5 @@
+import { requireUser } from "./_lib/auth.js";
+
 export const config = { maxDuration: 60 };
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
@@ -108,10 +110,13 @@ async function fetchByDateRange(token, module, select, startDate, endDate, dateF
 }
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", "https://elevate-dashboard-iota.vercel.app");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(200).end();
+
+  const user = await requireUser(req);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const { startDate, endDate } = req.query;
   if (!startDate || !endDate) return res.status(400).json({ error: "Missing startDate or endDate" });

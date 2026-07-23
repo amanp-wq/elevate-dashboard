@@ -427,7 +427,10 @@ document.getElementById("btn-gen").onclick = async function() {
   setError(""); document.getElementById("results").style.display="none";
   try {
     setStatus("Fetching BDE data from Zoho...");
-    const res = await fetch(`/api/bde?startDate=${startDate}&endDate=${endDate}`);
+    const { data: { session: bdeSession } } = await _auth.auth.getSession();
+    const res = await fetch(`/api/bde?startDate=${startDate}&endDate=${endDate}`, {
+      headers: { Authorization: `Bearer ${bdeSession?.access_token || ""}` }
+    });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error||"Server error");
     const fromCache = res.headers.get("X-Cache")==="HIT";
