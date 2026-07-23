@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ElevateMe — Attendance</title>
+<title>ElevateMe — BD Attendance</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -36,7 +36,7 @@
   }
   #btn-signout:hover { border-color: var(--accent); color: var(--accent); }
 
-  .nav-links { display: flex; gap: 8px; margin-right: 16px; }
+  .nav-links { display: flex; gap: 8px; margin-right: 16px; flex-wrap: wrap; }
   .nav-btn {
     padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
     border: 1px solid var(--border); color: var(--muted); text-decoration: none;
@@ -45,7 +45,6 @@
   .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
   .nav-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-  /* Auth overlay */
   #auth-overlay {
     position: fixed; inset: 0; z-index: 9999; background: #080b14;
     display: flex; align-items: center; justify-content: center;
@@ -120,9 +119,7 @@
     display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px;
     border-radius: 20px; border: 1px solid; margin-top: 2px; letter-spacing: 0.5px;
   }
-  .role-builder { color: #40c4ff; border-color: #40c4ff44; background: #40c4ff11; }
-  .role-closer  { color: #ff6b9d; border-color: #ff6b9d44; background: #ff6b9d11; }
-  .role-bd      { color: #ffb84d; border-color: #ffb84d44; background: #ffb84d11; }
+  .role-bd { color: #ffb84d; border-color: #ffb84d44; background: #ffb84d11; }
 
   .toggle-btn {
     padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700;
@@ -136,7 +133,6 @@
   }
   .toggle-btn:hover { transform: scale(1.04); }
 
-  /* ── Mobile responsive ────────────────────────────────────────── */
   @media (max-width: 768px) {
     header { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
     .nav-links { flex-wrap: wrap; margin-right: 0; }
@@ -159,7 +155,7 @@
 <div id="auth-overlay">
   <div class="auth-card">
     <div class="auth-logo">Elevate<span>Me</span></div>
-    <div class="auth-sub">Sign in to mark attendance</div>
+    <div class="auth-sub">Sign in to mark BD attendance</div>
     <button class="auth-google-btn" id="btn-google-signin">
       <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
       Sign in with Google
@@ -169,7 +165,7 @@
 </div>
 
 <header>
-  <div class="logo">Elevate<span>Me</span> <span style="font-size:13px;color:var(--muted);font-weight:600">Attendance</span></div>
+  <div class="logo">Elevate<span>Me</span> <span style="font-size:13px;color:var(--muted);font-weight:600">BD Attendance</span></div>
   <div style="display:flex;align-items:center">
     <div class="nav-links" id="nav-links" style="display:none"></div>
     <div class="header-right" id="user-bar" style="display:none">
@@ -182,8 +178,8 @@
 
 <div class="container" id="main-content" style="display:none">
   <div class="page-header">
-    <h1>Daily Attendance</h1>
-    <p>Mark present or on leave for each team member. Saved data is used for leave-aware target proration on the dashboard.</p>
+    <h1>BD Daily Attendance</h1>
+    <p>Mark present or on leave for each BD team member. Saved data is used for reporting the same way Sales attendance is.</p>
   </div>
 
   <div class="date-row">
@@ -210,33 +206,21 @@ const SALES_TL_EMAILS = ["soham.b@elevateme.pro","tejasvi.p@elevateme.pro","mamt
 const BD_TL_EMAILS = ["dhanraj.s@elevateme.pro","prem.t@elevateme.pro"];
 
 const TEAM_MEMBERS = [
-  // Team Soham
-  { name: "Yashraj Modasara",  team: "Soham",     role: "Builder" },
-  { name: "Aryan Sharma",      team: "Soham",     role: "Builder" },
-  { name: "Dhruvil Chauhan",   team: "Soham",     role: "Builder" },
-  { name: "Avni Gajjar",       team: "Soham",     role: "Builder" },
-  { name: "Maharshi Patel",    team: "Soham",     role: "Builder" },
-  { name: "Harsh Bhojak",      team: "Soham",     role: "Closer"  },
-  { name: "Nikunj Patel",      team: "Soham",     role: "Closer"  },
-  // Team Tejasvi
-  { name: "Lekhraj Prajapati", team: "Tejasvi",   role: "Builder" },
-  { name: "Nupur Vyas",        team: "Tejasvi",   role: "Builder" },
-  { name: "Yash Mishra",       team: "Tejasvi",   role: "Closer"  },
-  { name: "Kartik Deshawar",   team: "Tejasvi",   role: "Closer"  },
-  { name: "Abhijeet Das",      team: "Tejasvi",   role: "Closer"  },
-  // Team Mamta Das
-  { name: "Shivam Rathi",      team: "Mamta Das", role: "Builder" },
-  { name: "Soumya Singh",      team: "Mamta Das", role: "Builder" },
-  { name: "Nishant Sharma",    team: "Mamta Das", role: "Builder" },
-  { name: "Pranali Mishra",    team: "Mamta Das", role: "Closer"  },
-  { name: "Meet Patel",        team: "Mamta Das", role: "Closer"  },
-  { name: "Vidhi Patel",       team: "Mamta Das", role: "Closer"  },
+  // Team Dhanraj Solanki
+  { name: "Ronak Khant",        team: "Dhanraj Solanki", role: "BD" },
+  { name: "Jiya Chandrawanshi", team: "Dhanraj Solanki", role: "BD" },
+  { name: "Bhoomi Barot",       team: "Dhanraj Solanki", role: "BD" },
+  { name: "Sunil Patel",        team: "Dhanraj Solanki", role: "BD" },
+  // Two different "Meet Patel"s exist across the org — this one is BD, keyed
+  // distinctly so attendance never collides with the Closer under Mamta Das.
+  { name: "Meet Patel (BD)", display: "Meet Patel", team: "Dhanraj Solanki", role: "BD" },
+  // Team Prem Thakar
+  { name: "Heer Nakum",  team: "Prem Thakar", role: "BD" },
+  { name: "Ajay Darbar", team: "Prem Thakar", role: "BD" },
 ];
-// BD team attendance lives on its own page: /attendance-bd.html
 
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// attendance[name] = 'present' | 'leave'
 let attendance = {};
 let currentUserEmail = "";
 
@@ -265,7 +249,7 @@ function buildNav(email) {
 }
 
 function renderTeams() {
-  const teams = ["Soham", "Tejasvi", "Mamta Das"];
+  const teams = ["Dhanraj Solanki", "Prem Thakar"];
   const container = document.getElementById("teams-container");
   container.innerHTML = teams.map(team => {
     const members = TEAM_MEMBERS.filter(m => m.team === team);
@@ -344,7 +328,6 @@ function showApp(user) {
   currentUserEmail = user.email;
   buildNav(user.email);
 
-  // Set date to today in EST
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
   document.getElementById("inp-date").value = today;
   loadAttendance(today);
@@ -378,7 +361,7 @@ document.getElementById("btn-google-signin").onclick = async () => {
   document.getElementById("auth-error").textContent = "";
   const { error } = await _supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: "https://elevate-dashboard-iota.vercel.app/attendance.html" }
+    options: { redirectTo: "https://elevate-dashboard-iota.vercel.app/attendance-bd.html" }
   });
   if (error) document.getElementById("auth-error").textContent = error.message;
 };

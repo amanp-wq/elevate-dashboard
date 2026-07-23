@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElevateMe — Manage BD Targets</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080b14; --surface: #0f1322; --border: #1e2640;
+    --text: #e8eaf6; --muted: #6b7499;
+    --accent: #ff4d3a; --neon-green: #00e676;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Nunito Sans', sans-serif; min-height: 100vh;
+    background-image: radial-gradient(ellipse at 20% 10%, rgba(196,72,56,0.06) 0%, transparent 50%),
+                      radial-gradient(ellipse at 80% 80%, rgba(0,230,118,0.04) 0%, transparent 50%);
+  }
+  header {
+    background: #000; padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { font-size: 20px; font-weight: 800; }
+  .logo span { color: var(--accent); }
+  .header-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
+  .header-right img { width: 28px; height: 28px; border-radius: 50%; }
+  .header-right strong { color: var(--text); }
+  #btn-signout {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 8px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+  }
+  #btn-signout:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-links { display: flex; gap: 8px; margin-right: 16px; flex-wrap: wrap; }
+  .nav-btn {
+    padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
+    border: 1px solid var(--border); color: var(--muted); text-decoration: none;
+    transition: all 0.2s; background: none;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  #auth-overlay {
+    position: fixed; inset: 0; z-index: 9999; background: #080b14;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .auth-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 48px 40px; text-align: center; max-width: 380px; width: 90%;
+  }
+  .auth-logo { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+  .auth-logo span { color: var(--accent); }
+  .auth-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+  .auth-google-btn {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    width: 100%; padding: 14px; border-radius: 12px;
+    background: #fff; color: #1a1a1a; font-size: 15px; font-weight: 700;
+    border: none; cursor: pointer;
+  }
+  .auth-google-btn img { width: 20px; height: 20px; }
+  .auth-error { margin-top: 14px; font-size: 13px; color: #ff4d6a; min-height: 18px; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 32px 20px; }
+  .page-header { margin-bottom: 24px; }
+  .page-header h1 { font-size: 22px; font-weight: 800; }
+  .page-header p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .team-section { margin-bottom: 28px; }
+  .team-title {
+    font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+
+  .member-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 12px;
+  }
+  .member-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(255,255,255,0.07); display: flex; align-items: center;
+    justify-content: center; font-size: 13px; font-weight: 800; color: var(--muted);
+    border: 1.5px solid var(--border);
+  }
+  .member-name { font-size: 15px; font-weight: 700; }
+  .role-badge {
+    display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px;
+    border-radius: 20px; border: 1px solid; margin-top: 2px; letter-spacing: 0.5px;
+    color: #ffb84d; border-color: #ffb84d44; background: #ffb84d11;
+  }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 10px; }
+  .kpi-field label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .kpi-field input {
+    width: 100%; background: #111; border: 1px solid rgba(255,255,255,0.15); color: #fff;
+    border-radius: 6px; padding: 7px 9px; font-size: 13px;
+  }
+  .kpi-field input:focus { outline: none; border-color: var(--accent); }
+
+  .member-actions { display: flex; align-items: center; gap: 10px; }
+  .btn-save {
+    background: var(--accent); color: #fff; border: none; padding: 7px 16px;
+    border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .btn-save:hover { box-shadow: 0 0 14px rgba(255,77,58,0.5); }
+  .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+  .save-status { font-size: 12px; color: var(--neon-green); display: none; }
+  .save-status.show { display: inline; }
+  .save-status.error { color: #ff4d6a; }
+
+  .empty { color: var(--muted); font-size: 14px; padding: 40px 0; text-align: center; }
+
+  @media (max-width: 768px) {
+    header { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+    .nav-links { flex-wrap: wrap; margin-right: 0; }
+  }
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">Elevate<span>Me</span></div>
+    <div class="auth-sub">Sign in to manage BD targets</div>
+    <button class="auth-google-btn" id="btn-google-signin">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+      Sign in with Google
+    </button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">Elevate<span>Me</span> <span style="font-size:13px;color:var(--muted);font-weight:600">Manage BD Targets</span></div>
+  <div style="display:flex;align-items:center">
+    <div class="nav-links" id="nav-links" style="display:none"></div>
+    <div class="header-right" id="user-bar" style="display:none">
+      <img id="user-avatar" src="" style="display:none">
+      <strong id="user-name"></strong>
+      <button id="btn-signout">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<div class="container" id="main-content" style="display:none">
+  <div class="page-header">
+    <h1>Manage Monthly Targets — BD Team</h1>
+    <p>Set each BDE's monthly target per KPI. Saved values apply to every future BD Scorecard report until changed again.</p>
+  </div>
+  <div id="teams-container"></div>
+</div>
+
+<script>
+const SUPABASE_URL  = "https://ugghpsupgqycsnvssseo.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnZ2hwc3VwZ3F5Y3NudnNzc2VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMzc1NjAsImV4cCI6MjA5NzcxMzU2MH0.8DY8CP-F3o2loh2Ierkjm1iVyA9qOXPwpzHFIqY5vZI";
+
+const ALLOWED_EMAILS = [
+  "aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro",
+  "tejasvi.p@elevateme.pro", "soham.b@elevateme.pro", "mamta.d@elevateme.pro",
+  "prachit@elevateme.pro", "dhanraj.s@elevateme.pro", "prem.t@elevateme.pro"
+];
+const ADMIN_EMAILS = ["aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro", "prachit@elevateme.pro"];
+const SALES_TL_EMAILS = ["soham.b@elevateme.pro","tejasvi.p@elevateme.pro","mamta.d@elevateme.pro"];
+const BD_TL_EMAILS = ["dhanraj.s@elevateme.pro","prem.t@elevateme.pro"];
+
+// Two different "Meet Patel"s exist across the org — this BD one is keyed
+// distinctly in the DB so it never collides with the Closer under Mamta Das.
+const PERSON_KEY_OVERRIDES = { "Meet Patel": "Meet Patel (BD)" };
+const pkey = m => PERSON_KEY_OVERRIDES[m] || m;
+
+const TEAMS = [
+  {
+    name: "LinkedIn Team", role: "LinkedIn BDE", leadEmail: "dhanraj.s@elevateme.pro",
+    members: ["Ronak Khant", "Jiya Chandrawanshi", "Bhoomi Barot", "Heer Nakum"],
+    kpis: [ { key:"ICP Moderate", dailyTarget: 4 }, { key:"ICP Cold", dailyTarget: 15 } ],
+  },
+  {
+    name: "Portal Team", role: "Portal BDE", leadEmail: "dhanraj.s@elevateme.pro",
+    members: ["Ajay Darbar", "Sunil Patel"],
+    kpis: [ { key:"ICP Cold + Parser", dailyTarget: 120 } ],
+  },
+  {
+    name: "Referral Team", role: "Referral BDE", leadEmail: "dhanraj.s@elevateme.pro",
+    members: ["Meet Patel"],
+    kpis: [ { key:"ICP Moderate", dailyTarget: 2 }, { key:"ICP Cold", dailyTarget: 10 }, { key:"Reference", dailyTarget: 1 } ],
+  },
+];
+// Note: Heer Nakum and Ajay Darbar report to Prem Thakar day-to-day, but sit inside
+// the LinkedIn/Portal team KPI structures above — both leads (Dhanraj & Prem) and
+// admins can edit any BD member's targets on this page.
+
+const WORKING_DAYS_PER_MONTH = 22;
+
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+let CURRENT_EMAIL = "";
+let TARGET_OVERRIDES = {}; // { [person_key]: { [kpi]: monthly_target } }
+
+function initials(name) { return name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(); }
+function cssId(name) { return name.replace(/[^a-z0-9]/gi, ""); }
+
+function buildNav(email) {
+  const isAdmin = ADMIN_EMAILS.includes(email);
+  const currentPage = window.location.pathname;
+  const pages = [
+    { label: "Dashboard", href: "/" },
+    { label: "History", href: "/history.html" },
+    ...(isAdmin ? [{ label: "Funnel", href: "/funnel.html" }, { label: "BDE", href: "/bde.html" }, { label: "BD Scorecard", href: "/bde-scorecard.html" }] : []),
+    { label: "Attendance", href: "/attendance.html" },
+    ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label:"BD Attendance", href:"/attendance-bd.html" }] : []),
+    ...(isAdmin || SALES_TL_EMAILS.includes(email) ? [{ label:"Manage Targets", href:"/manage-targets-sales.html" }] : []),
+    ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label:"Manage Targets (BD)", href:"/manage-targets-bd.html" }] : []),
+    ...(isAdmin ? [{ label: "Admin Panel", href: "/admin.html" }] : [])
+  ];
+  const navEl = document.getElementById("nav-links");
+  navEl.innerHTML = pages.map(p =>
+    `<a href="${p.href}" class="nav-btn${currentPage === p.href ? ' active' : ''}">${p.label}</a>`
+  ).join("");
+  navEl.style.display = "flex";
+}
+
+async function loadTargetOverrides() {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,monthly_target`, {
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
+    });
+    if (!r.ok) return;
+    const rows = await r.json();
+    TARGET_OVERRIDES = {};
+    rows.forEach(row => { (TARGET_OVERRIDES[row.person_key] ||= {})[row.kpi_label] = row.monthly_target; });
+  } catch { TARGET_OVERRIDES = {}; }
+}
+
+async function saveMember(member, kpiKeys) {
+  const id = cssId(member);
+  const btn = document.getElementById(`btn-${id}`);
+  const statusEl = document.getElementById(`status-${id}`);
+  btn.disabled = true; btn.textContent = "Saving...";
+  statusEl.classList.remove("show", "error");
+  const key = pkey(member);
+  const updates = kpiKeys.map(k => ({
+    person_key: key, kpi_label: k,
+    monthly_target: Number(document.getElementById(`in-${id}-${cssId(k)}`).value) || 0,
+    updated_by: CURRENT_EMAIL, updated_at: new Date().toISOString()
+  }));
+  try {
+    const { data: { session } } = await _supabase.auth.getSession();
+    const token = session?.access_token || SUPABASE_ANON;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?on_conflict=person_key,kpi_label`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify(updates)
+    });
+    if (!r.ok) throw new Error("Save failed: " + r.status);
+    updates.forEach(u => { (TARGET_OVERRIDES[u.person_key] ||= {})[u.kpi_label] = u.monthly_target; });
+    statusEl.textContent = "Saved!"; statusEl.classList.add("show");
+    setTimeout(() => statusEl.classList.remove("show"), 3000);
+  } catch(e) {
+    statusEl.textContent = "Error: " + e.message; statusEl.classList.add("show", "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Save Target";
+  }
+}
+
+function memberCard(member, role, kpis) {
+  const key = pkey(member);
+  const overrides = TARGET_OVERRIDES[key] || {};
+  const id = cssId(member);
+  const kpiKeys = kpis.map(k => k.key);
+  return `<div class="member-card">
+    <div class="member-top">
+      <div class="avatar">${initials(member)}</div>
+      <div>
+        <div class="member-name">${member}</div>
+        <span class="role-badge">${role}</span>
+      </div>
+    </div>
+    <div class="kpi-grid">
+      ${kpis.map(k => {
+        const monthly = overrides[k.key] != null ? overrides[k.key] : Math.round(k.dailyTarget * WORKING_DAYS_PER_MONTH);
+        return `<div class="kpi-field">
+          <label>${k.key}</label>
+          <input type="number" min="0" id="in-${id}-${cssId(k.key)}" value="${monthly}">
+        </div>`;
+      }).join("")}
+    </div>
+    <div class="member-actions">
+      <button class="btn-save" id="btn-${id}" onclick='saveMember(${JSON.stringify(member)}, ${JSON.stringify(kpiKeys)})'>Save Target</button>
+      <span class="save-status" id="status-${id}">Saved!</span>
+    </div>
+  </div>`;
+}
+
+function render(email) {
+  const isAdmin = ADMIN_EMAILS.includes(email);
+  const isBDTL = BD_TL_EMAILS.includes(email);
+  const container = document.getElementById("teams-container");
+  if (!isAdmin && !isBDTL) {
+    container.innerHTML = `<div class="empty">Your account isn't set up as a BD Team Lead. Contact an admin if this is unexpected.</div>`;
+    return;
+  }
+  container.innerHTML = TEAMS.map(team => `<div class="team-section">
+    <div class="team-title">${team.name}</div>
+    ${team.members.map(m => memberCard(m, team.role, team.kpis)).join("")}
+  </div>`).join("");
+}
+
+function showApp(user) {
+  CURRENT_EMAIL = user.email || "";
+  document.getElementById("auth-overlay").style.display = "none";
+  document.getElementById("user-bar").style.display = "flex";
+  document.getElementById("main-content").style.display = "block";
+  document.getElementById("user-name").textContent = user.user_metadata?.full_name || user.email;
+  const av = document.getElementById("user-avatar");
+  if (user.user_metadata?.avatar_url) { av.src = user.user_metadata.avatar_url; av.style.display = ""; }
+  buildNav(CURRENT_EMAIL);
+  loadTargetOverrides().then(() => render(CURRENT_EMAIL));
+}
+
+_supabase.auth.getSession().then(({ data: { session } }) => {
+  if (session?.user) {
+    const email = session.user.email || "";
+    if (ALLOWED_EMAILS.includes(email)) showApp(session.user);
+    else { _supabase.auth.signOut(); document.getElementById("auth-error").textContent = "Access denied. Your account is not authorized."; }
+  }
+});
+_supabase.auth.onAuthStateChange((_e, session) => {
+  if (session?.user) {
+    const email = session.user.email || "";
+    if (ALLOWED_EMAILS.includes(email)) showApp(session.user);
+    else { _supabase.auth.signOut(); document.getElementById("auth-error").textContent = "Access denied. Your account is not authorized."; }
+  }
+});
+document.getElementById("btn-google-signin").onclick = async () => {
+  document.getElementById("auth-error").textContent = "";
+  const { error } = await _supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: "https://elevate-dashboard-iota.vercel.app/manage-targets-bd.html" }
+  });
+  if (error) document.getElementById("auth-error").textContent = error.message;
+};
+document.getElementById("btn-signout").onclick = async () => { await _supabase.auth.signOut(); location.reload(); };
+</script>
+</body>
+</html>

@@ -616,46 +616,7 @@ async function loadTargetOverrides(){
     rows.forEach(row => { (TARGET_OVERRIDES[row.person_key] ||= {})[row.kpi_label] = row.monthly_target; });
   } catch { TARGET_OVERRIDES = {}; }
 }
-let MEMBER_KPI_KEYS = {}; // name -> kpi keys shown on their card, for save() to read inputs back in order
-async function saveTargets(name, uid){
-  const keys = MEMBER_KPI_KEYS[name] || [];
-  const updates = keys.map((k,i) => ({
-    person_key: name, kpi_label: k,
-    monthly_target: Number(document.getElementById(`${uid}-in-${i}`).value) || 0,
-    updated_by: CURRENT_EMAIL, updated_at: new Date().toISOString()
-  }));
-  try {
-    const { data: { session } } = await _supabase.auth.getSession();
-    const token = session?.access_token || SUPABASE_ANON;
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?on_conflict=person_key,kpi_label`, {
-      method: "POST",
-      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
-      body: JSON.stringify(updates)
-    });
-    if (!r.ok) throw new Error("Save failed: " + r.status);
-    document.getElementById("btn-gen").click();
-  } catch(e){ alert("Save failed: " + e.message); }
-}
-function toggleEditPanel(uid){
-  const el = document.getElementById(uid);
-  el.style.display = el.style.display === "none" ? "block" : "none";
-}
-const KPI_LABELS = { calls:"Calls", minutes:"Minutes", leads:"Q. Leads", discoveries:"Discoveries", presBooked:"Pres. Booked", presCompleted:"Pres. Completed", presentations:"Presentations" };
-function editPanel(name, kpiKeys, defaultsDaily, uid){
-  MEMBER_KPI_KEYS[name] = kpiKeys;
-  const overrides = TARGET_OVERRIDES[name] || {};
-  return `<div class="edit-panel" id="${uid}" style="display:none">
-    <h5>Edit Monthly Target — ${name}</h5>
-    ${kpiKeys.map((k,i) => {
-      const monthly = overrides[k] != null ? overrides[k] : Math.round(defaultsDaily[k] * WORKING_DAYS_PER_MONTH);
-      return `<div class="edit-row">
-        <label>${KPI_LABELS[k]||k}</label>
-        <input type="number" min="0" id="${uid}-in-${i}" value="${monthly}" />
-      </div>`;
-    }).join("")}
-    <button class="btn-save-target" onclick="saveTargets('${name.replace(/'/g,"\\'")}', '${uid}')">Save Target</button>
-  </div>`;
-}
+// Targets are edited on /manage-targets-sales.html — this page only reads and applies them.
 
 function zone(s){ return s>=110?"gold":s>=95?"green":s>=75?"yellow":s>=50?"orange":"red"; }
 
@@ -1022,8 +983,6 @@ document.getElementById("btn-gen").onclick = async function(){
 
       document.getElementById("tiles").innerHTML = closers.map(c => {
         const onLeave = (leaveMap[c.name] || 0) >= effectiveDays;
-        const canEdit = canEditTargets(c.name);
-        const editUid = "ed-" + c.name.replace(/[^a-z0-9]/gi,"");
         return `
         <div class="tile ${onLeave ? "zone-leave" : "zone-"+c.zone}">
           <div class="tile-header">
@@ -1037,8 +996,6 @@ document.getElementById("btn-gen").onclick = async function(){
               <div class="tile-score">${onLeave ? "" : `${c.composite}%${c.zone==="gold"?'<span class="tile-star">★</span>':''}`}</div>
             </div>
           </div>
-          ${canEdit ? `<button class="edit-target-btn" onclick="toggleEditPanel('${editUid}')">✎ Edit Monthly Target</button>` : ""}
-          ${canEdit ? editPanel(c.name, ["calls","minutes","presentations"], TARGETS_CLOSER, editUid) : ""}
           ${onLeave ? "" : `
           <div class="tile-kpis" style="grid-template-columns:repeat(4,1fr)">
             ${[["calls",c.calls],["mins",c.minutes],["pres",c.presentations],["deals",c.dealsClosed]].map(([l,v])=>`<div><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join("")}
@@ -1082,8 +1039,6 @@ document.getElementById("btn-gen").onclick = async function(){
 
       document.getElementById("tiles").innerHTML = builders.map(b => {
         const onLeave = (leaveMap[b.name] || 0) >= effectiveDays;
-        const canEdit = canEditTargets(b.name);
-        const editUid = "ed-" + b.name.replace(/[^a-z0-9]/gi,"");
         return `
         <div class="tile ${onLeave ? "zone-leave" : "zone-"+b.zone}">
           <div class="tile-header">
@@ -1097,8 +1052,6 @@ document.getElementById("btn-gen").onclick = async function(){
               <div class="tile-score">${onLeave ? "" : `${b.composite}%${b.zone==="gold"?'<span class="tile-star">★</span>':''}`}</div>
             </div>
           </div>
-          ${canEdit ? `<button class="edit-target-btn" onclick="toggleEditPanel('${editUid}')">✎ Edit Monthly Target</button>` : ""}
-          ${canEdit ? editPanel(b.name, ["calls","minutes","leads","discoveries","presBooked","presCompleted"], TARGETS, editUid) : ""}
           ${onLeave ? "" : `
           <div class="tile-kpis">
             ${[["calls",b.calls],["mins",b.minutes],["leads",b.leads],["disco",b.discoveries],["pres.b",b.presBooked],["pres.c",b.presCompleted]].map(([l,v])=>`<div><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join("")}
@@ -1226,6 +1179,8 @@ const ALLOWED_EMAILS = [
   "prachit@elevateme.pro", "dhanraj.s@elevateme.pro", "prem.t@elevateme.pro"
 ];
 const ADMIN_EMAILS = ["aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro", "prachit@elevateme.pro"];
+const SALES_TL_EMAILS = ["soham.b@elevateme.pro","tejasvi.p@elevateme.pro","mamta.d@elevateme.pro"];
+const BD_TL_EMAILS = ["dhanraj.s@elevateme.pro","prem.t@elevateme.pro"];
 
 const authOverlay  = document.getElementById("auth-overlay");
 const authError    = document.getElementById("auth-error");
@@ -1241,6 +1196,9 @@ function buildNav(email) {
     { label: "History", href: "/history.html" },
     ...(isAdmin ? [{ label: "Funnel", href: "/funnel.html" }, { label: "BDE", href: "/bde.html" }, { label: "BD Scorecard", href: "/bde-scorecard.html" }] : []),
     { label: "Attendance", href: "/attendance.html" },
+    ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label:"BD Attendance", href:"/attendance-bd.html" }] : []),
+    ...(isAdmin || SALES_TL_EMAILS.includes(email) ? [{ label:"Manage Targets", href:"/manage-targets-sales.html" }] : []),
+    ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label:"Manage Targets (BD)", href:"/manage-targets-bd.html" }] : []),
     ...(isAdmin ? [{ label: "Admin Panel", href: "/admin.html" }] : [])
   ];
   const navEl = document.getElementById("nav-links");

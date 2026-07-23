@@ -200,6 +200,8 @@ const NAV = [
 ];
 
 const ADMIN_EMAILS = ["aman.p@elevateme.pro","satish.r@elevateme.pro","shani@elevateme.pro","prachit@elevateme.pro"];
+const SALES_TL_EMAILS = ["soham.b@elevateme.pro","tejasvi.p@elevateme.pro","mamta.d@elevateme.pro"];
+const BD_TL_EMAILS = ["dhanraj.s@elevateme.pro","prem.t@elevateme.pro"];
 function buildNav(email) {
   const isAdmin = ADMIN_EMAILS.includes(email);
   const cur = window.location.pathname;
@@ -208,6 +210,9 @@ function buildNav(email) {
     { label:"History", href:"/history.html" },
     ...(isAdmin ? [{ label:"Funnel", href:"/funnel.html" }, { label:"BDE", href:"/bde.html" }, { label:"BD Scorecard", href:"/bde-scorecard.html" }] : []),
     { label:"Attendance", href:"/attendance.html" },
+    ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label:"BD Attendance", href:"/attendance-bd.html" }] : []),
+    ...(isAdmin || SALES_TL_EMAILS.includes(email) ? [{ label:"Manage Targets", href:"/manage-targets-sales.html" }] : []),
+    ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label:"Manage Targets (BD)", href:"/manage-targets-bd.html" }] : []),
     ...(isAdmin ? [{ label:"Admin Panel", href:"/admin.html" }] : []),
   ];
   document.getElementById("nav-links").innerHTML = pages.map(p =>
