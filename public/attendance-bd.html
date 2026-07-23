@@ -151,6 +151,7 @@
 <body>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/config.js"></script>
 
 <div id="auth-overlay">
   <div class="auth-card">
@@ -193,31 +194,9 @@
 </div>
 
 <script>
-const SUPABASE_URL  = "https://ugghpsupgqycsnvssseo.supabase.co";
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnZ2hwc3VwZ3F5Y3NudnNzc2VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMzc1NjAsImV4cCI6MjA5NzcxMzU2MH0.8DY8CP-F3o2loh2Ierkjm1iVyA9qOXPwpzHFIqY5vZI";
-
-const ALLOWED_EMAILS = [
-  "aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro",
-  "tejasvi.p@elevateme.pro", "soham.b@elevateme.pro", "mamta.d@elevateme.pro",
-  "prachit@elevateme.pro", "dhanraj.s@elevateme.pro", "prem.t@elevateme.pro"
-];
-const ADMIN_EMAILS = ["aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro", "prachit@elevateme.pro"];
-const SALES_TL_EMAILS = ["soham.b@elevateme.pro","tejasvi.p@elevateme.pro","mamta.d@elevateme.pro"];
-const BD_TL_EMAILS = ["dhanraj.s@elevateme.pro","prem.t@elevateme.pro"];
-
-const TEAM_MEMBERS = [
-  // Team Dhanraj Solanki
-  { name: "Ronak Khant",        team: "Dhanraj Solanki", role: "BD" },
-  { name: "Jiya Chandrawanshi", team: "Dhanraj Solanki", role: "BD" },
-  { name: "Bhoomi Barot",       team: "Dhanraj Solanki", role: "BD" },
-  { name: "Sunil Patel",        team: "Dhanraj Solanki", role: "BD" },
-  // Two different "Meet Patel"s exist across the org — this one is BD, keyed
-  // distinctly so attendance never collides with the Closer under Mamta Das.
-  { name: "Meet Patel (BD)", display: "Meet Patel", team: "Dhanraj Solanki", role: "BD" },
-  // Team Prem Thakar
-  { name: "Heer Nakum",  team: "Prem Thakar", role: "BD" },
-  { name: "Ajay Darbar", team: "Prem Thakar", role: "BD" },
-];
+// SUPABASE_URL, SUPABASE_ANON, ALLOWED_EMAILS, ADMIN_EMAILS, SALES_TL_EMAILS,
+// BD_TL_EMAILS, BD_TEAM_MEMBERS, and buildNav() all come from /config.js.
+const TEAM_MEMBERS = BD_TEAM_MEMBERS;
 
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -228,25 +207,7 @@ function initials(name) {
   return name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
-function buildNav(email) {
-  const isAdmin = ADMIN_EMAILS.includes(email);
-  const currentPage = window.location.pathname;
-  const pages = [
-    { label: "Dashboard", href: "/" },
-    { label: "History", href: "/history.html" },
-    ...(isAdmin ? [{ label: "Funnel", href: "/funnel.html" }, { label: "BDE", href: "/bde.html" }, { label: "BD Scorecard", href: "/bde-scorecard.html" }] : []),
-    { label: "Attendance", href: "/attendance.html" },
-    ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label:"BD Attendance", href:"/attendance-bd.html" }] : []),
-    ...(isAdmin || SALES_TL_EMAILS.includes(email) ? [{ label:"Manage Targets", href:"/manage-targets-sales.html" }] : []),
-    ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label:"Manage Targets (BD)", href:"/manage-targets-bd.html" }] : []),
-    ...(isAdmin ? [{ label: "Admin Panel", href: "/admin.html" }] : [])
-  ];
-  const navEl = document.getElementById("nav-links");
-  navEl.innerHTML = pages.map(p =>
-    `<a href="${p.href}" class="nav-btn${currentPage === p.href ? ' active' : ''}">${p.label}</a>`
-  ).join("");
-  navEl.style.display = "flex";
-}
+// buildNav() comes from /config.js.
 
 function renderTeams() {
   const teams = ["Dhanraj Solanki", "Prem Thakar"];

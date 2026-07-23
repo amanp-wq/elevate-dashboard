@@ -179,46 +179,15 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/config.js"></script>
 <script>
 // ── Auth: require the same Google login as the dashboard (live only) ──────────
-const AUTH_URL  = "https://ugghpsupgqycsnvssseo.supabase.co";
-const AUTH_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnZ2hwc3VwZ3F5Y3NudnNzc2VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMzc1NjAsImV4cCI6MjA5NzcxMzU2MH0.8DY8CP-F3o2loh2Ierkjm1iVyA9qOXPwpzHFIqY5vZI";
-const ALLOWED_EMAILS = [
-  "aman.p@elevateme.pro","satish.r@elevateme.pro","shani@elevateme.pro",
-  "tejasvi.p@elevateme.pro","soham.b@elevateme.pro","mamta.d@elevateme.pro",
-  "prachit@elevateme.pro","dhanraj.s@elevateme.pro", "prem.t@elevateme.pro"
-];
+// SUPABASE_URL/SUPABASE_ANON come from /config.js; this page's code was ported
+// from the AUTH_URL/AUTH_ANON naming used on test, kept as a local alias.
+const AUTH_URL = SUPABASE_URL, AUTH_ANON = SUPABASE_ANON;
 const _auth = supabase.createClient(AUTH_URL, AUTH_ANON);
-
-const NAV = [
-  { label:"Dashboard", href:"/" },
-  { label:"BDE", href:"/bde.html", active:true },
-  { label:"BD Scorecard", href:"/bde-scorecard.html" },
-  { label:"Funnel", href:"/funnel.html" },
-  { label:"Attendance", href:"/attendance.html" },
-  { label:"Admin Panel", href:"/admin.html" },
-];
-
-const ADMIN_EMAILS = ["aman.p@elevateme.pro","satish.r@elevateme.pro","shani@elevateme.pro","prachit@elevateme.pro"];
-const SALES_TL_EMAILS = ["soham.b@elevateme.pro","tejasvi.p@elevateme.pro","mamta.d@elevateme.pro"];
-const BD_TL_EMAILS = ["dhanraj.s@elevateme.pro","prem.t@elevateme.pro"];
-function buildNav(email) {
-  const isAdmin = ADMIN_EMAILS.includes(email);
-  const cur = window.location.pathname;
-  const pages = [
-    { label:"Dashboard", href:"/" },
-    { label:"History", href:"/history.html" },
-    ...(isAdmin ? [{ label:"Funnel", href:"/funnel.html" }, { label:"BDE", href:"/bde.html" }, { label:"BD Scorecard", href:"/bde-scorecard.html" }] : []),
-    { label:"Attendance", href:"/attendance.html" },
-    ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label:"BD Attendance", href:"/attendance-bd.html" }] : []),
-    ...(isAdmin || SALES_TL_EMAILS.includes(email) ? [{ label:"Manage Targets", href:"/manage-targets-sales.html" }] : []),
-    ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label:"Manage Targets (BD)", href:"/manage-targets-bd.html" }] : []),
-    ...(isAdmin ? [{ label:"Admin Panel", href:"/admin.html" }] : []),
-  ];
-  document.getElementById("nav-links").innerHTML = pages.map(p =>
-    `<a href="${p.href}" class="nav-btn${(cur===p.href||(p.href==='/'&&(cur==='/'||cur==='/index.html')))?' active':''}">${p.label}</a>`
-  ).join("");
-}
+// ALLOWED_EMAILS, ADMIN_EMAILS, SALES_TL_EMAILS, BD_TL_EMAILS, buildNav() all
+// come from /config.js.
 
 function todayEST() { return new Date().toLocaleDateString("en-CA",{timeZone:"America/New_York"}); }
 function mondayEST() {
