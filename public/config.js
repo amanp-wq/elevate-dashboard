@@ -23,6 +23,7 @@ function buildNav(email) {
   const currentPage = window.location.pathname;
   const pages = [
     { label: "Dashboard", href: "/" },
+    { label: "Combined", href: "/combined.html" },
     { label: "History", href: "/history.html" },
     ...(isAdmin ? [{ label: "Funnel", href: "/funnel.html" }, { label: "BDE", href: "/bde.html" }, { label: "BD Scorecard", href: "/bde-scorecard.html" }] : []),
     { label: "Attendance", href: "/attendance.html" },
