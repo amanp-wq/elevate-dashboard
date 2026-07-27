@@ -31,8 +31,8 @@
     padding: 14px 24px; position: sticky; top: 0; z-index: 100;
   }
   .logo { display: flex; align-items: center; gap: 12px; }
-  .logo-img { height: 36px; width: auto; }
-  .logo-sub { font-size: 15px; font-weight: 400; color: #888; }
+  .logo-img { height: 36px; width: auto; display: block; }
+  .logo-sub { font-size: 15px; font-weight: 400; color: #888; letter-spacing: 0.2px; }
   .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
   .nav-btn {
     padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
@@ -564,7 +564,8 @@ function showApp(user) {
 }
 
 document.body.style.visibility = "";
-_supabase.auth.getSession().then(({ data: { session } }) => {
+_supabase.auth.getSession().then(async ({ data: { session } }) => {
+  await APP_USERS_READY;
   if (session?.user) {
     const email = session.user.email || "";
     if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) {
@@ -575,7 +576,8 @@ _supabase.auth.getSession().then(({ data: { session } }) => {
     }
   }
 });
-_supabase.auth.onAuthStateChange((_e, session) => {
+_supabase.auth.onAuthStateChange(async (_e, session) => {
+  await APP_USERS_READY;
   if (session?.user) {
     const email = session.user.email || "";
     if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) {

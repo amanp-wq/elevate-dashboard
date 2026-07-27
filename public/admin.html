@@ -14,12 +14,13 @@
   }
   body { background: var(--bg); color: var(--text); font-family: "Nunito Sans", sans-serif; min-height: 100vh; }
   header {
-    background: #000; padding: 14px 28px;
+    background: #000; padding: 14px 24px;
     display: flex; align-items: center; justify-content: space-between;
     border-bottom: 1px solid var(--border);
   }
-  .logo { font-size: 20px; font-weight: 800; }
-  .logo span { color: var(--accent); }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-img { height: 36px; width: auto; display: block; }
+  .logo-sub { font-size: 15px; font-weight: 400; color: #888; letter-spacing: 0.2px; }
   .header-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
   .header-right img { width: 28px; height: 28px; border-radius: 50%; }
   .header-right strong { color: var(--text); }
@@ -133,6 +134,40 @@
   .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
   .empty { text-align: center; color: var(--muted); padding: 40px; font-size: 14px; }
 
+  /* Manage Users tab */
+  .add-user-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px 24px; margin-bottom: 24px;
+  }
+  .add-user-row { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .add-user-row input[type="email"], .add-user-row input[type="text"] {
+    background: #111; border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 9px 12px; font-size: 14px; flex: 1; min-width: 200px;
+  }
+  .add-user-row input:focus { outline: none; border-color: var(--accent); }
+  .page-checks { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-bottom: 14px; }
+  .page-checks label { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+  .page-checks input { accent-color: var(--accent); cursor: pointer; }
+  .admin-check { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 14px; cursor: pointer; color: var(--gold); }
+  .admin-check input { accent-color: var(--gold); cursor: pointer; }
+  .btn-add-user {
+    background: var(--accent); color: #fff; border: none; padding: 10px 24px;
+    border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .btn-add-user:hover { box-shadow: 0 0 14px rgba(255,77,58,0.5); }
+  .btn-add-user:disabled { opacity: 0.5; cursor: not-allowed; }
+  .add-user-status { font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .add-user-status.ok { color: var(--green); }
+  .add-user-status.err { color: #ff4d6a; }
+  .pages-cell { display: flex; flex-wrap: wrap; gap: 4px; max-width: 320px; }
+  .page-chip { font-size: 10px; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--muted); }
+  .btn-remove-user {
+    background: none; border: 1px solid #ff4d6a55; color: #ff4d6a; border-radius: 6px;
+    padding: 4px 10px; font-size: 12px; cursor: pointer;
+  }
+  .btn-remove-user:hover { background: #ff4d6a; color: #fff; }
+  .hardcoded-note { font-size: 11px; color: var(--muted); font-style: italic; }
+
   /* Tabs */
   .tab-bar { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--border); }
   .tab-btn {
@@ -206,7 +241,10 @@
 </div>
 
 <header>
-  <div class="logo">Elevate<span>Me</span> <span style="font-size:13px;color:var(--muted);font-weight:600">Admin Panel</span></div>
+  <div class="logo">
+    <img src="/e92c4bab-2eb7-4e8f-bc76-e00992442f1f.png" alt="ElevateMe" class="logo-img">
+    <span class="logo-sub">Admin Panel</span>
+  </div>
   <div style="display:flex;align-items:center">
     <div class="nav-links" id="nav-links" style="display:none"></div>
     <div class="header-right">
@@ -224,6 +262,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('activity')">User Activity</button>
     <button class="tab-btn" onclick="switchTab('api')">API Logs</button>
+    <button class="tab-btn" onclick="switchTab('users')">Manage Users</button>
   </div>
 
   <!-- USER ACTIVITY TAB -->
@@ -304,6 +343,41 @@
           </tr>
         </thead>
         <tbody id="api-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MANAGE USERS TAB -->
+  <div class="tab-pane" id="tab-users">
+    <div class="add-user-card">
+      <div class="section-title" style="margin-bottom:14px">Add / Update User</div>
+      <div class="add-user-row">
+        <input type="email" id="nu-email" placeholder="email@elevateme.pro">
+        <input type="text" id="nu-name" placeholder="Full name (optional)">
+      </div>
+      <div class="page-checks" id="nu-pages"></div>
+      <label class="admin-check"><input type="checkbox" id="nu-admin"> Grant admin (Funnel, BDE, BD Scorecard, Admin Panel, all Manage Targets)</label>
+      <button class="btn-add-user" id="btn-add-user">Save User</button>
+      <div class="add-user-status" id="add-user-status"></div>
+    </div>
+
+    <div style="display:flex;align-items:center;margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:0">All Users</div>
+      <button class="refresh-btn" id="btn-refresh-users">↻ Refresh</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Name</th>
+            <th>Admin</th>
+            <th>Pages</th>
+            <th>Source</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody"></tbody>
       </table>
     </div>
   </div>
@@ -396,13 +470,106 @@ async function loadActivity() {
   }
 }
 
+function renderPageChecks() {
+  document.getElementById("nu-pages").innerHTML = ALL_PAGES.map(p =>
+    `<label><input type="checkbox" value="${p.href}" class="nu-page-cb"> ${p.label}</label>`
+  ).join("");
+}
+
+const HARDCODED_USER_EMAILS = [
+  "aman.p@elevateme.pro","satish.r@elevateme.pro","shani@elevateme.pro",
+  "tejasvi.p@elevateme.pro","soham.b@elevateme.pro","mamta.d@elevateme.pro",
+  "prachit@elevateme.pro","dhanraj.s@elevateme.pro","prem.t@elevateme.pro","meet.t@elevateme.pro"
+];
+
+async function loadUsers() {
+  renderPageChecks();
+  const tbody = document.getElementById("users-tbody");
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/app_users?select=email,full_name,pages,is_admin&order=email.asc`, {
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
+    });
+    if (r.ok) DB_USERS = await r.json();
+  } catch {}
+
+  const rows = [];
+  HARDCODED_USER_EMAILS.forEach(email => {
+    if (DB_USERS.find(u => u.email === email)) return; // a DB row overrides the built-in entry
+    rows.push({ email, full_name: "", is_admin: ADMIN_EMAILS.includes(email), pages: RESTRICTED_PAGES[email] || [], source: "code" });
+  });
+  DB_USERS.forEach(u => rows.push({ ...u, source: "db" }));
+  rows.sort((a, b) => a.email.localeCompare(b.email));
+
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6" class="empty">No users.</td></tr>`; return; }
+  tbody.innerHTML = rows.map(u => `
+    <tr>
+      <td>${u.email}</td>
+      <td>${u.full_name || "—"}</td>
+      <td>${u.is_admin ? "✓" : "—"}</td>
+      <td><div class="pages-cell">${
+        (u.pages && u.pages.length)
+          ? u.pages.map(p => { const pg = ALL_PAGES.find(x => x.href === p); return `<span class="page-chip">${pg ? pg.label : p}</span>`; }).join("")
+          : '<span class="page-chip">All (role-based)</span>'
+      }</div></td>
+      <td>${u.source === "code" ? '<span class="hardcoded-note">built-in</span>' : "app_users"}</td>
+      <td>${u.source === "db" ? `<button class="btn-remove-user" onclick="removeUser('${u.email}')">Remove</button>` : ""}</td>
+    </tr>
+  `).join("");
+}
+
+async function saveUser() {
+  const email = document.getElementById("nu-email").value.trim().toLowerCase();
+  const full_name = document.getElementById("nu-name").value.trim();
+  const is_admin = document.getElementById("nu-admin").checked;
+  const pages = [...document.querySelectorAll(".nu-page-cb:checked")].map(cb => cb.value);
+  const statusEl = document.getElementById("add-user-status");
+  statusEl.className = "add-user-status"; statusEl.textContent = "";
+  if (!email || !email.includes("@")) { statusEl.textContent = "Enter a valid email."; statusEl.classList.add("err"); return; }
+  const btn = document.getElementById("btn-add-user");
+  btn.disabled = true; btn.textContent = "Saving...";
+  try {
+    const token = currentSession?.access_token || SUPABASE_ANON;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/app_users?on_conflict=email`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify([{ email, full_name: full_name || null, is_admin, pages, updated_at: new Date().toISOString() }])
+    });
+    if (!r.ok) throw new Error("Save failed: " + r.status);
+    statusEl.textContent = `Saved ${email}. They can sign in immediately.`;
+    statusEl.classList.add("ok");
+    document.getElementById("nu-email").value = "";
+    document.getElementById("nu-name").value = "";
+    document.getElementById("nu-admin").checked = false;
+    document.querySelectorAll(".nu-page-cb").forEach(cb => cb.checked = false);
+    loadUsers();
+  } catch(e) {
+    statusEl.textContent = "Error: " + e.message; statusEl.classList.add("err");
+  } finally {
+    btn.disabled = false; btn.textContent = "Save User";
+  }
+}
+
+async function removeUser(email) {
+  if (!confirm(`Remove ${email}'s access? They'll be signed out on their next page load.`)) return;
+  try {
+    const token = currentSession?.access_token || SUPABASE_ANON;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/app_users?email=eq.${encodeURIComponent(email)}`, {
+      method: "DELETE",
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${token}` }
+    });
+    if (!r.ok) throw new Error("Delete failed: " + r.status);
+    loadUsers();
+  } catch(e) { alert("Error: " + e.message); }
+}
+
 function switchTab(name) {
   document.querySelectorAll(".tab-btn").forEach((b, i) => {
-    b.classList.toggle("active", ["activity","api"][i] === name);
+    b.classList.toggle("active", ["activity","api","users"][i] === name);
   });
   document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
   document.getElementById("tab-" + name).classList.add("active");
   if (name === "api") loadApiLogs();
+  if (name === "users") loadUsers();
 }
 
 async function loadApiLogs() {
@@ -479,7 +646,8 @@ function showApp(user) {
   loadActivity();
 }
 
-supabaseClient.auth.getSession().then(({ data: { session } }) => {
+supabaseClient.auth.getSession().then(async ({ data: { session } }) => {
+  await APP_USERS_READY;
   if (session?.user) {
     currentSession = session;
     if (ADMIN_EMAILS.includes(session.user.email)) {
@@ -491,7 +659,8 @@ supabaseClient.auth.getSession().then(({ data: { session } }) => {
   }
 });
 
-supabaseClient.auth.onAuthStateChange((_e, session) => {
+supabaseClient.auth.onAuthStateChange(async (_e, session) => {
+  await APP_USERS_READY;
   currentSession = session;
   if (session?.user) {
     if (ADMIN_EMAILS.includes(session.user.email)) {
@@ -513,6 +682,8 @@ document.getElementById("btn-google-signin").onclick = async () => {
 };
 
 document.getElementById("btn-refresh-api").onclick = loadApiLogs;
+document.getElementById("btn-refresh-users").onclick = loadUsers;
+document.getElementById("btn-add-user").onclick = saveUser;
 
 document.getElementById("btn-signout").onclick = async () => {
   await supabaseClient.auth.signOut();

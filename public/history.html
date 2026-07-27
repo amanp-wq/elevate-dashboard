@@ -393,7 +393,8 @@ document.getElementById("toggle-daily").onclick = function(){
 
 // Require Google login (same session as the main dashboard); bounce to / otherwise.
 document.body.style.visibility = "hidden";
-_auth.auth.getSession().then(({ data: { session } }) => {
+_auth.auth.getSession().then(async ({ data: { session } }) => {
+  await APP_USERS_READY;
   const email = session?.user?.email || "";
   if (session?.user && ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) {
     document.body.style.visibility = "";

@@ -361,7 +361,8 @@ document.getElementById("btn-gen").onclick = load;
 
 // Require Google login (same session as the dashboard); bounce to / otherwise.
 document.body.style.visibility = "hidden";
-_auth.auth.getSession().then(({ data: { session } }) => {
+_auth.auth.getSession().then(async ({ data: { session } }) => {
+  await APP_USERS_READY;
   const email = session?.user?.email || "";
   if (session?.user && ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) {
     CURRENT_EMAIL = email;

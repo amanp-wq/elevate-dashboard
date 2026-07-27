@@ -19,12 +19,13 @@
                       radial-gradient(ellipse at 80% 80%, rgba(0,230,118,0.04) 0%, transparent 50%);
   }
   header {
-    background: #000; padding: 14px 28px;
+    background: #000; padding: 14px 24px;
     display: flex; align-items: center; justify-content: space-between;
     border-bottom: 1px solid var(--border);
   }
-  .logo { font-size: 20px; font-weight: 800; }
-  .logo span { color: var(--accent); }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-img { height: 36px; width: auto; display: block; }
+  .logo-sub { font-size: 15px; font-weight: 400; color: #888; letter-spacing: 0.2px; }
   .header-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
   .header-right img { width: 28px; height: 28px; border-radius: 50%; }
   .header-right strong { color: var(--text); }
@@ -151,7 +152,10 @@
 </div>
 
 <header>
-  <div class="logo">Elevate<span>Me</span> <span style="font-size:13px;color:var(--muted);font-weight:600">Manage BD Targets</span></div>
+  <div class="logo">
+    <img src="/e92c4bab-2eb7-4e8f-bc76-e00992442f1f.png" alt="ElevateMe" class="logo-img">
+    <span class="logo-sub">Manage BD Targets</span>
+  </div>
   <div style="display:flex;align-items:center">
     <div class="nav-links" id="nav-links" style="display:none"></div>
     <div class="header-right" id="user-bar" style="display:none">
@@ -384,14 +388,16 @@ document.getElementById("inp-month").onchange = (e) => {
   render(CURRENT_EMAIL);
 };
 
-_supabase.auth.getSession().then(({ data: { session } }) => {
+_supabase.auth.getSession().then(async ({ data: { session } }) => {
+  await APP_USERS_READY;
   if (session?.user) {
     const email = session.user.email || "";
     if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) showApp(session.user);
     else { _supabase.auth.signOut(); document.getElementById("auth-error").textContent = "Access denied. Your account is not authorized."; }
   }
 });
-_supabase.auth.onAuthStateChange((_e, session) => {
+_supabase.auth.onAuthStateChange(async (_e, session) => {
+  await APP_USERS_READY;
   if (session?.user) {
     const email = session.user.email || "";
     if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) showApp(session.user);

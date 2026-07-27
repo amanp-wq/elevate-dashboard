@@ -28,6 +28,43 @@ function isPageAllowed(email, path) {
   return !allowed || allowed.includes(path);
 }
 
+// ── DB-managed users (Admin Panel → Manage Users) ───────────────────────────
+// Rows in `app_users` are merged additively into the arrays above at load
+// time, so an admin can grant/restrict access from the UI without a code
+// change. Every page must `await APP_USERS_READY` before checking
+// ALLOWED_EMAILS/isPageAllowed — it's already wired into every page's auth
+// gate. The hardcoded arrays above remain the permanent baseline (core
+// admins/TLs); app_users is for everyone added afterward.
+let DB_USERS = [];
+const APP_USERS_READY = (async () => {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/app_users?select=email,full_name,pages,is_admin`, {
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
+    });
+    if (!r.ok) return;
+    DB_USERS = await r.json();
+    DB_USERS.forEach(u => {
+      if (!ALLOWED_EMAILS.includes(u.email)) ALLOWED_EMAILS.push(u.email);
+      if (u.is_admin && !ADMIN_EMAILS.includes(u.email)) ADMIN_EMAILS.push(u.email);
+      if (Array.isArray(u.pages) && u.pages.length) RESTRICTED_PAGES[u.email] = u.pages;
+    });
+  } catch { /* leave hardcoded arrays as the fallback */ }
+})();
+
+// Every page the admin can grant/restrict access to, via the Manage Users UI.
+const ALL_PAGES = [
+  { label: "Dashboard", href: "/" },
+  { label: "Combined", href: "/combined.html" },
+  { label: "History", href: "/history.html" },
+  { label: "Attendance", href: "/attendance.html" },
+  { label: "Funnel", href: "/funnel.html" },
+  { label: "BDE", href: "/bde.html" },
+  { label: "BD Scorecard", href: "/bde-scorecard.html" },
+  { label: "BD Attendance", href: "/attendance-bd.html" },
+  { label: "Manage Targets", href: "/manage-targets-sales.html" },
+  { label: "Manage Targets (BD)", href: "/manage-targets-bd.html" },
+];
+
 // Standard role-gated nav used by every page except admin.html (which has
 // its own simpler, admin-only nav).
 function buildNav(email) {

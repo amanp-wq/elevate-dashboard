@@ -849,7 +849,8 @@ document.getElementById("btn-gen").onclick = async function(){
   try {
     setStatus("Loading...");
     // Log activity
-    _supabase.auth.getSession().then(({ data: { session } }) => {
+    _supabase.auth.getSession().then(async ({ data: { session } }) => {
+  await APP_USERS_READY;
       if (!session) return;
       fetch("/api/admin", {
         method: "POST",
@@ -1207,7 +1208,8 @@ function showAuth(errorMsg) {
 }
 
 // Check session on load
-_supabase.auth.getSession().then(({ data: { session } }) => {
+_supabase.auth.getSession().then(async ({ data: { session } }) => {
+  await APP_USERS_READY;
   if (session?.user) {
     const email = session.user.email || "";
     if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) {
@@ -1222,7 +1224,8 @@ _supabase.auth.getSession().then(({ data: { session } }) => {
 });
 
 // Listen for auth state changes (handles redirect back from Google)
-_supabase.auth.onAuthStateChange((_event, session) => {
+_supabase.auth.onAuthStateChange(async (_event, session) => {
+  await APP_USERS_READY;
   if (session?.user) {
     const email = session.user.email || "";
     if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) {
