@@ -75,6 +75,12 @@
     outline: none; color-scheme: dark;
   }
   .month-row input[type="month"]:focus { border-color: var(--accent); }
+  .btn-save-all {
+    background: var(--accent); color: #fff; border: none; padding: 9px 20px;
+    border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .btn-save-all:hover { box-shadow: 0 0 14px rgba(255,77,58,0.5); }
+  .btn-save-all:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .team-section { margin-bottom: 28px; }
   .team-title {
@@ -164,6 +170,8 @@
   <div class="month-row">
     <label>Month</label>
     <input type="month" id="inp-month">
+    <button class="btn-save-all" id="btn-save-all">Save All</button>
+    <span class="save-status" id="status-save-all">Saved!</span>
   </div>
   <div id="teams-container"></div>
 </div>
@@ -232,6 +240,51 @@ function resolveOverride(personKey, kpiLabel, month) {
   return fallback ? fallback.monthly_target : null;
 }
 
+let RENDERED_MEMBERS = []; // [{ member, kpiKeys }] — reset each render(), used by Save All
+
+async function saveAll() {
+  const btn = document.getElementById("btn-save-all");
+  const statusEl = document.getElementById("status-save-all");
+  btn.disabled = true; btn.textContent = "Saving...";
+  statusEl.classList.remove("show", "error");
+  const updates = [];
+  RENDERED_MEMBERS.forEach(({ member, kpiKeys }) => {
+    const id = cssId(member);
+    const key = pkey(member);
+    kpiKeys.forEach(k => {
+      const el = document.getElementById(`in-${id}-${cssId(k)}`);
+      if (!el) return;
+      updates.push({
+        person_key: key, kpi_label: k, month: SELECTED_MONTH,
+        monthly_target: Number(el.value) || 0,
+        updated_by: CURRENT_EMAIL, updated_at: new Date().toISOString()
+      });
+    });
+  });
+  try {
+    const { data: { session } } = await _supabase.auth.getSession();
+    const token = session?.access_token || SUPABASE_ANON;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?on_conflict=person_key,kpi_label,month`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify(updates)
+    });
+    if (!r.ok) throw new Error("Save failed: " + r.status);
+    updates.forEach(u => {
+      const existing = TARGET_ROWS.find(r => r.person_key === u.person_key && r.kpi_label === u.kpi_label && r.month === u.month);
+      if (existing) existing.monthly_target = u.monthly_target;
+      else TARGET_ROWS.push(u);
+    });
+    statusEl.textContent = `Saved ${updates.length} targets for ${SELECTED_MONTH}!`;
+    statusEl.classList.add("show");
+    setTimeout(() => statusEl.classList.remove("show"), 4000);
+  } catch(e) {
+    statusEl.textContent = "Error: " + e.message; statusEl.classList.add("show", "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Save All";
+  }
+}
+
 async function saveMember(member, kpiKeys) {
   const id = cssId(member);
   const btn = document.getElementById(`btn-${id}`);
@@ -271,6 +324,7 @@ function memberCard(member, role, kpis) {
   const key = pkey(member);
   const id = cssId(member);
   const kpiKeys = kpis.map(k => k.key);
+  RENDERED_MEMBERS.push({ member, kpiKeys });
   return `<div class="member-card">
     <div class="member-top">
       <div class="avatar">${initials(member)}</div>
@@ -297,6 +351,7 @@ function memberCard(member, role, kpis) {
 }
 
 function render(email) {
+  RENDERED_MEMBERS = [];
   const isAdmin = ADMIN_EMAILS.includes(email);
   const isBDTL = BD_TL_EMAILS.includes(email);
   const container = document.getElementById("teams-container");
@@ -352,6 +407,7 @@ document.getElementById("btn-google-signin").onclick = async () => {
   if (error) document.getElementById("auth-error").textContent = error.message;
 };
 document.getElementById("btn-signout").onclick = async () => { await _supabase.auth.signOut(); location.reload(); };
+document.getElementById("btn-save-all").onclick = saveAll;
 </script>
 </body>
 </html>
