@@ -594,17 +594,24 @@ const WEIGHTS_CLOSER = { calls:0.40, minutes:0.20, presentations:0.40 };
 
 // ── Editable monthly targets (read-only here; edited on /manage-targets-sales.html) ──
 const WORKING_DAYS_PER_MONTH = 22; // basis for converting a stored "monthly target" into a daily rate
-let TARGET_OVERRIDES = {}; // { [person_name]: { [kpi_key]: monthly_target } }
+let TARGET_ROWS = []; // raw rows: { person_key, kpi_label, month, monthly_target }
 async function loadTargetOverrides(){
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,monthly_target`, {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,month,monthly_target`, {
       headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
     });
     if (!r.ok) return;
-    const rows = await r.json();
-    TARGET_OVERRIDES = {};
-    rows.forEach(row => { (TARGET_OVERRIDES[row.person_key] ||= {})[row.kpi_label] = row.monthly_target; });
-  } catch { TARGET_OVERRIDES = {}; }
+    TARGET_ROWS = await r.json();
+  } catch { TARGET_ROWS = []; }
+}
+// Month-specific value if saved for that exact month (YYYY-MM), else the old
+// no-month "default" row (pre-existing before per-month targets shipped),
+// else null (caller falls back to the computed daily-rate default).
+function resolveOverride(personKey, kpiLabel, month) {
+  const exact = TARGET_ROWS.find(r => r.person_key === personKey && r.kpi_label === kpiLabel && r.month === month);
+  if (exact) return exact.monthly_target;
+  const fallback = TARGET_ROWS.find(r => r.person_key === personKey && r.kpi_label === kpiLabel && !r.month);
+  return fallback ? fallback.monthly_target : null;
 }
 // Targets are edited on /manage-targets-sales.html — this page only reads and applies them.
 
@@ -905,14 +912,17 @@ document.getElementById("btn-gen").onclick = async function(){
     const T  = Object.fromEntries(Object.entries(TARGETS).map(([k,v])       => [k, Math.max(1, Math.round(v * effectiveDays))]));
     const TC = Object.fromEntries(Object.entries(TARGETS_CLOSER).map(([k,v]) => [k, Math.max(1, Math.round(v * effectiveDays))]));
 
-    // Per-person targets accounting for leave days and any team-lead monthly-target override
+    // Per-person targets accounting for leave days and any team-lead monthly-target override.
+    // The override month used is the report's own start-date month — a range
+    // spanning two months uses the month it starts in.
+    const reportMonth = startDate.slice(0, 7);
     function personTargets(name, baseDailyRates) {
       const leaveDays = leaveMap[name] || 0;
       const adjDays = Math.max(0.1, effectiveDays - leaveDays);
       const ratio = adjDays / effectiveDays;
-      const overrides = TARGET_OVERRIDES[name] || {};
       return Object.fromEntries(Object.entries(baseDailyRates).map(([k,v]) => {
-        const dailyRate = overrides[k] != null ? overrides[k] / WORKING_DAYS_PER_MONTH : v;
+        const resolved = resolveOverride(name, k, reportMonth);
+        const dailyRate = resolved != null ? resolved / WORKING_DAYS_PER_MONTH : v;
         return [k, Math.max(1, Math.round(dailyRate * effectiveDays * ratio))];
       }));
     }

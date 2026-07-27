@@ -67,6 +67,15 @@
   .page-header h1 { font-size: 22px; font-weight: 800; }
   .page-header p { font-size: 13px; color: var(--muted); margin-top: 4px; }
 
+  .month-row { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .month-row label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .month-row input[type="month"] {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 14px;
+    outline: none; color-scheme: dark;
+  }
+  .month-row input[type="month"]:focus { border-color: var(--accent); }
+
   .team-section { margin-bottom: 28px; }
   .team-title {
     font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px;
@@ -150,7 +159,11 @@
 <div class="container" id="main-content" style="display:none">
   <div class="page-header">
     <h1>Manage Monthly Targets — BD Team</h1>
-    <p>Set each BDE's monthly target per KPI. Saved values apply to every future BD Scorecard report until changed again.</p>
+    <p>Set each BDE's target per KPI for a specific month. Pick a month below — its saved targets (or last month's, as a starting point) will show.</p>
+  </div>
+  <div class="month-row">
+    <label>Month</label>
+    <input type="month" id="inp-month">
   </div>
   <div id="teams-container"></div>
 </div>
@@ -186,7 +199,13 @@ const WORKING_DAYS_PER_MONTH = 22;
 
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let CURRENT_EMAIL = "";
-let TARGET_OVERRIDES = {}; // { [person_key]: { [kpi]: monthly_target } }
+let TARGET_ROWS = []; // raw rows: { person_key, kpi_label, month, monthly_target }
+let SELECTED_MONTH = "";
+
+function currentMonthStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+}
 
 function initials(name) { return name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(); }
 function cssId(name) { return name.replace(/[^a-z0-9]/gi, ""); }
@@ -195,14 +214,22 @@ function cssId(name) { return name.replace(/[^a-z0-9]/gi, ""); }
 
 async function loadTargetOverrides() {
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,monthly_target`, {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,month,monthly_target`, {
       headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
     });
     if (!r.ok) return;
-    const rows = await r.json();
-    TARGET_OVERRIDES = {};
-    rows.forEach(row => { (TARGET_OVERRIDES[row.person_key] ||= {})[row.kpi_label] = row.monthly_target; });
-  } catch { TARGET_OVERRIDES = {}; }
+    TARGET_ROWS = await r.json();
+  } catch { TARGET_ROWS = []; }
+}
+
+// Month-specific value if saved for that exact month, else the old
+// no-month "default" row (pre-existing before per-month targets shipped),
+// else null (caller falls back to the computed daily-rate default).
+function resolveOverride(personKey, kpiLabel, month) {
+  const exact = TARGET_ROWS.find(r => r.person_key === personKey && r.kpi_label === kpiLabel && r.month === month);
+  if (exact) return exact.monthly_target;
+  const fallback = TARGET_ROWS.find(r => r.person_key === personKey && r.kpi_label === kpiLabel && !r.month);
+  return fallback ? fallback.monthly_target : null;
 }
 
 async function saveMember(member, kpiKeys) {
@@ -213,20 +240,24 @@ async function saveMember(member, kpiKeys) {
   statusEl.classList.remove("show", "error");
   const key = pkey(member);
   const updates = kpiKeys.map(k => ({
-    person_key: key, kpi_label: k,
+    person_key: key, kpi_label: k, month: SELECTED_MONTH,
     monthly_target: Number(document.getElementById(`in-${id}-${cssId(k)}`).value) || 0,
     updated_by: CURRENT_EMAIL, updated_at: new Date().toISOString()
   }));
   try {
     const { data: { session } } = await _supabase.auth.getSession();
     const token = session?.access_token || SUPABASE_ANON;
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?on_conflict=person_key,kpi_label`, {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?on_conflict=person_key,kpi_label,month`, {
       method: "POST",
       headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
       body: JSON.stringify(updates)
     });
     if (!r.ok) throw new Error("Save failed: " + r.status);
-    updates.forEach(u => { (TARGET_OVERRIDES[u.person_key] ||= {})[u.kpi_label] = u.monthly_target; });
+    updates.forEach(u => {
+      const existing = TARGET_ROWS.find(r => r.person_key === u.person_key && r.kpi_label === u.kpi_label && r.month === u.month);
+      if (existing) existing.monthly_target = u.monthly_target;
+      else TARGET_ROWS.push(u);
+    });
     statusEl.textContent = "Saved!"; statusEl.classList.add("show");
     setTimeout(() => statusEl.classList.remove("show"), 3000);
   } catch(e) {
@@ -238,7 +269,6 @@ async function saveMember(member, kpiKeys) {
 
 function memberCard(member, role, kpis) {
   const key = pkey(member);
-  const overrides = TARGET_OVERRIDES[key] || {};
   const id = cssId(member);
   const kpiKeys = kpis.map(k => k.key);
   return `<div class="member-card">
@@ -251,7 +281,8 @@ function memberCard(member, role, kpis) {
     </div>
     <div class="kpi-grid">
       ${kpis.map(k => {
-        const monthly = overrides[k.key] != null ? overrides[k.key] : Math.round(k.dailyTarget * WORKING_DAYS_PER_MONTH);
+        const resolved = resolveOverride(key, k.key, SELECTED_MONTH);
+        const monthly = resolved != null ? resolved : Math.round(k.dailyTarget * WORKING_DAYS_PER_MONTH);
         return `<div class="kpi-field">
           <label>${k.key}</label>
           <input type="number" min="0" id="in-${id}-${cssId(k.key)}" value="${monthly}">
@@ -288,8 +319,15 @@ function showApp(user) {
   const av = document.getElementById("user-avatar");
   if (user.user_metadata?.avatar_url) { av.src = user.user_metadata.avatar_url; av.style.display = ""; }
   buildNav(CURRENT_EMAIL);
+  SELECTED_MONTH = currentMonthStr();
+  document.getElementById("inp-month").value = SELECTED_MONTH;
   loadTargetOverrides().then(() => render(CURRENT_EMAIL));
 }
+
+document.getElementById("inp-month").onchange = (e) => {
+  SELECTED_MONTH = e.target.value || currentMonthStr();
+  render(CURRENT_EMAIL);
+};
 
 _supabase.auth.getSession().then(({ data: { session } }) => {
   if (session?.user) {

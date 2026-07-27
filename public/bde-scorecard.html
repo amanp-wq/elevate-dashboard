@@ -209,28 +209,37 @@ function canEditTargets(member){
   return ADMIN_EMAILS.includes(CURRENT_EMAIL) || (TL_MEMBERS[CURRENT_EMAIL]||[]).includes(member);
 }
 
-let TARGET_OVERRIDES = {}; // { [person_key]: { [kpi_label]: monthly_target } }
+let TARGET_ROWS = []; // raw rows: { person_key, kpi_label, month, monthly_target }
+let CURRENT_REPORT_MONTH = ""; // YYYY-MM of the report's start date, set by render()
 async function loadTargetOverrides(){
   try {
-    const r = await fetch(`${AUTH_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,monthly_target`, {
+    const r = await fetch(`${AUTH_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,month,monthly_target`, {
       headers: { apikey: AUTH_ANON, Authorization: `Bearer ${AUTH_ANON}` }
     });
     if (!r.ok) return;
-    const rows = await r.json();
-    TARGET_OVERRIDES = {};
-    rows.forEach(row => { (TARGET_OVERRIDES[row.person_key] ||= {})[row.kpi_label] = row.monthly_target; });
-  } catch { TARGET_OVERRIDES = {}; }
+    TARGET_ROWS = await r.json();
+  } catch { TARGET_ROWS = []; }
+}
+// Month-specific value if saved for that exact month, else the old
+// no-month "default" row (pre-existing before per-month targets shipped),
+// else null (caller falls back to the computed daily-rate default).
+function resolveOverride(personKey, kpiLabel, month) {
+  const exact = TARGET_ROWS.find(r => r.person_key === personKey && r.kpi_label === kpiLabel && r.month === month);
+  if (exact) return exact.monthly_target;
+  const fallback = TARGET_ROWS.find(r => r.person_key === personKey && r.kpi_label === kpiLabel && !r.month);
+  return fallback ? fallback.monthly_target : null;
 }
 // Targets are edited on /manage-targets-bd.html — this page only reads and applies them.
 
 const WORKING_DAYS_PER_MONTH = 22; // basis for converting a stored "monthly target" into a daily rate
 function scoreMember(member, kpis, bmap, wDays){
   const b = bmap[member.toLowerCase()] || {};
-  const overrides = TARGET_OVERRIDES[pkey(member)] || {};
+  const key = pkey(member);
   let score = 0;
   const rows = kpis.map(k => {
     const actual = k.get(b);
-    const dailyRate = overrides[k.label] != null ? overrides[k.label] / WORKING_DAYS_PER_MONTH : k.dailyTarget;
+    const resolved = resolveOverride(key, k.label, CURRENT_REPORT_MONTH);
+    const dailyRate = resolved != null ? resolved / WORKING_DAYS_PER_MONTH : k.dailyTarget;
     const target = Math.max(1, Math.round(dailyRate * wDays));
     const pct = target>0 ? Math.min(150, actual/target*100) : 0;
     score += pct * k.weight;
@@ -300,6 +309,7 @@ function tile(member, role, kpis, bmap, wDays){
 }
 
 function render(bdes, start, end){
+  CURRENT_REPORT_MONTH = start.slice(0, 7);
   const wDays = workingDays(start, end);
   const bmap = {};
   bdes.forEach(b => { bmap[(b.name||"").toLowerCase()] = b; });
