@@ -10,11 +10,23 @@ const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const ALLOWED_EMAILS = [
   "aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro",
   "tejasvi.p@elevateme.pro", "soham.b@elevateme.pro", "mamta.d@elevateme.pro",
-  "prachit@elevateme.pro", "dhanraj.s@elevateme.pro", "prem.t@elevateme.pro"
+  "prachit@elevateme.pro", "dhanraj.s@elevateme.pro", "prem.t@elevateme.pro",
+  "meet.t@elevateme.pro"
 ];
 const ADMIN_EMAILS = ["aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro", "prachit@elevateme.pro"];
 const SALES_TL_EMAILS = ["soham.b@elevateme.pro", "tejasvi.p@elevateme.pro", "mamta.d@elevateme.pro"];
 const BD_TL_EMAILS = ["dhanraj.s@elevateme.pro", "prem.t@elevateme.pro"];
+
+// Users limited to a specific subset of pages (everyone else has no entry
+// here and gets the normal role-gated access). Checked both to hide nav
+// links AND to hard-block direct navigation to a disallowed page's URL.
+const RESTRICTED_PAGES = {
+  "meet.t@elevateme.pro": ["/", "/combined.html", "/history.html"],
+};
+function isPageAllowed(email, path) {
+  const allowed = RESTRICTED_PAGES[email];
+  return !allowed || allowed.includes(path);
+}
 
 // Standard role-gated nav used by every page except admin.html (which has
 // its own simpler, admin-only nav).
@@ -31,7 +43,7 @@ function buildNav(email) {
     ...(isAdmin || SALES_TL_EMAILS.includes(email) ? [{ label: "Manage Targets", href: "/manage-targets-sales.html" }] : []),
     ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label: "Manage Targets (BD)", href: "/manage-targets-bd.html" }] : []),
     ...(isAdmin ? [{ label: "Admin Panel", href: "/admin.html" }] : [])
-  ];
+  ].filter(p => isPageAllowed(email, p.href));
   const navEl = document.getElementById("nav-links");
   navEl.innerHTML = pages.map(p =>
     `<a href="${p.href}" class="nav-btn${(currentPage === p.href || (p.href === '/' && (currentPage === '/' || currentPage === '/index.html'))) ? ' active' : ''}">${p.label}</a>`

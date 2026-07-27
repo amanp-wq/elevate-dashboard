@@ -363,7 +363,7 @@ document.getElementById("btn-gen").onclick = load;
 document.body.style.visibility = "hidden";
 _auth.auth.getSession().then(({ data: { session } }) => {
   const email = session?.user?.email || "";
-  if (session?.user && ALLOWED_EMAILS.includes(email)) {
+  if (session?.user && ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) {
     CURRENT_EMAIL = email;
     document.body.style.visibility = "";
     buildNav(email);

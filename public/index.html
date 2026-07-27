@@ -1210,7 +1210,7 @@ function showAuth(errorMsg) {
 _supabase.auth.getSession().then(({ data: { session } }) => {
   if (session?.user) {
     const email = session.user.email || "";
-    if (ALLOWED_EMAILS.includes(email)) {
+    if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) {
       showApp(session.user);
     } else {
       _supabase.auth.signOut();
@@ -1225,7 +1225,7 @@ _supabase.auth.getSession().then(({ data: { session } }) => {
 _supabase.auth.onAuthStateChange((_event, session) => {
   if (session?.user) {
     const email = session.user.email || "";
-    if (ALLOWED_EMAILS.includes(email)) {
+    if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) {
       showApp(session.user);
     } else {
       _supabase.auth.signOut();

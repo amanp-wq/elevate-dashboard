@@ -373,14 +373,14 @@ document.getElementById("inp-month").onchange = (e) => {
 _supabase.auth.getSession().then(({ data: { session } }) => {
   if (session?.user) {
     const email = session.user.email || "";
-    if (ALLOWED_EMAILS.includes(email)) showApp(session.user);
+    if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) showApp(session.user);
     else { _supabase.auth.signOut(); document.getElementById("auth-error").textContent = "Access denied. Your account is not authorized."; }
   }
 });
 _supabase.auth.onAuthStateChange((_e, session) => {
   if (session?.user) {
     const email = session.user.email || "";
-    if (ALLOWED_EMAILS.includes(email)) showApp(session.user);
+    if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) showApp(session.user);
     else { _supabase.auth.signOut(); document.getElementById("auth-error").textContent = "Access denied. Your account is not authorized."; }
   }
 });
