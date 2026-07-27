@@ -499,6 +499,7 @@ async function loadUsers() {
   });
   DB_USERS.forEach(u => rows.push({ ...u, source: "db" }));
   rows.sort((a, b) => a.email.localeCompare(b.email));
+  LAST_RENDERED_ROWS = rows;
 
   if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6" class="empty">No users.</td></tr>`; return; }
   tbody.innerHTML = rows.map(u => `
@@ -512,9 +513,28 @@ async function loadUsers() {
           : '<span class="page-chip">All (role-based)</span>'
       }</div></td>
       <td>${u.source === "code" ? '<span class="hardcoded-note">built-in</span>' : "app_users"}</td>
-      <td>${u.source === "db" ? `<button class="btn-remove-user" onclick="removeUser('${u.email}')">Remove</button>` : ""}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn-remove-user" style="border-color:var(--border);color:var(--muted)" onclick="editUser('${u.email}')">Edit</button>
+        ${u.source === "db" ? `<button class="btn-remove-user" onclick="removeUser('${u.email}')">Remove</button>` : ""}
+      </td>
     </tr>
   `).join("");
+}
+
+let LAST_RENDERED_ROWS = [];
+function editUser(email) {
+  const u = LAST_RENDERED_ROWS.find(r => r.email === email);
+  if (!u) return;
+  document.getElementById("nu-email").value = u.email;
+  document.getElementById("nu-name").value = u.full_name || "";
+  document.getElementById("nu-admin").checked = !!u.is_admin;
+  document.querySelectorAll(".nu-page-cb").forEach(cb => { cb.checked = (u.pages || []).includes(cb.value); });
+  document.getElementById("add-user-status").textContent =
+    u.source === "code"
+      ? `Editing built-in user "${email}" — saving will create an app_users override (its pages/admin flag will take priority; admin can only be added, not revoked, for the 4 original hardcoded admins).`
+      : `Editing ${email}.`;
+  document.getElementById("add-user-status").className = "add-user-status";
+  document.getElementById("nu-email").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 async function saveUser() {
