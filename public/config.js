@@ -63,6 +63,7 @@ const ALL_PAGES = [
   { label: "BD Attendance", href: "/attendance-bd.html" },
   { label: "Manage Targets", href: "/manage-targets-sales.html" },
   { label: "Manage Targets (BD)", href: "/manage-targets-bd.html" },
+  { label: "TV Board", href: "/tv-board.html" },
 ];
 
 // Standard role-gated nav used by every page except admin.html (which has
@@ -76,6 +77,7 @@ function buildNav(email) {
     { label: "History", href: "/history.html" },
     ...(isAdmin ? [{ label: "Funnel", href: "/funnel.html" }, { label: "BDE", href: "/bde.html" }, { label: "BD Scorecard", href: "/bde-scorecard.html" }] : []),
     { label: "Attendance", href: "/attendance.html" },
+    ...(isAdmin ? [{ label: "TV Board", href: "/tv-board.html" }] : []),
     ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label: "BD Attendance", href: "/attendance-bd.html" }] : []),
     ...(isAdmin || SALES_TL_EMAILS.includes(email) ? [{ label: "Manage Targets", href: "/manage-targets-sales.html" }] : []),
     ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label: "Manage Targets (BD)", href: "/manage-targets-bd.html" }] : []),
