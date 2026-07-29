@@ -281,6 +281,26 @@ async function saveAttendance(date, markedBy) {
     body: JSON.stringify(records)
   });
   if (!r.ok) throw new Error("Save failed: " + r.status);
+  syncAttendanceToTest(records);
+}
+
+// Live and Test run on completely separate Supabase projects. Best-effort
+// dual-write so test's attendance stays in sync — if test's Supabase is
+// unreachable, it must never block or fail the live save that just
+// succeeded above.
+function syncAttendanceToTest(records) {
+  const TEST_SUPABASE_URL = "https://czfsjrvngiojjjevmvtz.supabase.co";
+  const TEST_SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6ZnNqcnZuZ2lvampqZXZtdnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODc0NzIsImV4cCI6MjA5ODA2MzQ3Mn0.IbK1th8wcdrHOgJL1y5kQE3De1c0HSe0ju4Q9vNQ9BQ";
+  fetch(`${TEST_SUPABASE_URL}/rest/v1/attendance?on_conflict=person_name,date`, {
+    method: "POST",
+    headers: {
+      apikey: TEST_SUPABASE_ANON,
+      Authorization: `Bearer ${TEST_SUPABASE_ANON}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=minimal"
+    },
+    body: JSON.stringify(records)
+  }).catch(e => console.error("Attendance sync to test failed (non-fatal):", e.message));
 }
 
 function showApp(user) {
