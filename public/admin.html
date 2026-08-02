@@ -384,9 +384,10 @@
 </div>
 
 <script>
-// SUPABASE_URL, SUPABASE_ANON, and ADMIN_EMAILS come from /config.js. This
-// page's own buildNav() below (declared after config.js loads) intentionally
-// overrides the shared one — admin.html's nav is simpler and admin-only.
+// SUPABASE_URL, SUPABASE_ANON, ADMIN_EMAILS and buildNav() all come from
+// /config.js. This page used to define its own buildNav(), which quietly
+// drifted (it was missing History, BDE and BD Scorecard) — it now uses the
+// shared dropdown nav like every other page.
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 let currentSession = null;
@@ -634,26 +635,6 @@ async function loadApiLogs() {
       </tr>
     `).join("");
   }
-}
-
-function buildNav(email) {
-  const currentPage = window.location.pathname;
-  const pages = [
-    { label: "Dashboard", href: "/" },
-    { label: "Combined", href: "/combined.html" },
-    { label: "Funnel",    href: "/funnel.html" },
-    { label: "TV Board", href: "/tv-board.html" },
-    { label: "Attendance", href: "/attendance.html" },
-    { label: "BD Attendance", href: "/attendance-bd.html" },
-    { label: "Manage Targets", href: "/manage-targets-sales.html" },
-    { label: "Manage Targets (BD)", href: "/manage-targets-bd.html" },
-    { label: "Admin Panel", href: "/admin.html" }
-  ];
-  const navEl = document.getElementById("nav-links");
-  navEl.innerHTML = pages.map(p =>
-    `<a href="${p.href}" class="nav-btn${currentPage === p.href || (p.href==='/' && currentPage==='/index.html') ? ' active' : ''}">${p.label}</a>`
-  ).join("");
-  navEl.style.display = "flex";
 }
 
 function showApp(user) {

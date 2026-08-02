@@ -66,28 +66,118 @@ const ALL_PAGES = [
   { label: "TV Board", href: "/tv-board.html" },
 ];
 
+// Dropdown-nav styling is injected from here rather than added to each
+// page's own <style> block — buildNav() is shared by ~11 pages, and
+// keeping the markup and its CSS in one file is what stops them drifting
+// apart (the same drift that caused the earlier toolbar-alignment bug).
+// Fallback values are given for every var because history.html and
+// bde-scorecard.html don't define --accent.
+function injectNavStyles() {
+  if (document.getElementById("nav-dropdown-styles")) return;
+  const css = `
+    .nav-group { position: relative; display: inline-flex; }
+    .nav-group > .nav-btn { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; }
+    .nav-caret { font-size: 8px; line-height: 1; transition: transform 0.2s; }
+    .nav-group.open .nav-caret { transform: rotate(180deg); }
+    .nav-menu {
+      display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 1000;
+      min-width: 190px; padding: 6px; border-radius: 12px;
+      background: #0f1322; border: 1px solid var(--border, #1e2640);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.55);
+    }
+    .nav-group.open .nav-menu { display: block; }
+    .nav-menu a {
+      display: block; padding: 8px 12px; border-radius: 8px; white-space: nowrap;
+      font-size: 12px; font-weight: 600; color: var(--muted, #6b7499); text-decoration: none;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-menu a:hover { background: rgba(255,255,255,0.06); color: var(--accent, #ff4d3a); }
+    .nav-menu a.active { background: var(--accent, #ff4d3a); color: #fff; }
+    @media (max-width: 768px) { .nav-menu { min-width: 160px; } .nav-menu a { font-size: 11px; padding: 7px 10px; } }
+  `;
+  const el = document.createElement("style");
+  el.id = "nav-dropdown-styles";
+  el.textContent = css;
+  document.head.appendChild(el);
+}
+
 // Standard role-gated nav used by every page except admin.html (which has
-// its own simpler, admin-only nav).
+// its own simpler, admin-only nav). Related pages are grouped into
+// dropdowns so the bar stays short instead of running 12 buttons wide.
 function buildNav(email) {
   const isAdmin = ADMIN_EMAILS.includes(email);
+  const isSalesTL = SALES_TL_EMAILS.includes(email);
+  const isBdTL = BD_TL_EMAILS.includes(email);
   const currentPage = window.location.pathname;
-  const pages = [
+  const isCurrent = href =>
+    currentPage === href || (href === "/" && (currentPage === "/" || currentPage === "/index.html"));
+
+  // A `group` renders as a dropdown; a bare item renders as a plain button.
+  // Groups whose children are all filtered out are dropped entirely, so a
+  // page-restricted user never sees an empty dropdown.
+  const nav = [
     { label: "Dashboard", href: "/" },
     { label: "Combined", href: "/combined.html" },
     { label: "History", href: "/history.html" },
-    ...(isAdmin ? [{ label: "Funnel", href: "/funnel.html" }, { label: "BDE", href: "/bde.html" }, { label: "BD Scorecard", href: "/bde-scorecard.html" }] : []),
-    { label: "Attendance", href: "/attendance.html" },
+    { group: "BD", items: [
+      ...(isAdmin ? [{ label: "Funnel", href: "/funnel.html" }, { label: "BDE", href: "/bde.html" }, { label: "BD Scorecard", href: "/bde-scorecard.html" }] : []),
+    ]},
+    { group: "Attendance", items: [
+      { label: "Sales Attendance", href: "/attendance.html" },
+      ...(isAdmin || isBdTL ? [{ label: "BD Attendance", href: "/attendance-bd.html" }] : []),
+    ]},
+    { group: "Targets", items: [
+      ...(isAdmin || isSalesTL ? [{ label: "Sales Targets", href: "/manage-targets-sales.html" }] : []),
+      ...(isAdmin || isBdTL ? [{ label: "BD Targets", href: "/manage-targets-bd.html" }] : []),
+    ]},
     ...(isAdmin ? [{ label: "TV Board", href: "/tv-board.html" }] : []),
-    ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label: "BD Attendance", href: "/attendance-bd.html" }] : []),
-    ...(isAdmin || SALES_TL_EMAILS.includes(email) ? [{ label: "Manage Targets", href: "/manage-targets-sales.html" }] : []),
-    ...(isAdmin || BD_TL_EMAILS.includes(email) ? [{ label: "Manage Targets (BD)", href: "/manage-targets-bd.html" }] : []),
-    ...(isAdmin ? [{ label: "Admin Panel", href: "/admin.html" }] : [])
-  ].filter(p => isPageAllowed(email, p.href));
+    ...(isAdmin ? [{ label: "Admin Panel", href: "/admin.html" }] : []),
+  ];
+
+  const visible = nav
+    .map(entry => entry.group
+      ? { ...entry, items: entry.items.filter(i => isPageAllowed(email, i.href)) }
+      : entry)
+    .filter(entry => entry.group ? entry.items.length > 0 : isPageAllowed(email, entry.href));
+
+  injectNavStyles();
   const navEl = document.getElementById("nav-links");
-  navEl.innerHTML = pages.map(p =>
-    `<a href="${p.href}" class="nav-btn${(currentPage === p.href || (p.href === '/' && (currentPage === '/' || currentPage === '/index.html'))) ? ' active' : ''}">${p.label}</a>`
-  ).join("");
+  navEl.innerHTML = visible.map(entry => {
+    if (!entry.group) {
+      return `<a href="${entry.href}" class="nav-btn${isCurrent(entry.href) ? " active" : ""}">${entry.label}</a>`;
+    }
+    // A group with a single surviving child is pointless as a dropdown —
+    // render it as a normal button straight to that page.
+    if (entry.items.length === 1) {
+      const only = entry.items[0];
+      return `<a href="${only.href}" class="nav-btn${isCurrent(only.href) ? " active" : ""}">${only.label}</a>`;
+    }
+    const groupActive = entry.items.some(i => isCurrent(i.href));
+    const links = entry.items.map(i =>
+      `<a href="${i.href}"${isCurrent(i.href) ? ' class="active"' : ""}>${i.label}</a>`
+    ).join("");
+    return `<div class="nav-group">
+      <button type="button" class="nav-btn${groupActive ? " active" : ""}">${entry.group}<span class="nav-caret">▼</span></button>
+      <div class="nav-menu">${links}</div>
+    </div>`;
+  }).join("");
   navEl.style.display = "flex";
+
+  navEl.querySelectorAll(".nav-group > .nav-btn").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const group = btn.parentElement;
+      const wasOpen = group.classList.contains("open");
+      navEl.querySelectorAll(".nav-group.open").forEach(g => g.classList.remove("open"));
+      if (!wasOpen) group.classList.add("open");
+    });
+  });
+  document.addEventListener("click", () => {
+    navEl.querySelectorAll(".nav-group.open").forEach(g => g.classList.remove("open"));
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") navEl.querySelectorAll(".nav-group.open").forEach(g => g.classList.remove("open"));
+  });
 }
 
 // Sales roster shared by attendance.html and manage-targets-sales.html.
