@@ -53,13 +53,19 @@ async function setCached(key, data) {
   });
 }
 
+// Must be awaited by callers: on Vercel the instance is frozen as soon as the
+// response is sent, so a fire-and-forget insert here was being killed
+// mid-flight and api_logs stayed permanently empty (which is also what hid
+// the broken report cache for so long — there were no logs to notice it in).
 async function logAPI(type, role, date_range, triggered_by, duration_ms) {
   if (!SUPABASE_URL || !SUPABASE_KEY) return;
-  fetch(`${SUPABASE_URL}/rest/v1/api_logs`, {
-    method: "POST",
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ type, role, date_range, triggered_by, duration_ms })
-  }).catch(() => {});
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/api_logs`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ type, role, date_range, triggered_by, duration_ms })
+    });
+  } catch { /* logging must never fail the request */ }
 }
 
 export default async function handler(req, res) {
@@ -80,7 +86,7 @@ export default async function handler(req, res) {
     const cached = await getCached(cacheKey);
     if (cached) {
       res.setHeader("X-Cache", "HIT");
-      logAPI("cache_hit", role, `${startDate} to ${endDate}`, "user", Date.now() - t0);
+      await logAPI("cache_hit", role, `${startDate} to ${endDate}`, "user", Date.now() - t0);
       return res.status(200).json(cached);
     }
   } catch(_) { /* cache miss — proceed normally */ }
@@ -338,7 +344,7 @@ export default async function handler(req, res) {
 
       const result = { teams, startDate, endDate, slot, role };
       setCached(cacheKey, result).catch(() => {});
-      logAPI("zoho_call", role, `${startDate} to ${endDate}`, "user", Date.now() - t0);
+      await logAPI("zoho_call", role, `${startDate} to ${endDate}`, "user", Date.now() - t0);
       return res.status(200).json(result);
     }
 
@@ -400,7 +406,7 @@ export default async function handler(req, res) {
       }));
       const result = { closers, startDate, endDate, slot, role };
       setCached(cacheKey, result).catch(() => {});
-      logAPI("zoho_call", role, `${startDate} to ${endDate}`, "user", Date.now() - t0);
+      await logAPI("zoho_call", role, `${startDate} to ${endDate}`, "user", Date.now() - t0);
       return res.status(200).json(result);
     }
 
@@ -443,7 +449,7 @@ export default async function handler(req, res) {
     const builders = Object.values(map).map(b => ({ ...b, minutes: Math.round(b.minutes) }));
     const result = { builders, startDate, endDate, slot, role };
     setCached(cacheKey, result).catch(() => {});
-    logAPI("zoho_call", role, `${startDate} to ${endDate}`, "user", Date.now() - t0);
+    await logAPI("zoho_call", role, `${startDate} to ${endDate}`, "user", Date.now() - t0);
     return res.status(200).json(result);
 
   } catch (e) {
