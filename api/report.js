@@ -9,6 +9,13 @@ const API_DOMAIN_COQL = "https://www.zohoapis.in";
 
 // In-memory token cache — reuse access token for 50 min to avoid Zoho rate limits
 let _tokenCache = { token: null, expiresAt: 0 };
+
+// Same idea for the user list: it was being re-fetched on every single
+// invocation, which showed up in Zoho's credit report as ~5.3k Users-module
+// calls in one day (12% of that day's spend) purely to re-read a roster that
+// changes maybe once a month. Cached per warm instance.
+let _usersCache = { users: null, expiresAt: 0 };
+const USERS_TTL_MS = 30 * 60 * 1000;
 async function getAccessTokenCached(CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN) {
   if (_tokenCache.token && Date.now() < _tokenCache.expiresAt) return _tokenCache.token;
   const r = await fetch("https://accounts.zoho.in/oauth/v2/token", {
@@ -237,8 +244,14 @@ export default async function handler(req, res) {
 
     const token = await getAccessToken();
 
-    const ud = await zohoGet(token, `${API_DOMAIN}/crm/v2/users?type=ActiveUsers&per_page=200`);
-    const allUsers = ud?.users || [];
+    let allUsers;
+    if (_usersCache.users && Date.now() < _usersCache.expiresAt) {
+      allUsers = _usersCache.users;
+    } else {
+      const ud = await zohoGet(token, `${API_DOMAIN}/crm/v2/users?type=ActiveUsers&per_page=200`);
+      allUsers = ud?.users || [];
+      if (allUsers.length) _usersCache = { users: allUsers, expiresAt: Date.now() + USERS_TTL_MS };
+    }
     const users = allUsers.filter(u => (u.role?.name || "").toLowerCase().includes(role.toLowerCase()));
 
     if (!users.length) {
