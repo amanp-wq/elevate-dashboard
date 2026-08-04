@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElevateMe — How It Works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080b14; --surface: #0f1322; --border: #1e2640;
+    --text: #e8eaf6; --muted: #6b7499; --accent: #ff4d3a;
+    --neon-gold: #ffd740; --neon-green: #00e676;
+    --neon-yellow: #ffab00; --neon-orange: #ff6d00; --neon-red: #ff1744;
+    --neon-leave: #8888cc;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Nunito Sans', sans-serif; min-height: 100vh;
+    padding: 2rem 1rem; line-height: 1.6;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    margin: -2rem -1rem 2rem -1rem;
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-img { height: 36px; width: auto; display: block; }
+  .logo-sub { font-size: 15px; font-weight: 400; color: #888; letter-spacing: 0.2px; }
+  .nav-links { display: flex; gap: 8px; margin-right: 16px; }
+  .nav-btn {
+    padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
+    border: 1px solid var(--border); color: var(--muted); text-decoration: none;
+    transition: all 0.2s; background: none;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .container { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 30px; font-weight: 800; margin-bottom: 6px; }
+  .lede { color: var(--muted); font-size: 15px; margin-bottom: 28px; }
+
+  /* Jump links */
+  .toc { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px; }
+  .toc a {
+    font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 20px;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--muted); text-decoration: none; transition: all 0.2s;
+  }
+  .toc a:hover { border-color: var(--accent); color: var(--accent); }
+
+  section { margin-bottom: 40px; scroll-margin-top: 20px; }
+  h2 {
+    font-size: 20px; font-weight: 800; margin-bottom: 14px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; color: #c9cfe4; }
+  p { margin-bottom: 12px; font-size: 14px; }
+  ul { margin: 0 0 12px 20px; font-size: 14px; }
+  li { margin-bottom: 6px; }
+
+  table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 14px; }
+  th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800; }
+  td.num { font-variant-numeric: tabular-nums; font-weight: 700; }
+  .table-wrap { overflow-x: auto; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px; margin-bottom: 14px;
+  }
+  .note {
+    border-left: 3px solid var(--accent); background: rgba(255,77,58,0.06);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 14px; font-size: 14px;
+  }
+  .formula {
+    background: #05060b; border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 16px; font-family: ui-monospace, monospace; font-size: 13px;
+    color: #c9cfe4; margin-bottom: 14px; overflow-x: auto; white-space: pre;
+  }
+  .pill {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.5px;
+  }
+  .zone-gold   { color: var(--neon-gold);   border: 1px solid var(--neon-gold); }
+  .zone-green  { color: var(--neon-green);  border: 1px solid var(--neon-green); }
+  .zone-yellow { color: var(--neon-yellow); border: 1px solid var(--neon-yellow); }
+  .zone-orange { color: var(--neon-orange); border: 1px solid var(--neon-orange); }
+  .zone-red    { color: var(--neon-red);    border: 1px solid var(--neon-red); }
+  .zone-leave  { color: var(--neon-leave);  border: 1px solid var(--neon-leave); }
+
+  @media (max-width: 768px) {
+    body { padding: 0.5rem; }
+    header { padding: 10px 14px; margin: -0.5rem -0.5rem 1.5rem -0.5rem; }
+    .nav-btn { padding: 5px 10px; font-size: 11px; }
+    h1 { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/config.js"></script>
+
+<header>
+  <div class="logo">
+    <img src="/e92c4bab-2eb7-4e8f-bc76-e00992442f1f.png" alt="ElevateMe" class="logo-img">
+    <span class="logo-sub">How It Works</span>
+  </div>
+  <div class="nav-links" id="nav-links"></div>
+</header>
+
+<div class="container">
+  <h1>How the dashboard works</h1>
+  <p class="lede">Every number on every page, and exactly how it is calculated.</p>
+
+  <div class="toc">
+    <a href="#pages">Pages</a>
+    <a href="#score">How your score works</a>
+    <a href="#builder">Builder KPIs</a>
+    <a href="#closer">Closer KPIs</a>
+    <a href="#cards">Card colours</a>
+    <a href="#team">Team health</a>
+    <a href="#leave">Leave &amp; attendance</a>
+    <a href="#funnel">BD funnel</a>
+    <a href="#data">Where data comes from</a>
+    <a href="#faq">Common questions</a>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <section id="pages">
+    <h2>What each page shows</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Page</th><th>What it is for</th></tr>
+      <tr><td><b>Dashboard</b></td><td>Pick any date range and see every person's score, KPIs and card colour. This is the main report.</td></tr>
+      <tr><td><b>Combined</b></td><td>Builders and Closers side by side in one view.</td></tr>
+      <tr><td><b>History</b></td><td>Past performance from the nightly saved snapshots. Use this to look back at any earlier day or week.</td></tr>
+      <tr><td><b>TV Board</b></td><td>The floor display. Rotates Builders → Closers → Team Leaders every 30 seconds and refreshes itself.</td></tr>
+      <tr><td><b>Attendance</b></td><td>Mark who is present or on leave each day. This feeds the scoring, so keep it up to date.</td></tr>
+      <tr><td><b>Funnel</b> / <b>BDE</b> / <b>BD Scorecard</b></td><td>Lead-generation pipeline for the BD team, stage by stage.</td></tr>
+      <tr><td><b>Manage Targets</b></td><td>Team leads set their own team's monthly targets here — no code change needed.</td></tr>
+    </table></div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <section id="score">
+    <h2>How your score is calculated</h2>
+    <p>Your score is a single percentage built from all your KPIs. Three steps:</p>
+
+    <h3>Step 1 — Each KPI becomes a percentage of its target</h3>
+    <div class="formula">KPI %  =  (what you did  ÷  your target) × 100</div>
+    <p>Example: 135 calls against a 150 target = 90%.</p>
+
+    <h3>Step 2 — Each KPI is capped at 150%</h3>
+    <div class="note">
+      You cannot cover a weak KPI by overdoing another one. Even 300% of target only counts as 150%.
+      This is deliberate — the goal is balanced performance across all KPIs, not one big number.
+    </div>
+
+    <h3>Step 3 — Weights are applied and everything is added up</h3>
+    <p>Every KPI carries a different weight depending on how much it matters. Multiply each capped percentage by its weight, add them together, and that is your score.</p>
+    <div class="formula">Score = (KPI1% × weight1) + (KPI2% × weight2) + …</div>
+
+    <h3>Worked example — a Builder over one day</h3>
+    <div class="table-wrap"><table>
+      <tr><th>KPI</th><th>Did</th><th>Target</th><th>%</th><th>Weight</th><th>Contributes</th></tr>
+      <tr><td>Calls</td><td class="num">135</td><td class="num">150</td><td class="num">90%</td><td class="num">20%</td><td class="num">18.0</td></tr>
+      <tr><td>Call Minutes</td><td class="num">98</td><td class="num">180</td><td class="num">54%</td><td class="num">20%</td><td class="num">10.9</td></tr>
+      <tr><td>Qualified Leads</td><td class="num">4</td><td class="num">4</td><td class="num">100%</td><td class="num">10%</td><td class="num">10.0</td></tr>
+      <tr><td>Discoveries</td><td class="num">3</td><td class="num">2</td><td class="num">150% <span style="color:var(--muted);font-weight:400">(capped)</span></td><td class="num">15%</td><td class="num">22.5</td></tr>
+      <tr><td>Pres. Booked</td><td class="num">3</td><td class="num">2</td><td class="num">150% <span style="color:var(--muted);font-weight:400">(capped)</span></td><td class="num">10%</td><td class="num">15.0</td></tr>
+      <tr><td>Pres. Completed</td><td class="num">3</td><td class="num">2</td><td class="num">150% <span style="color:var(--muted);font-weight:400">(capped)</span></td><td class="num">25%</td><td class="num">37.5</td></tr>
+      <tr><td colspan="5" style="text-align:right"><b>Final score</b></td><td class="num" style="color:var(--neon-gold)"><b>114%</b></td></tr>
+    </table></div>
+    <p style="color:var(--muted);font-size:13px">114% is above 110, so this is a <span class="pill zone-gold">GOLDEN CARD</span></p>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <section id="builder">
+    <h2>Builder KPIs</h2>
+    <p>Targets below are <b>per working day</b>. For a multi-day report they are multiplied by the number of days.</p>
+    <div class="table-wrap"><table id="tbl-builder">
+      <tr><th>KPI</th><th>Daily target</th><th>Weight</th><th>What it counts</th></tr>
+    </table></div>
+    <p style="color:var(--muted);font-size:13px">
+      Pres. Completed carries the highest weight (25%) — a completed presentation is worth more than raw call volume.
+    </p>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <section id="closer">
+    <h2>Closer KPIs</h2>
+    <div class="table-wrap"><table id="tbl-closer">
+      <tr><th>KPI</th><th>Daily target</th><th>Weight</th><th>What it counts</th></tr>
+    </table></div>
+
+    <h3>Deal override</h3>
+    <p>Closing deals overrides the normal score, because a closed deal is the outcome that actually matters:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Deals closed</th><th>Result</th></tr>
+      <tr><td class="num">2 or more</td><td>Guaranteed <span class="pill zone-gold">GOLDEN CARD</span> — score is lifted to at least 110% (max 150%)</td></tr>
+      <tr><td class="num">1</td><td>Guaranteed <span class="pill zone-green">GREEN CARD</span> — score is lifted to at least 95% (max 125%)</td></tr>
+      <tr><td class="num">0</td><td>Normal score, capped at 110%</td></tr>
+    </table></div>
+    <div class="note">
+      A Closer with no calls <em>and</em> no deals always shows a <span class="pill zone-red">RED CARD</span>, whatever the maths says.
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <section id="cards">
+    <h2>Card colours</h2>
+    <p>Your final score decides your card:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Card</th><th>Score</th></tr>
+      <tr><td><span class="pill zone-gold">GOLDEN CARD</span></td><td class="num">110% and above</td></tr>
+      <tr><td><span class="pill zone-green">GREEN CARD</span></td><td class="num">95% – 110%</td></tr>
+      <tr><td><span class="pill zone-yellow">YELLOW CARD</span></td><td class="num">75% – 95%</td></tr>
+      <tr><td><span class="pill zone-orange">ORANGE CARD</span></td><td class="num">50% – 75%</td></tr>
+      <tr><td><span class="pill zone-red">RED CARD</span></td><td class="num">below 50%</td></tr>
+      <tr><td><span class="pill zone-leave">ON LEAVE</span></td><td>On leave for the whole period — no score shown</td></tr>
+    </table></div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <section id="team">
+    <h2>Team health score</h2>
+    <p>A team lead's score is simply the average of their team members' scores — Builders and Closers together, no extra weighting.</p>
+    <div class="formula">Team Health  =  sum of all member scores  ÷  number of members</div>
+
+    <h3>Example — 6 members</h3>
+    <div class="formula">(55 + 112 + 70 + 48 + 58 + 117) ÷ 6  =  77%   → YELLOW CARD</div>
+
+    <div class="note">
+      <b>Members on leave still count, as 0.</b> If one of those six is on leave for the whole period:
+      <br><br>
+      (55 + 112 + 70 + 48 + 58 + <b>0</b>) ÷ <b>6</b> = 57%
+      <br><br>
+      Covering for an absent team member is the team lead's responsibility, so the gap shows up in the team score.
+      The same rule is used on the Dashboard, the History page and the TV Board.
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <section id="leave">
+    <h2>Leave &amp; attendance</h2>
+    <p>Leave comes from whatever is marked on the <b>Attendance</b> page. There are two different cases:</p>
+
+    <h3>Some days off during the period</h3>
+    <p>Your targets are reduced to the days you actually worked, so a day off never damages your own score.</p>
+    <div class="formula">5-day report, 1 day leave
+  Calls target   150 × 4 days  =  600   (not 750)
+  Minutes target 180 × 4 days  =  720   (not 900)</div>
+
+    <h3>On leave the whole period</h3>
+    <ul>
+      <li>Your card shows <span class="pill zone-leave">ON LEAVE</span> instead of a score</li>
+      <li>You are not ranked</li>
+      <li>You count as <b>0</b> in your team lead's team health score</li>
+    </ul>
+
+    <div class="note">
+      Attendance drives real numbers, so mark it daily. If someone is not marked as on leave, the system
+      assumes they were working and scores them against a full target.
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <section id="funnel">
+    <h2>BD funnel stages</h2>
+    <p>The Funnel page follows a lead through each stage. Each stage is counted by its own date field in Zoho, so a record appears in a stage on the day that stage happened.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Stage</th><th>Counted when</th></tr>
+      <tr><td><b>Assigned</b></td><td>Lead was assigned to a BDE</td></tr>
+      <tr><td><b>Worked</b></td><td>BDE first worked the lead</td></tr>
+      <tr><td><b>Calls Connected</b></td><td>Lead was worked <em>and</em> Connectivity is "Connected"</td></tr>
+      <tr><td><b>Qualified</b></td><td>Lead was marked qualified</td></tr>
+      <tr><td><b>Discovery</b></td><td>Discovery call completed</td></tr>
+      <tr><td><b>Pres. Booked</b></td><td>Presentation booked</td></tr>
+      <tr><td><b>Pres. Completed</b></td><td>Presentation actually held</td></tr>
+      <tr><td><b>Closed Won</b></td><td>Deal closed and marked Closed Won</td></tr>
+    </table></div>
+    <p style="color:var(--muted);font-size:13px">
+      Leads, Contacts and Deals are all included at every stage. Records owned by the shared generic
+      accounts (bdteamleaders@, bde@, admissions@) are excluded from funnel counts.
+    </p>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <section id="data">
+    <h2>Where the data comes from</h2>
+    <div class="card">
+      <h3 style="margin-top:0">Live pages (Dashboard, Combined, Funnel, TV Board)</h3>
+      <p style="margin-bottom:0">Read straight from Zoho CRM. Results are cached for <b>20 minutes</b>, so if you generate the same report twice you get the second one instantly. That means a report can be up to 20 minutes behind — that is normal.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">History page</h3>
+      <p style="margin-bottom:0">Reads saved snapshots, not live Zoho. A job runs <b>every night</b> and saves that day's numbers permanently. This is why History can show past days instantly, and why today's numbers only appear there tomorrow.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Attendance</h3>
+      <p style="margin-bottom:0">Saved directly when you press Save on the Attendance page, and used immediately by every report.</p>
+    </div>
+    <div class="note">
+      All times use <b>US Eastern</b> business hours, not IST. A "day" runs from midnight to midnight Eastern.
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <section id="faq">
+    <h2>Common questions</h2>
+
+    <h3>My number looks different from yesterday's report for the same day. Why?</h3>
+    <p>Live pages re-read Zoho each time, so if data was still being entered in Zoho when you first ran the report, a later run will differ. The History page never changes once the night's snapshot is saved.</p>
+
+    <h3>I beat my call target but my score is still low.</h3>
+    <p>Calls are only 20% of a Builder's score, and everything is capped at 150%. Minutes, leads, discoveries and presentations make up the other 80% — check which of those is dragging the score down.</p>
+
+    <h3>I closed a deal but my card is not gold.</h3>
+    <p>One deal guarantees a Green Card. Two or more guarantee a Golden Card.</p>
+
+    <h3>Someone is on leave but still shows in the team score.</h3>
+    <p>That is intended — they count as 0. See <a href="#team" style="color:var(--accent)">Team health score</a>.</p>
+
+    <h3>Who can change the targets?</h3>
+    <p>Team leads can set their own team's monthly targets on the Manage Targets page. Those override the defaults shown here for that team and month.</p>
+
+    <h3>The TV Board is showing old numbers.</h3>
+    <p>It refreshes on its own every 3 minutes and fully reloads every 4 hours. If it looks stuck, refresh the page with Ctrl+Shift+R.</p>
+  </section>
+
+  <p style="color:var(--muted);font-size:12px;text-align:center;margin:40px 0 20px">
+    Something here unclear or out of date? Tell the admin team so this page can be fixed.
+  </p>
+</div>
+
+<script>
+// SUPABASE_URL, SUPABASE_ANON, ALLOWED_EMAILS, isPageAllowed, APP_USERS_READY
+// and buildNav() all come from /config.js.
+const _auth = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// The KPI tables are built from these definitions rather than typed into the
+// HTML, so the numbers and the explanations sit in one place on this page.
+// They mirror TARGETS/WEIGHTS in index.html — if scoring ever changes there,
+// it must change here too.
+const BUILDER_KPIS = [
+  ["Calls",           150, 0.20, "Outbound calls logged in Zoho"],
+  ["Call Minutes",    180, 0.20, "Total talk time across those calls"],
+  ["Qualified Leads",   4, 0.10, "Leads you marked qualified"],
+  ["Discoveries",       2, 0.15, "Discovery calls completed"],
+  ["Pres. Booked",      2, 0.10, "Presentations booked"],
+  ["Pres. Completed",   2, 0.25, "Presentations actually held"],
+];
+const CLOSER_KPIS = [
+  ["Calls",              60, 0.40, "Follow-up calls logged in Zoho"],
+  ["Call Minutes",      120, 0.20, "Total talk time across those calls"],
+  ["Presentations Held",  2, 0.40, "Presentations you ran"],
+];
+
+function fillKpiTable(id, rows) {
+  const t = document.getElementById(id);
+  t.insertAdjacentHTML("beforeend", rows.map(([name, target, weight, what]) => `
+    <tr>
+      <td><b>${name}</b></td>
+      <td class="num">${target}</td>
+      <td class="num">${Math.round(weight * 100)}%</td>
+      <td style="color:var(--muted)">${what}</td>
+    </tr>`).join(""));
+}
+fillKpiTable("tbl-builder", BUILDER_KPIS);
+fillKpiTable("tbl-closer", CLOSER_KPIS);
+
+// Same login gate as every other page — bounce to / if not signed in.
+document.body.style.visibility = "hidden";
+_auth.auth.getSession().then(async ({ data: { session } }) => {
+  await APP_USERS_READY;
+  const email = session?.user?.email || "";
+  if (session?.user && ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) {
+    document.body.style.visibility = "";
+    buildNav(email);
+  } else {
+    window.location.replace("/");
+  }
+});
+</script>
+</body>
+</html>

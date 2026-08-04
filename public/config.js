@@ -23,7 +23,12 @@ const BD_TL_EMAILS = ["dhanraj.s@elevateme.pro", "prem.t@elevateme.pro"];
 const RESTRICTED_PAGES = {
   "meet.t@elevateme.pro": ["/", "/combined.html", "/history.html"],
 };
+// The guide is documentation about pages the user can already see, so it is
+// never worth restricting — a page-limited user still needs to understand how
+// their own numbers are calculated.
+const ALWAYS_ALLOWED_PAGES = ["/guide.html"];
 function isPageAllowed(email, path) {
+  if (ALWAYS_ALLOWED_PAGES.includes(path)) return true;
   const allowed = RESTRICTED_PAGES[email];
   return !allowed || allowed.includes(path);
 }
@@ -132,6 +137,8 @@ function buildNav(email) {
     ]},
     ...(isAdmin ? [{ label: "TV Board", href: "/tv-board.html" }] : []),
     ...(isAdmin ? [{ label: "Admin Panel", href: "/admin.html" }] : []),
+    // Visible to everyone — it explains how their own numbers are calculated.
+    { label: "Guide", href: "/guide.html" },
   ];
 
   const visible = nav
