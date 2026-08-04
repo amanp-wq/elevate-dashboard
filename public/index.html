@@ -470,9 +470,9 @@
       <div class="closer-rules-grid">
         <div class="cr-section">
           <div class="cr-section-title">📊 Team Health Score</div>
-          <div class="cr-row"><span class="cr-kpi">Formula</span><span class="cr-detail">Sum of active member scores ÷ active member count</span></span></div>
-          <div class="cr-row"><span class="cr-kpi">Active member</span><span class="cr-detail">Anyone with at least 1 call logged</span></span></div>
-          <div class="cr-row"><span class="cr-kpi">On Leave</span><span class="cr-detail">0 calls — excluded from health score</span></div>
+          <div class="cr-row"><span class="cr-kpi">Formula</span><span class="cr-detail">Sum of all member scores ÷ total member count</span></span></div>
+          <div class="cr-row"><span class="cr-kpi">Partial leave</span><span class="cr-detail">Targets pro-rated to days actually worked</span></span></div>
+          <div class="cr-row"><span class="cr-kpi">Full-period leave</span><span class="cr-detail">Counts as 0 in the team health score</span></div>
           <div class="cr-row" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08)">
             <span class="cr-detail">Each member scored against their own role (Builder or Closer) KPIs + deal override rules apply to Closers</span>
           </div>
@@ -748,8 +748,14 @@ function renderTLView(teams, T, TC, leaveMap = {}, personTargets = null, effecti
     const presentMembers = allMembers.filter(m => !isOnLeave(m.name));
     const onLeaveCount = allMembers.length - presentMembers.length;
 
-    const healthScore = presentMembers.length > 0
-      ? Math.round(presentMembers.reduce((sum, m) => sum + m.composite, 0) / presentMembers.length)
+    // Everyone on the roster counts toward the team lead's bucket, including
+    // anyone on leave for the whole period — they contribute 0, because
+    // cover for an absent member is the team lead's responsibility. Their
+    // score is forced to 0 rather than read from m.composite: a fully-absent
+    // member's targets get pro-rated down to almost nothing, so any stray
+    // activity would otherwise score misleadingly high.
+    const healthScore = allMembers.length > 0
+      ? Math.round(allMembers.reduce((sum, m) => sum + (isOnLeave(m.name) ? 0 : m.composite), 0) / allMembers.length)
       : 0;
 
     const z = zone(healthScore);
