@@ -291,8 +291,16 @@ function renderSummary(people){
   teams.forEach(tl => {
     const members = people.filter(p => p.tl === tl).sort((a,b) => (a.role<b.role?-1:1) || 0);
     if (!members.length) return;
-    const present = members.filter(p => !(p.days>0 && p.leaveDays>=p.days));
-    const avg = present.length ? Math.round(present.reduce((s,p)=>s+scoreFor(p),0)/present.length) : 0;
+    const isFullyOnLeave = p => p.days > 0 && p.leaveDays >= p.days;
+    const present = members.filter(p => !isFullyOnLeave(p));
+    // Everyone on the roster counts toward the team average, including anyone
+    // on leave for the whole period — they contribute 0, because cover for an
+    // absent member is the team lead's responsibility. Matches the main
+    // dashboard and the TV Board, which were showing a different number for
+    // the same team on the same day.
+    const avg = members.length
+      ? Math.round(members.reduce((s,p) => s + (isFullyOnLeave(p) ? 0 : scoreFor(p)), 0) / members.length)
+      : 0;
     const z = zone(avg); const color = ZONE_COLOR[z];
     html += `<div class="team-block">
       <div class="team-head">
