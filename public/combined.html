@@ -504,9 +504,11 @@ document.getElementById("btn-gen").onclick = async function(){
     const T  = Object.fromEntries(Object.entries(TARGETS).map(([k,v])        =>[k,Math.max(1,Math.round(v*effectiveDays))]));
     const TC = Object.fromEntries(Object.entries(TARGETS_CLOSER).map(([k,v]) =>[k,Math.max(1,Math.round(v*effectiveDays))]));
 
+    // Leave is deliberately NOT deducted from the target — see the same note
+    // in index.html. The target covers every working day in the period whether
+    // the person was in or not.
     function personT(name, baseT){
-      const lv=leaveMap[name]||0; const adj=Math.max(0.1,effectiveDays-lv); const ratio=adj/effectiveDays;
-      return Object.fromEntries(Object.entries(baseT).map(([k,v])=>[k,Math.max(1,Math.round(v*ratio))]));
+      return baseT;
     }
 
     // Score and sort

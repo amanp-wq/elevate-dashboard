@@ -919,18 +919,22 @@ document.getElementById("btn-gen").onclick = async function(){
     const T  = Object.fromEntries(Object.entries(TARGETS).map(([k,v])       => [k, Math.max(1, Math.round(v * effectiveDays))]));
     const TC = Object.fromEntries(Object.entries(TARGETS_CLOSER).map(([k,v]) => [k, Math.max(1, Math.round(v * effectiveDays))]));
 
-    // Per-person targets accounting for leave days and any team-lead monthly-target override.
+    // Per-person targets, applying any team-lead monthly-target override.
     // The override month used is the report's own start-date month — a range
     // spanning two months uses the month it starts in.
+    //
+    // Leave is deliberately NOT deducted here: the target covers every working
+    // day in the period whether the person was in or not. Taking leave is the
+    // person's own choice, so it counts against them rather than shrinking
+    // what they were asked to deliver. The History page has always worked this
+    // way; this used to pro-rate the target down, which meant the same person
+    // and period scored differently on the two pages.
     const reportMonth = startDate.slice(0, 7);
     function personTargets(name, baseDailyRates) {
-      const leaveDays = leaveMap[name] || 0;
-      const adjDays = Math.max(0.1, effectiveDays - leaveDays);
-      const ratio = adjDays / effectiveDays;
       return Object.fromEntries(Object.entries(baseDailyRates).map(([k,v]) => {
         const resolved = resolveOverride(name, k, reportMonth);
         const dailyRate = resolved != null ? resolved / WORKING_DAYS_PER_MONTH : v;
-        return [k, Math.max(1, Math.round(dailyRate * effectiveDays * ratio))];
+        return [k, Math.max(1, Math.round(dailyRate * effectiveDays))];
       }));
     }
 
