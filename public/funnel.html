@@ -43,6 +43,21 @@
   .preset-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .field { display: flex; flex-direction: column; gap: 5px; }
   .field label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+
+  /* Generic-accounts toggle */
+  .switch-wrap { display: flex; align-items: center; gap: 9px; height: 34px; }
+  .switch {
+    position: relative; width: 42px; height: 23px; border-radius: 999px; flex: none;
+    background: #2a2f45; border: 1px solid var(--border); cursor: pointer; transition: background 0.15s, border-color 0.15s;
+  }
+  .switch.on { background: var(--accent); border-color: var(--accent); }
+  .switch .knob {
+    position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%;
+    background: #fff; transition: left 0.15s;
+  }
+  .switch.on .knob { left: 21px; }
+  .switch-text { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+  .switch-text b { color: var(--text); }
   .field input, .field select {
     background: #0a0d1a; border: 1px solid var(--border); color: var(--text);
     border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: inherit;
@@ -222,6 +237,14 @@
           <option>LinkedIn Chat</option>
           <option>Reference</option>
         </select>
+      </div>
+      <div class="field">
+        <label>Generic Accounts</label>
+        <div class="switch-wrap">
+          <div class="switch on" id="sw-generic" role="switch" aria-checked="true" tabindex="0"
+               title="bdteamleaders@, bde@, admissions@"><div class="knob"></div></div>
+          <span class="switch-text" id="sw-generic-text"><b>Excluded</b></span>
+        </div>
       </div>
       <div class="field" style="margin-left:auto">
         <label>&nbsp;</label>
@@ -412,6 +435,7 @@ document.getElementById("btn-gen").onclick = async function() {
     if (bde)      params.set("bde", bde);
     if (teamLead) params.set("teamLead", teamLead);
     if (source)   params.set("source", source);
+    params.set("excludeGeneric", excludeGeneric() ? "1" : "0");
 
     const { data: { session: funnelSession } } = await _supabase.auth.getSession();
     const res  = await fetch(`/api/funnel?${params}`, {
@@ -442,6 +466,28 @@ function autoFire() {
   }, 400);
 }
 ["inp-bde","inp-tl","inp-source"].forEach(id => document.getElementById(id).addEventListener("change", autoFire));
+
+// ── Generic-accounts toggle ──────────────────────────────────────────────────
+// On  = records owned by bdteamleaders@, bde@ and admissions@ are left out
+//       (how this page has always behaved).
+// Off = those records are counted too, so the totals match a raw Zoho view.
+const _swGeneric = document.getElementById("sw-generic");
+const excludeGeneric = () => _swGeneric.classList.contains("on");
+function paintGenericSwitch() {
+  const on = excludeGeneric();
+  _swGeneric.setAttribute("aria-checked", String(on));
+  document.getElementById("sw-generic-text").innerHTML = on ? "<b>Excluded</b>" : "<b>Included</b>";
+}
+function toggleGeneric() {
+  _swGeneric.classList.toggle("on");
+  paintGenericSwitch();
+  autoFire();   // re-run so the numbers on screen always match the switch
+}
+_swGeneric.addEventListener("click", toggleGeneric);
+_swGeneric.addEventListener("keydown", e => {
+  if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggleGeneric(); }
+});
+paintGenericSwitch();
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 // SUPABASE_URL, SUPABASE_ANON, ALLOWED_EMAILS, ADMIN_EMAILS, SALES_TL_EMAILS,

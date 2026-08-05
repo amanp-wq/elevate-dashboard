@@ -144,10 +144,17 @@ export default async function handler(req, res) {
   const user = await requireUser(req);
   if (user.error) return res.status(401).json({ error: user.error });
 
-  const { startDate, endDate, bde = "", teamLead = "", source = "" } = req.query;
+  const { startDate, endDate, bde = "", teamLead = "", source = "", excludeGeneric = "1" } = req.query;
   if (!startDate || !endDate) return res.status(400).json({ error: "Missing startDate or endDate" });
 
-  const cacheKey = `funnel|${startDate}|${endDate}|${bde}|${teamLead}|${source}`;
+  // Whether to drop records owned by the shared generic accounts. Defaults to
+  // on, which is the behaviour this endpoint has always had.
+  const dropGeneric = excludeGeneric !== "0";
+
+  // dropGeneric is part of the cache key: the two modes produce genuinely
+  // different numbers, so without it a toggle would just re-serve the other
+  // mode's cached result for the next 20 minutes.
+  const cacheKey = `funnel|${startDate}|${endDate}|${bde}|${teamLead}|${source}|${dropGeneric ? "excl" : "incl"}`;
   const t0 = Date.now();
 
   try {
@@ -168,16 +175,20 @@ export default async function handler(req, res) {
     // Exclude records owned by these generic accounts. COQL returns Owner as
     // {id} only (no email), so resolve their user IDs and filter by id.
     const EXCLUDE_EMAILS = new Set(["bdteamleaders@elevateme.pro", "bde@elevateme.pro", "admissions@elevateme.pro"]);
-    let excludedIds;
-    if (_excludedIdsCache.ids && Date.now() < _excludedIdsCache.expiresAt) {
-      excludedIds = _excludedIdsCache.ids;
-    } else {
-      const usersResp = await zohoFetch(`${API_DOMAIN}/crm/v2/users?type=AllUsers&per_page=200`, { headers: { Authorization: `Zoho-oauthtoken ${token}` } });
-      const usersJson = await usersResp.json().catch(() => ({}));
-      excludedIds = new Set((usersJson.users || []).filter(u => EXCLUDE_EMAILS.has((u.email || "").toLowerCase())).map(u => u.id));
-      if (usersJson.users?.length) _excludedIdsCache = { ids: excludedIds, expiresAt: Date.now() + EXCLUDED_TTL_MS };
+    let excludedIds = new Set();
+    if (dropGeneric) {
+      if (_excludedIdsCache.ids && Date.now() < _excludedIdsCache.expiresAt) {
+        excludedIds = _excludedIdsCache.ids;
+      } else {
+        const usersResp = await zohoFetch(`${API_DOMAIN}/crm/v2/users?type=AllUsers&per_page=200`, { headers: { Authorization: `Zoho-oauthtoken ${token}` } });
+        const usersJson = await usersResp.json().catch(() => ({}));
+        excludedIds = new Set((usersJson.users || []).filter(u => EXCLUDE_EMAILS.has((u.email || "").toLowerCase())).map(u => u.id));
+        if (usersJson.users?.length) _excludedIdsCache = { ids: excludedIds, expiresAt: Date.now() + EXCLUDED_TTL_MS };
+      }
     }
-    const keep = arr => arr.filter(r => !excludedIds.has(r.Owner?.id));
+    // With the toggle off, excludedIds stays empty so nothing is filtered —
+    // and the users lookup is skipped entirely, saving a Zoho call.
+    const keep = arr => (dropGeneric ? arr.filter(r => !excludedIds.has(r.Owner?.id)) : arr);
 
     // Build COQL WHERE fragments from the optional filters
     const esc = v => String(v).replace(/'/g, "\\'");
@@ -255,7 +266,8 @@ export default async function handler(req, res) {
       funnel, bdes,
       teamLeads: ["Tejasvi Pathe", "Soham Bajpai", "Mamta Das", "Yash Karwa"],
       sources: ["LinkedIn", "OPT Nation", "Recruiter", "Career Builder", "OPT Resume", "Indeed", "LinkedIn Chat", "Reference"],
-      startDate, endDate
+      startDate, endDate,
+      excludeGeneric: dropGeneric   // so the page can show which mode these numbers are for
     };
 
     await setCached(cacheKey, result);
