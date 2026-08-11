@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElevateMe — Manage TV Slides</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080b14; --surface: #0f1322; --border: #1e2640;
+    --text: #e8eaf6; --muted: #6b7499;
+    --accent: #ff4d3a; --accent-green: #00e676;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Nunito Sans', sans-serif; min-height: 100vh;
+    background-image: radial-gradient(ellipse at 20% 10%, rgba(196,72,56,0.06) 0%, transparent 50%),
+                      radial-gradient(ellipse at 80% 80%, rgba(0,230,118,0.04) 0%, transparent 50%);
+  }
+  header {
+    background: #000; padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-img { height: 36px; width: auto; display: block; }
+  .logo-sub { font-size: 15px; font-weight: 400; color: #888; letter-spacing: 0.2px; }
+  .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
+  .nav-btn {
+    padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
+    border: 1px solid var(--border); color: var(--muted); text-decoration: none;
+    transition: all 0.2s; background: none;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .header-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
+  .header-right img { width: 28px; height: 28px; border-radius: 50%; }
+  .header-right strong { color: var(--text); }
+  #btn-signout {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 8px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+  }
+  #btn-signout:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Auth overlay — same gate as every other live page */
+  #auth-overlay {
+    position: fixed; inset: 0; z-index: 9999; background: #080b14;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .auth-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 48px 40px; text-align: center; max-width: 380px; width: 90%;
+  }
+  .auth-logo { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+  .auth-logo span { color: var(--accent); }
+  .auth-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+  .auth-google-btn {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    width: 100%; padding: 14px; border-radius: 12px;
+    background: #fff; color: #1a1a1a; font-size: 15px; font-weight: 700;
+    border: none; cursor: pointer;
+  }
+  .auth-google-btn img { width: 20px; height: 20px; }
+  .auth-error { margin-top: 14px; font-size: 13px; color: #ff4d6a; min-height: 18px; }
+
+  .container { max-width: 820px; margin: 0 auto; padding: 32px 20px 60px; }
+  .page-header { margin-bottom: 24px; }
+  .page-header h1 { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+  .page-header p { font-size: 13px; color: var(--muted); }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px; margin-bottom: 20px;
+  }
+  .card h2 { font-size: 15px; font-weight: 800; margin-bottom: 14px; }
+
+  .upload-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input[type="text"], input[type="file"] {
+    background: #05060b; border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: inherit;
+  }
+  input[type="text"] { flex: 1; min-width: 180px; }
+  input[type="file"] { flex: 1; min-width: 220px; }
+  .btn {
+    border: none; border-radius: 8px; padding: 9px 18px; font-size: 13px; font-weight: 800;
+    cursor: pointer; transition: opacity 0.15s; font-family: inherit;
+  }
+  .btn:hover { opacity: 0.88; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost { background: none; border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: none; border: 1px solid #ff1744; color: #ff1744; }
+  .btn-danger:hover { background: rgba(255,23,68,0.1); opacity: 1; }
+  .btn-icon { padding: 6px 10px; font-size: 14px; line-height: 1; }
+
+  #upload-status { font-size: 12px; margin-top: 10px; min-height: 16px; }
+  #upload-status.ok { color: var(--accent-green); }
+  #upload-status.err { color: #ff1744; }
+
+  .slide-row {
+    display: flex; align-items: center; gap: 14px; padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .slide-row:last-child { border-bottom: none; }
+  .slide-thumb {
+    width: 100px; height: 56px; flex: none; border-radius: 8px; overflow: hidden;
+    background: #05060b; border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .slide-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .slide-info { flex: 1; min-width: 0; }
+  .slide-label { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .slide-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .slide-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+
+  .toggle {
+    position: relative; width: 40px; height: 22px; border-radius: 999px;
+    background: #2a2f45; border: 1px solid var(--border); cursor: pointer; flex: none;
+    transition: background 0.15s;
+  }
+  .toggle.on { background: var(--accent-green); border-color: var(--accent-green); }
+  .toggle .knob {
+    position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; transition: left 0.15s;
+  }
+  .toggle.on .knob { left: 20px; }
+
+  .empty-note { color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }
+  .note-box {
+    background: rgba(255,171,0,0.07); border: 1px solid rgba(255,171,0,0.3);
+    border-radius: 10px; padding: 12px 14px; font-size: 12px; color: #ffab00; margin-bottom: 20px;
+  }
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/config.js"></script>
+
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">Elevate<span>Me</span></div>
+    <div class="auth-sub">Sign in to manage TV slides</div>
+    <button class="auth-google-btn" id="btn-google-signin">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+      Sign in with Google
+    </button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<div id="main-content" style="display:none">
+  <header>
+    <div class="logo">
+      <img src="/e92c4bab-2eb7-4e8f-bc76-e00992442f1f.png" alt="ElevateMe" class="logo-img">
+      <span class="logo-sub">Manage TV Slides</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="nav-links" id="nav-links"></div>
+      <div class="header-right">
+        <img id="user-avatar" src="" style="display:none">
+        <strong id="user-name"></strong>
+        <button id="btn-signout">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Manage TV Slides</h1>
+      <p>Upload, reorder, enable/disable or remove the promo slides shown on the TV Board — no code change needed.</p>
+    </div>
+
+    <div class="note-box">
+      Slides are stored in the TV Board's own Supabase project, so they appear on
+      <b>elevate-dashboard-testa.vercel.app/tv-board.html</b>. The TV picks up changes
+      within about 3 minutes; a page refresh on the TV applies them immediately.
+    </div>
+
+    <div class="card">
+      <h2>Add a slide</h2>
+      <div class="upload-row">
+        <input type="text" id="new-label" placeholder="Label (e.g. Live Q&amp;A — Meet Yeshwanth)">
+        <input type="file" id="new-file" accept="image/*">
+        <button class="btn btn-primary" id="btn-upload">Upload</button>
+      </div>
+      <div id="upload-status"></div>
+    </div>
+
+    <div class="card">
+      <h2>Slides — in rotation order</h2>
+      <div id="slide-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Auth: LIVE Supabase project (same Google session as every other page).
+// SUPABASE_URL/SUPABASE_ANON, ALLOWED_EMAILS, ADMIN_EMAILS, isPageAllowed()
+// and buildNav() all come from /config.js.
+//
+// Slide data: the TV Board's own Supabase project. Named distinctly from the
+// live constants above — /config.js already declares SUPABASE_URL as a const,
+// so reusing that name here would be a redeclaration error and the whole page
+// would fail to parse. Same split history.html uses for snapshot data.
+const SLIDES_URL  = "https://czfsjrvngiojjjevmvtz.supabase.co";
+const SLIDES_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6ZnNqcnZuZ2lvampqZXZtdnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODc0NzIsImV4cCI6MjA5ODA2MzQ3Mn0.IbK1th8wcdrHOgJL1y5kQE3De1c0HSe0ju4Q9vNQ9BQ";
+const BUCKET_URL  = `${SLIDES_URL}/storage/v1/object/public/tv-slides/`;
+const SLIDES_HEADERS = { apikey: SLIDES_ANON, Authorization: `Bearer ${SLIDES_ANON}` };
+
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// Labels are free text typed by an admin and go through innerHTML below.
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+async function fetchSlides() {
+  const r = await fetch(`${SLIDES_URL}/rest/v1/tv_slides?select=*&order=sort_order.asc`, { headers: SLIDES_HEADERS });
+  if (!r.ok) throw new Error("Failed to load slides (" + r.status + ")");
+  return r.json();
+}
+
+async function patchSlide(id, body) {
+  const r = await fetch(`${SLIDES_URL}/rest/v1/tv_slides?id=eq.${id}`, {
+    method: "PATCH",
+    headers: { ...SLIDES_HEADERS, "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error("Update failed (" + r.status + ")");
+}
+
+async function deleteSlide(row) {
+  // Best-effort storage cleanup — if this fails (e.g. already gone), the DB
+  // row is still removed so the slide disappears from the TV either way.
+  await fetch(`${SLIDES_URL}/storage/v1/object/tv-slides/${encodeURIComponent(row.storage_path)}`, {
+    method: "DELETE", headers: SLIDES_HEADERS
+  }).catch(() => {});
+  const r = await fetch(`${SLIDES_URL}/rest/v1/tv_slides?id=eq.${row.id}`, {
+    method: "DELETE", headers: SLIDES_HEADERS
+  });
+  if (!r.ok) throw new Error("Delete failed (" + r.status + ")");
+}
+
+function slideRowHtml(row, index, total) {
+  const thumbSrc = BUCKET_URL + encodeURIComponent(row.storage_path);
+  return `<div class="slide-row" data-id="${row.id}">
+    <div class="slide-thumb"><img src="${esc(thumbSrc)}" alt="" loading="lazy"></div>
+    <div class="slide-info">
+      <div class="slide-label">${esc(row.label || row.storage_path)}</div>
+      <div class="slide-meta">${esc(row.storage_path)} · ${row.enabled ? "On" : "Off"} in rotation</div>
+    </div>
+    <div class="slide-actions">
+      <button class="btn btn-ghost btn-icon" data-action="up" ${index === 0 ? "disabled" : ""} title="Move up">↑</button>
+      <button class="btn btn-ghost btn-icon" data-action="down" ${index === total - 1 ? "disabled" : ""} title="Move down">↓</button>
+      <div class="toggle ${row.enabled ? "on" : ""}" data-action="toggle" title="${row.enabled ? "Disable" : "Enable"}"><div class="knob"></div></div>
+      <button class="btn btn-danger btn-icon" data-action="delete" title="Delete">✕</button>
+    </div>
+  </div>`;
+}
+
+let SLIDES = [];
+
+async function renderList() {
+  const listEl = document.getElementById("slide-list");
+  try {
+    SLIDES = await fetchSlides();
+  } catch (e) {
+    listEl.innerHTML = `<div class="empty-note">Couldn't load slides: ${esc(e.message)}</div>`;
+    return;
+  }
+  if (!SLIDES.length) {
+    listEl.innerHTML = `<div class="empty-note">No slides yet — upload one above.</div>`;
+    return;
+  }
+  listEl.innerHTML = SLIDES.map((row, i) => slideRowHtml(row, i, SLIDES.length)).join("");
+}
+
+document.getElementById("slide-list").addEventListener("click", async (e) => {
+  const actionEl = e.target.closest("[data-action]");
+  if (!actionEl) return;
+  const rowEl = e.target.closest(".slide-row");
+  const id = Number(rowEl.dataset.id);
+  const idx = SLIDES.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  const row = SLIDES[idx];
+  const action = actionEl.dataset.action;
+
+  try {
+    if (action === "toggle") {
+      await patchSlide(id, { enabled: !row.enabled });
+    } else if (action === "delete") {
+      if (!confirm(`Delete "${row.label || row.storage_path}"? This removes the file too.`)) return;
+      await deleteSlide(row);
+    } else if (action === "up" && idx > 0) {
+      const other = SLIDES[idx - 1];
+      await Promise.all([
+        patchSlide(row.id, { sort_order: other.sort_order }),
+        patchSlide(other.id, { sort_order: row.sort_order }),
+      ]);
+    } else if (action === "down" && idx < SLIDES.length - 1) {
+      const other = SLIDES[idx + 1];
+      await Promise.all([
+        patchSlide(row.id, { sort_order: other.sort_order }),
+        patchSlide(other.id, { sort_order: row.sort_order }),
+      ]);
+    }
+    await renderList();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("btn-upload").addEventListener("click", async () => {
+  const fileInput = document.getElementById("new-file");
+  const labelInput = document.getElementById("new-label");
+  const statusEl = document.getElementById("upload-status");
+  const btn = document.getElementById("btn-upload");
+  const file = fileInput.files[0];
+
+  if (!file) { statusEl.className = "err"; statusEl.textContent = "Choose an image file first."; return; }
+
+  btn.disabled = true;
+  statusEl.className = ""; statusEl.textContent = "Uploading…";
+  try {
+    // Prefix with a timestamp so re-uploading a same-named file never
+    // collides with (or silently replaces) an existing slide.
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${Date.now()}-${safeName}`;
+
+    const upload = await fetch(`${SLIDES_URL}/storage/v1/object/tv-slides/${path}`, {
+      method: "POST",
+      headers: { ...SLIDES_HEADERS, "Content-Type": file.type || "image/png" },
+      body: file
+    });
+    if (!upload.ok) throw new Error("Upload failed (" + upload.status + ")");
+
+    const maxOrder = SLIDES.reduce((m, s) => Math.max(m, s.sort_order), 0);
+    const insert = await fetch(`${SLIDES_URL}/rest/v1/tv_slides`, {
+      method: "POST",
+      headers: { ...SLIDES_HEADERS, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ storage_path: path, label: labelInput.value || file.name, sort_order: maxOrder + 1, enabled: true })
+    });
+    if (!insert.ok) throw new Error("Save failed (" + insert.status + ")");
+
+    statusEl.className = "ok"; statusEl.textContent = "Uploaded.";
+    fileInput.value = ""; labelInput.value = "";
+    await renderList();
+  } catch (e) {
+    statusEl.className = "err"; statusEl.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ── Auth gate ───────────────────────────────────────────────────────────────
+let _started = false;
+function showApp(user) {
+  if (_started) return;          // getSession() and onAuthStateChange() both fire
+  _started = true;
+  document.getElementById("auth-overlay").style.display = "none";
+  document.getElementById("main-content").style.display = "block";
+  document.getElementById("user-name").textContent = user.user_metadata?.full_name || user.email;
+  const av = document.getElementById("user-avatar");
+  if (user.user_metadata?.avatar_url) { av.src = user.user_metadata.avatar_url; av.style.display = ""; }
+  buildNav(user.email);
+  renderList();
+}
+
+function denied(msg) {
+  _supabase.auth.signOut();
+  document.getElementById("auth-error").textContent = msg;
+}
+
+async function gate(session) {
+  await APP_USERS_READY;
+  if (!session?.user) return;
+  const email = session.user.email || "";
+  if (!ALLOWED_EMAILS.includes(email) || !isPageAllowed(email, window.location.pathname)) {
+    denied("Access denied. Your account is not authorized.");
+  } else if (!ADMIN_EMAILS.includes(email)) {
+    denied("Only admins can manage TV slides.");
+  } else {
+    showApp(session.user);
+  }
+}
+
+_supabase.auth.getSession().then(({ data: { session } }) => gate(session));
+_supabase.auth.onAuthStateChange((_e, session) => gate(session));
+
+document.getElementById("btn-google-signin").onclick = async () => {
+  document.getElementById("auth-error").textContent = "";
+  const { error } = await _supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: "https://elevate-dashboard-iota.vercel.app/manage-slides.html" }
+  });
+  if (error) document.getElementById("auth-error").textContent = error.message;
+};
+document.getElementById("btn-signout").onclick = async () => {
+  await _supabase.auth.signOut();
+  location.reload();
+};
+</script>
+</body>
+</html>

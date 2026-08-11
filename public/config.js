@@ -69,6 +69,7 @@ const ALL_PAGES = [
   { label: "Manage Targets", href: "/manage-targets-sales.html" },
   { label: "Manage Targets (BD)", href: "/manage-targets-bd.html" },
   { label: "TV Board", href: "/tv-board.html" },
+  { label: "TV Slides", href: "/manage-slides.html" },
 ];
 
 // Dropdown-nav styling is injected from here rather than added to each
@@ -135,7 +136,12 @@ function buildNav(email) {
       ...(isAdmin || isSalesTL ? [{ label: "Sales Targets", href: "/manage-targets-sales.html" }] : []),
       ...(isAdmin || isBdTL ? [{ label: "BD Targets", href: "/manage-targets-bd.html" }] : []),
     ]},
-    ...(isAdmin ? [{ label: "TV Board", href: "/tv-board.html" }] : []),
+    // "TV Slides" manages the promo slides on the *test* TV board, which is the
+    // only one that shows them — the live TV board deliberately has no slide
+    // rotation. The page itself spells that out so the link isn't misleading.
+    { group: "TV", items: [
+      ...(isAdmin ? [{ label: "TV Board", href: "/tv-board.html" }, { label: "TV Slides", href: "/manage-slides.html" }] : []),
+    ]},
     ...(isAdmin ? [{ label: "Admin Panel", href: "/admin.html" }] : []),
     // Visible to everyone — it explains how their own numbers are calculated.
     { label: "Guide", href: "/guide.html" },
