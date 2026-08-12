@@ -551,8 +551,10 @@ const CALL_BANDS = [
   { key: "gold",   name: "Gold",   range: "7m and above", color: "#ffd740" },
 ];
 
-// Marks up one KPI cell; the calls cell carries its bands for the popup.
-function kpiCell(label, value, bands, total) {
+// Marks up one KPI cell on a tile; the calls cell carries its bands for the
+// popup. Named for the tile deliberately — `kpiCell` further down builds the
+// breakdown table's cell, and a collision there silently broke every tile.
+function tileKpiCell(label, value, bands, total) {
   if (label !== "calls" || !bands) return `<div><div class="val">${value}</div><div class="lbl">${label}</div></div>`;
   return `<div class="kpi-hoverable" data-bands='${JSON.stringify(bands)}' data-total="${total}">`
        + `<div class="val">${value}</div><div class="lbl">${label}</div></div>`;
@@ -1121,7 +1123,7 @@ document.getElementById("btn-gen").onclick = async function(){
           </div>
           ${onLeave ? "" : `
           <div class="tile-kpis" style="grid-template-columns:repeat(4,1fr)">
-            ${[["calls",c.calls],["mins",c.minutes],["pres",c.presentations],["deals",c.dealsClosed]].map(([l,v])=>kpiCell(l,v,c.callBands,c.calls)).join("")}
+            ${[["calls",c.calls],["mins",c.minutes],["pres",c.presentations],["deals",c.dealsClosed]].map(([l,v])=>tileKpiCell(l,v,c.callBands,c.calls)).join("")}
           </div>
           <div class="tile-call-breakdown">
             <span class="bd-in">↙${c.inbound} in</span>
@@ -1177,7 +1179,7 @@ document.getElementById("btn-gen").onclick = async function(){
           </div>
           ${onLeave ? "" : `
           <div class="tile-kpis">
-            ${[["calls",b.calls],["mins",b.minutes],["leads",b.leads],["disco",b.discoveries],["pres.b",b.presBooked],["pres.c",b.presCompleted]].map(([l,v])=>kpiCell(l,v,b.callBands,b.calls)).join("")}
+            ${[["calls",b.calls],["mins",b.minutes],["leads",b.leads],["disco",b.discoveries],["pres.b",b.presBooked],["pres.c",b.presCompleted]].map(([l,v])=>tileKpiCell(l,v,b.callBands,b.calls)).join("")}
           </div>
           <div class="tile-call-breakdown">
             <span class="bd-in">↙${b.inbound} in</span>
