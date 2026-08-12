@@ -53,11 +53,31 @@
 
   .status { font-size: 13px; color: var(--muted); margin-bottom: 1rem; min-height: 18px; }
 
-  .team-block { margin-bottom: 2rem; }
-  .team-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-  .team-name { font-size: 20px; font-weight: 800; }
-  .team-avg { font-size: 14px; color: var(--muted); }
-  .team-avg b { font-size: 18px; }
+  .team-block { margin-bottom: 1rem; border: 1px solid var(--border); border-radius: 14px; background: rgba(15,19,34,0.4); overflow: hidden; }
+  /* The header is the whole summary — member cards stay collapsed underneath
+     until someone actually wants the individual detail. */
+  .team-head {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 14px 18px; cursor: pointer; user-select: none;
+    transition: background 0.15s;
+  }
+  .team-head:hover { background: rgba(255,255,255,0.03); }
+  .team-caret { font-size: 10px; color: var(--muted); transition: transform 0.18s; flex: none; }
+  .team-block.open .team-caret { transform: rotate(90deg); }
+  .team-name { font-size: 19px; font-weight: 800; flex: none; min-width: 118px; }
+  .team-meta { font-size: 12px; color: var(--muted); flex: none; margin-left: auto; text-align: right; }
+
+  .team-stats { display: flex; gap: 10px; flex-wrap: wrap; flex: 1; min-width: 0; }
+  .tstat {
+    flex: 1; min-width: 116px; padding: 8px 12px; border-radius: 10px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  }
+  .tstat-val { font-size: 19px; font-weight: 800; line-height: 1.15; }
+  .tstat-lbl { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; margin-top: 3px; }
+  .tstat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .team-body { display: none; padding: 0 18px 18px; }
+  .team-block.open .team-body { display: block; }
 
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; position: relative; overflow: hidden; }
@@ -307,15 +327,67 @@ function renderSummary(people){
       ? Math.round(members.reduce((s,p) => s + (isFullyOnLeave(p) ? 0 : scoreFor(p)), 0) / members.length)
       : 0;
     const z = zone(avg); const color = ZONE_COLOR[z];
+    const t = teamTotals(members);
     html += `<div class="team-block">
       <div class="team-head">
+        <span class="team-caret">▶</span>
         <div class="team-name" style="color:${color}">${tl}</div>
-        <div class="team-avg">Avg Score <b style="color:${color}">${avg}%</b> · ${present.length} active · ${members.length} total</div>
+        <div class="team-stats">
+          <div class="tstat">
+            <div class="tstat-val" style="color:${color}">${avg}%</div>
+            <div class="tstat-lbl">Health Score</div>
+            <div class="tstat-sub">${CARD_LABEL[z]}</div>
+          </div>
+          <div class="tstat">
+            <div class="tstat-val">${t.admissions ? "$" + Math.round(t.avgTicket).toLocaleString() : "—"}</div>
+            <div class="tstat-lbl">Avg Ticket Size</div>
+            <div class="tstat-sub">$${Math.round(t.revenue).toLocaleString()} revenue</div>
+          </div>
+          <div class="tstat">
+            <div class="tstat-val">${t.admissions}</div>
+            <div class="tstat-lbl">Admissions</div>
+            <div class="tstat-sub">$${Math.round(t.newUpfront).toLocaleString()} new · $${Math.round(t.futureUpfront).toLocaleString()} future</div>
+          </div>
+          <div class="tstat">
+            <div class="tstat-val" style="color:${t.convColor}">${t.presHeld ? t.convPct + "%" : "—"}</div>
+            <div class="tstat-lbl">Pres → Enrolment</div>
+            <div class="tstat-sub">${t.admissions} of ${t.presHeld} held</div>
+          </div>
+        </div>
+        <div class="team-meta">${present.length} active · ${members.length} total</div>
       </div>
-      <div class="cards">${members.map(card).join("")}</div>
+      <div class="team-body">
+        <div class="cards">${members.map(card).join("")}</div>
+      </div>
     </div>`;
   });
   return html;
+}
+
+// Team-level roll-up behind the four header figures.
+//   Avg ticket    = (new upfront + future upfront) / admissions
+//   Admissions    = deals closed by the team's closers
+//   Pres → Enrol  = admissions as a share of presentations HELD. Held is the
+//                   closer-side count and the same stage the funnel converts
+//                   from; builders' "presentations completed" is a separate
+//                   attribution of the handoff and would give a different base.
+function teamTotals(members){
+  const t = { revenue:0, newUpfront:0, futureUpfront:0, admissions:0, presHeld:0, presCompleted:0 };
+  members.forEach(p => {
+    t.newUpfront    += p.newUpfront || 0;
+    t.futureUpfront += p.futureUpfront || 0;
+    t.admissions    += p.dealsClosed || 0;
+    t.presHeld      += p.presentations || 0;
+    t.presCompleted += p.presCompleted || 0;
+  });
+  t.revenue   = t.newUpfront + t.futureUpfront;
+  t.avgTicket = t.admissions ? t.revenue / t.admissions : 0;
+  t.convPct   = t.presHeld ? Math.round(t.admissions / t.presHeld * 100) : 0;
+  t.convColor = !t.presHeld ? "var(--muted)"
+              : t.convPct >= 50 ? ZONE_COLOR.green
+              : t.convPct >= 25 ? ZONE_COLOR.gold || "#ffd740"
+              : ZONE_COLOR.red;
+  return t;
 }
 
 function renderDaily(rows){
@@ -403,6 +475,13 @@ document.getElementById("toggle-daily").onclick = function(){
   w.classList.toggle("show");
   this.textContent = (w.classList.contains("show") ? "▾ Hide" : "▸ Show") + " daily breakdown (raw saved data)";
 };
+
+// Team blocks open on click. Delegated, because renderSummary() replaces the
+// whole results container on every filter change.
+document.getElementById("results").addEventListener("click", e => {
+  const head = e.target.closest(".team-head");
+  if (head) head.parentElement.classList.toggle("open");
+});
 
 // Require Google login (same session as the main dashboard); bounce to / otherwise.
 document.body.style.visibility = "hidden";
