@@ -120,8 +120,9 @@
   </div>
 
   <div class="presets" id="presets">
+    <div class="preset-btn active" data-preset="yesterday">Yesterday</div>
     <div class="preset-btn" data-preset="week">This Week</div>
-    <div class="preset-btn active" data-preset="month">This Month</div>
+    <div class="preset-btn" data-preset="month">This Month</div>
     <div class="preset-btn" data-preset="lastmonth">Last Month</div>
     <div class="preset-btn" data-preset="7">Last 7 Days</div>
   </div>
@@ -182,7 +183,11 @@ function todayEST(){ return new Date().toLocaleDateString("en-CA", { timeZone:"A
 function setPreset(kind){
   const today = new Date(todayEST() + "T12:00:00Z");
   let start = new Date(today), end = new Date(today);
-  if (kind === "week"){ const dow = (today.getUTCDay()+6)%7; start.setUTCDate(today.getUTCDate()-dow); }
+  // This page reads saved snapshots, and today's is only written by the
+  // overnight job — so "today" is always empty here. Yesterday is the most
+  // recent day that actually has data, and it's what the page opens on.
+  if (kind === "yesterday"){ start.setUTCDate(today.getUTCDate()-1); end.setUTCDate(today.getUTCDate()-1); }
+  else if (kind === "week"){ const dow = (today.getUTCDay()+6)%7; start.setUTCDate(today.getUTCDate()-dow); }
   else if (kind === "month"){ start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)); }
   else if (kind === "lastmonth"){ start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth()-1, 1)); end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 0)); }
   else if (kind === "7"){ start.setUTCDate(today.getUTCDate()-6); }
@@ -407,7 +412,7 @@ _auth.auth.getSession().then(async ({ data: { session } }) => {
   if (session?.user && ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) {
     document.body.style.visibility = "";
     buildNav(email);
-    setPreset("month");
+    setPreset("yesterday");
     load();
   } else {
     window.location.replace("/");

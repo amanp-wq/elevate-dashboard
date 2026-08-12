@@ -101,9 +101,9 @@
     <div class="field"><label>&nbsp;</label><button class="btn-gen" id="btn-gen">Generate</button></div>
   </div>
   <div class="presets" id="presets">
-    <div class="preset-btn" data-preset="today">Today</div>
+    <div class="preset-btn active" data-preset="today">Today</div>
     <div class="preset-btn" data-preset="week">This Week</div>
-    <div class="preset-btn active" data-preset="month">This Month</div>
+    <div class="preset-btn" data-preset="month">This Month</div>
     <div class="preset-btn" data-preset="lastmonth">Last Month</div>
   </div>
   <div class="status" id="status"></div>
@@ -372,7 +372,7 @@ _auth.auth.getSession().then(async ({ data: { session } }) => {
     CURRENT_EMAIL = email;
     document.body.style.visibility = "";
     buildNav(email);
-    setPreset("month");
+    setPreset("today");
     load();
   } else {
     window.location.replace("/");

@@ -197,9 +197,9 @@
       <div class="field">
         <label>Period</label>
         <div class="preset-group">
-          <button class="preset-btn" onclick="setPreset('today',this)">Today</button>
+          <button class="preset-btn active" onclick="setPreset('today',this)">Today</button>
           <button class="preset-btn" onclick="setPreset('week',this)">This Week</button>
-          <button class="preset-btn active" onclick="setPreset('month',this)">This Month</button>
+          <button class="preset-btn" onclick="setPreset('month',this)">This Month</button>
         </div>
       </div>
       <div class="field">
@@ -504,8 +504,8 @@ function showApp(user) {
   buildNav(user.email);
   if (!_appShown) {
     _appShown = true;
-    // Auto-load this month on first login
-    setPreset("month", document.querySelector(".preset-btn.active"));
+    // Auto-load today on first login — every dashboard opens on today's data.
+    setPreset("today", document.querySelector(".preset-btn.active"));
     document.getElementById("btn-gen").click();
   }
 }
