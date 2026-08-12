@@ -121,6 +121,32 @@
   .tile-kpis .val { font-weight: 800; font-size: 15px; }
   .tile-kpis .lbl { opacity: 0.5; font-size: 11px; margin-top: 1px; }
 
+  /* Calls hover breakdown. The popup is a single element on <body> rather than
+     one per tile, because .tile clips its own overflow and would cut it off —
+     JS positions it next to whichever calls figure is hovered. */
+  .kpi-hoverable { cursor: help; }
+  .kpi-hoverable .val { border-bottom: 1px dotted currentColor; display: inline-block; }
+  #call-pop {
+    position: fixed; z-index: 5000; pointer-events: none;
+    opacity: 0; transition: opacity 0.12s; min-width: 244px;
+    background: #0c1020; border: 1px solid #2a3350; border-radius: 12px;
+    padding: 12px 14px; box-shadow: 0 16px 40px rgba(0,0,0,0.65);
+    font-size: 12px; color: #e8eaf6; text-align: left;
+  }
+  #call-pop.show { opacity: 1; }
+  #call-pop .cp-title { font-size: 10px; color: #6b7499; text-transform: uppercase; letter-spacing: 0.9px; margin-bottom: 9px; }
+  #call-pop .cp-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+  #call-pop .cp-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; box-shadow: 0 0 6px currentColor; }
+  #call-pop .cp-name { font-weight: 800; width: 48px; flex: none; }
+  #call-pop .cp-range { color: #6b7499; flex: 1; }
+  #call-pop .cp-count { font-weight: 800; font-variant-numeric: tabular-nums; }
+  #call-pop .cp-total {
+    margin-top: 9px; padding-top: 8px; border-top: 1px solid #2a3350;
+    display: flex; justify-content: space-between; color: #6b7499;
+  }
+  #call-pop .cp-total b { color: #e8eaf6; }
+  #call-pop .cp-empty { color: #6b7499; }
+
   /* Neon zone cards */
   .zone-gold {
     background: linear-gradient(135deg, #1a1500 0%, #120f00 100%);
@@ -509,7 +535,90 @@
   </div>
 </div>
 
+<div id="call-pop"></div>
+
 <script>
+// ── Calls hover breakdown ────────────────────────────────────────────────────
+// Splits the calls behind a card's figure by how long each one lasted, so a
+// high call count made of 10-second hangups reads differently from the same
+// count of real conversations. Bands come from /api/report as `callBands`,
+// bucketed there over exactly the calls that make up the number on the card —
+// so these four always add back up to it.
+const CALL_BANDS = [
+  { key: "red",    name: "Red",    range: "under 40s",    color: "#ff4d6a" },
+  { key: "yellow", name: "Yellow", range: "41s – 2m",     color: "#ffab00" },
+  { key: "green",  name: "Green",  range: "2m – 7m",      color: "#00e676" },
+  { key: "gold",   name: "Gold",   range: "7m and above", color: "#ffd740" },
+];
+
+// Marks up one KPI cell; the calls cell carries its bands for the popup.
+function kpiCell(label, value, bands, total) {
+  if (label !== "calls" || !bands) return `<div><div class="val">${value}</div><div class="lbl">${label}</div></div>`;
+  return `<div class="kpi-hoverable" data-bands='${JSON.stringify(bands)}' data-total="${total}">`
+       + `<div class="val">${value}</div><div class="lbl">${label}</div></div>`;
+}
+
+function callPopHtml(bands, total) {
+  const sum = CALL_BANDS.reduce((s, b) => s + (bands[b.key] || 0), 0);
+  if (!sum) return `<div class="cp-title">Call quality</div><div class="cp-empty">No calls in this period.</div>`;
+  const rows = CALL_BANDS.map(b => {
+    const n = bands[b.key] || 0;
+    const pct = Math.round(n / sum * 100);
+    return `<div class="cp-row">
+      <div class="cp-dot" style="background:${b.color};color:${b.color}"></div>
+      <div class="cp-name" style="color:${b.color}">${b.name}</div>
+      <div class="cp-range">${b.range}</div>
+      <div class="cp-count">${n}<span style="color:#6b7499;font-weight:400"> · ${pct}%</span></div>
+    </div>`;
+  }).join("");
+  // `total` is what the card shows; `sum` is what the bands account for. They
+  // should match, and it's worth saying so rather than hiding a discrepancy.
+  const mismatch = Number(total) !== sum
+    ? `<div class="cp-total" style="color:#ffab00">Bands cover ${sum} of ${total} calls</div>` : "";
+  return `<div class="cp-title">Call quality · by duration</div>${rows}
+    <div class="cp-total"><span>Total calls</span><b>${sum}</b></div>${mismatch}`;
+}
+
+(function wireCallPop() {
+  const pop = document.getElementById("call-pop");
+  let current = null;
+
+  function place(el) {
+    const r = el.getBoundingClientRect(), p = pop.getBoundingClientRect();
+    const gap = 10;
+    // Prefer above the cell; flip below when there isn't room, and keep the
+    // popup inside the viewport horizontally.
+    let top = r.top - p.height - gap;
+    if (top < 8) top = r.bottom + gap;
+    let left = r.left + r.width / 2 - p.width / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - p.width - 8));
+    pop.style.top = top + "px";
+    pop.style.left = left + "px";
+  }
+
+  function show(el) {
+    let bands;
+    try { bands = JSON.parse(el.dataset.bands || "{}"); } catch { return; }
+    current = el;
+    pop.innerHTML = callPopHtml(bands, el.dataset.total);
+    pop.classList.add("show");
+    place(el);
+  }
+  function hide() { current = null; pop.classList.remove("show"); }
+
+  document.addEventListener("mouseover", e => {
+    const el = e.target.closest(".kpi-hoverable");
+    if (el && el !== current) show(el);
+  });
+  document.addEventListener("mouseout", e => {
+    const el = e.target.closest(".kpi-hoverable");
+    if (el && !el.contains(e.relatedTarget)) hide();
+  });
+  // A scroll or resize leaves the popup stranded beside nothing.
+  window.addEventListener("scroll", () => { if (current) place(current); }, true);
+  window.addEventListener("resize", hide);
+})();
+
 const DISPLAY = "10:30 AM – 7:30 PM EST";
 
 function estToday() {
@@ -1012,7 +1121,7 @@ document.getElementById("btn-gen").onclick = async function(){
           </div>
           ${onLeave ? "" : `
           <div class="tile-kpis" style="grid-template-columns:repeat(4,1fr)">
-            ${[["calls",c.calls],["mins",c.minutes],["pres",c.presentations],["deals",c.dealsClosed]].map(([l,v])=>`<div><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join("")}
+            ${[["calls",c.calls],["mins",c.minutes],["pres",c.presentations],["deals",c.dealsClosed]].map(([l,v])=>kpiCell(l,v,c.callBands,c.calls)).join("")}
           </div>
           <div class="tile-call-breakdown">
             <span class="bd-in">↙${c.inbound} in</span>
@@ -1068,7 +1177,7 @@ document.getElementById("btn-gen").onclick = async function(){
           </div>
           ${onLeave ? "" : `
           <div class="tile-kpis">
-            ${[["calls",b.calls],["mins",b.minutes],["leads",b.leads],["disco",b.discoveries],["pres.b",b.presBooked],["pres.c",b.presCompleted]].map(([l,v])=>`<div><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join("")}
+            ${[["calls",b.calls],["mins",b.minutes],["leads",b.leads],["disco",b.discoveries],["pres.b",b.presBooked],["pres.c",b.presCompleted]].map(([l,v])=>kpiCell(l,v,b.callBands,b.calls)).join("")}
           </div>
           <div class="tile-call-breakdown">
             <span class="bd-in">↙${b.inbound} in</span>

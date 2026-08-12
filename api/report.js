@@ -76,6 +76,21 @@ async function logAPI(type, role, date_range, triggered_by, duration_ms) {
   } catch { /* logging must never fail the request */ }
 }
 
+// ── Call-duration bands ──────────────────────────────────────────────────────
+// Feeds the hover breakdown on each Builder/Closer card: of the calls behind
+// the number on the card, how many were quick hangups vs real conversations.
+//   red    under 40s        yellow  41s – 2m
+//   green  2m – 7m          gold    7m and above
+// Only calls that count toward `calls` get bucketed, so the four bands always
+// add back up to the figure shown on the card.
+function emptyBands() { return { red: 0, yellow: 0, green: 0, gold: 0 }; }
+function bandOf(seconds) {
+  if (seconds <= 40)  return "red";
+  if (seconds <= 120) return "yellow";
+  if (seconds <  420) return "green";
+  return "gold";
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "https://elevate-dashboard-iota.vercel.app");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -88,7 +103,9 @@ export default async function handler(req, res) {
   // ── Cache check ───────────────────────────────────────────────────────────
   const q0 = req.method === "POST" ? req.body : req.query;
   const { startDate, endDate, role } = q0;
-  const cacheKey = `${role}|${startDate}|${endDate}`;
+  // v2: the payload gained per-person `callBands`. Bumping the key retires v1
+  // rows instead of serving a cached payload the hover card can't read.
+  const cacheKey = `${role}|v2|${startDate}|${endDate}`;
   const t0 = Date.now();
   try {
     const cached = await getCached(cacheKey);
@@ -295,7 +312,7 @@ export default async function handler(req, res) {
         const tl = getTLName(u.role.name);
         const isC = u.role.name.includes("Closer");
         const base = { name: u.full_name, id: u.id, tlName: tl,
-          calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0 };
+          calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0, callBands: emptyBands() };
         if (isC) closerMap[u.id]  = { ...base, presentations: 0, dealsClosed: 0, newUpfront: 0, futureUpfront: 0 };
         else     builderMap[u.id] = { ...base, leads: 0, discoveries: 0, presBooked: 0, presCompleted: 0 };
       });
@@ -323,7 +340,10 @@ export default async function handler(req, res) {
         map[id].minutes += mins;
         if (c.Call_Status === "Missed") { map[id].missed += 1; }
         else if (c.Call_Type === "Inbound") { map[id].inbound += 1; }
-        else { map[id].calls += 1; map[id].outbound += 1; }
+        else {
+          map[id].calls += 1; map[id].outbound += 1;
+          map[id].callBands[bandOf(parseFloat(c.Call_Duration_in_seconds || 0))] += 1;
+        }
       });
 
       // Builder KPIs
@@ -361,7 +381,7 @@ export default async function handler(req, res) {
       const map = {};
       users.forEach(u => {
         map[u.id] = { name: u.full_name, id: u.id, teamLead: "",
-          calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0,
+          calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0, callBands: emptyBands(),
           presentations: 0, dealsClosed: 0, newUpfront: 0, futureUpfront: 0 };
       });
 
@@ -381,6 +401,7 @@ export default async function handler(req, res) {
         if (c.Call_Type === "Inbound")  { map[id].inbound += 1; return; }
         map[id].calls += 1;
         map[id].outbound += 1;
+        map[id].callBands[bandOf(parseFloat(c.Call_Duration_in_seconds || 0))] += 1;
       });
 
       presHeld.forEach(d => {
@@ -422,7 +443,7 @@ export default async function handler(req, res) {
     const map = {};
     users.forEach(u => {
       map[u.id] = { name: u.full_name, id: u.id, teamLead: "",
-        calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0,
+        calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0, callBands: emptyBands(),
         leads: 0, discoveries: 0, presBooked: 0, presCompleted: 0 };
     });
 
@@ -445,6 +466,7 @@ export default async function handler(req, res) {
       if (c.Call_Type === "Inbound")  { map[id].inbound += 1; return; }
       map[id].calls += 1;
       map[id].outbound += 1;
+      map[id].callBands[bandOf(parseFloat(c.Call_Duration_in_seconds || 0))] += 1;
     });
 
     leadsQL.forEach(l => { const id = l.Owner?.id; if (!map[id]) return; map[id].leads += 1; if (!map[id].teamLead && l.Team_Lead) map[id].teamLead = l.Team_Lead; });
