@@ -53,30 +53,69 @@
 
   .status { font-size: 13px; color: var(--muted); margin-bottom: 1rem; min-height: 18px; }
 
-  .team-block { margin-bottom: 1rem; border: 1px solid var(--border); border-radius: 14px; background: rgba(15,19,34,0.4); overflow: hidden; }
-  /* The header is the whole summary — member cards stay collapsed underneath
-     until someone actually wants the individual detail. */
-  .team-head {
-    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-    padding: 14px 18px; cursor: pointer; user-select: none;
-    transition: background 0.15s;
+  /* The header carries the whole team summary; member cards sit collapsed
+     underneath until someone actually wants the individual detail. */
+  .team-block {
+    margin-bottom: 14px; border-radius: 16px; position: relative; overflow: hidden;
+    border: 1px solid var(--border);
+    /* Plain fill first so a browser without color-mix() still gets a surface
+       rather than dropping the whole declaration and rendering transparent. */
+    background: rgba(17,21,38,0.85);
+    background:
+      radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--team-color) 9%, transparent) 0%, transparent 55%),
+      linear-gradient(180deg, rgba(17,21,38,0.92), rgba(12,15,28,0.75));
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
   }
-  .team-head:hover { background: rgba(255,255,255,0.03); }
-  .team-caret { font-size: 10px; color: var(--muted); transition: transform 0.18s; flex: none; }
+  .team-block::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--team-color); box-shadow: 0 0 16px var(--team-color);
+  }
+  .team-block:hover { border-color: #2c3556; border-color: color-mix(in srgb, var(--team-color) 45%, var(--border)); transform: translateY(-1px); }
+  .team-block.open { box-shadow: 0 14px 38px rgba(0,0,0,0.45); }
+
+  .team-head {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    padding: 16px 20px 16px 25px; cursor: pointer; user-select: none;
+  }
+  .team-id { display: flex; align-items: center; gap: 13px; flex: none; min-width: 208px; }
+  .team-avatar {
+    width: 44px; height: 44px; border-radius: 50%; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; letter-spacing: 0.5px;
+    color: var(--team-color); border: 2px solid var(--team-color);
+    background: rgba(255,255,255,0.05);
+    background: color-mix(in srgb, var(--team-color) 12%, transparent);
+    box-shadow: 0 0 18px -5px var(--team-color);
+  }
+  .team-name { font-size: 17px; font-weight: 800; line-height: 1.2; letter-spacing: -0.2px; }
+  .team-role { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+  .team-caret { font-size: 9px; color: var(--muted); transition: transform 0.2s; }
   .team-block.open .team-caret { transform: rotate(90deg); }
-  .team-name { font-size: 19px; font-weight: 800; flex: none; min-width: 118px; }
-  .team-meta { font-size: 12px; color: var(--muted); flex: none; margin-left: auto; text-align: right; }
 
   .team-stats { display: flex; gap: 10px; flex-wrap: wrap; flex: 1; min-width: 0; }
   .tstat {
-    flex: 1; min-width: 116px; padding: 8px 12px; border-radius: 10px;
-    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    flex: 1; min-width: 138px; padding: 11px 14px 12px; border-radius: 12px;
+    background: rgba(255,255,255,0.028); border: 1px solid var(--border);
+    position: relative; overflow: hidden;
   }
-  .tstat-val { font-size: 19px; font-weight: 800; line-height: 1.15; }
-  .tstat-lbl { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; margin-top: 3px; }
-  .tstat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .tstat::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: var(--stat-color, transparent); opacity: 0.6;
+  }
+  .tstat-lbl {
+    font-size: 9px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.9px; font-weight: 700; margin-bottom: 5px;
+  }
+  .tstat-val { font-size: 23px; font-weight: 800; line-height: 1.05; letter-spacing: -0.6px; }
+  .tstat-val small { font-size: 13px; font-weight: 700; opacity: 0.75; margin-left: 1px; }
+  .tstat-sub { font-size: 10.5px; color: var(--muted); margin-top: 4px; }
+  .tstat-bar { height: 3px; border-radius: 2px; background: rgba(255,255,255,0.07); margin-top: 7px; overflow: hidden; }
+  .tstat-bar i { display: block; height: 100%; border-radius: 2px; background: var(--stat-color); }
 
-  .team-body { display: none; padding: 0 18px 18px; }
+  .team-meta { font-size: 11px; color: var(--muted); flex: none; text-align: right; line-height: 1.6; }
+  .team-meta b { color: var(--text); font-size: 13px; }
+
+  .team-body { display: none; padding: 4px 20px 20px 25px; border-top: 1px solid var(--border); }
   .team-block.open .team-body { display: block; }
 
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
@@ -328,33 +367,47 @@ function renderSummary(people){
       : 0;
     const z = zone(avg); const color = ZONE_COLOR[z];
     const t = teamTotals(members);
-    html += `<div class="team-block">
+    const full = TL_FULL_NAME[tl] || tl;
+    const money = n => "$" + Math.round(n).toLocaleString();
+    html += `<div class="team-block" style="--team-color:${color}">
       <div class="team-head">
-        <span class="team-caret">▶</span>
-        <div class="team-name" style="color:${color}">${tl}</div>
+        <div class="team-id">
+          <div class="team-avatar">${initials(full)}</div>
+          <div>
+            <div class="team-name">${full}</div>
+            <div class="team-role"><span class="team-caret">▶</span> Team Lead</div>
+          </div>
+        </div>
+
         <div class="team-stats">
-          <div class="tstat">
-            <div class="tstat-val" style="color:${color}">${avg}%</div>
+          <div class="tstat" style="--stat-color:${color}">
             <div class="tstat-lbl">Health Score</div>
+            <div class="tstat-val" style="color:${color}">${avg}<small>%</small></div>
+            <div class="tstat-bar"><i style="width:${Math.min(100, avg)}%"></i></div>
             <div class="tstat-sub">${CARD_LABEL[z]}</div>
           </div>
-          <div class="tstat">
-            <div class="tstat-val">${t.admissions ? "$" + Math.round(t.avgTicket).toLocaleString() : "—"}</div>
+
+          <div class="tstat" style="--stat-color:#40c4ff">
             <div class="tstat-lbl">Avg Ticket Size</div>
-            <div class="tstat-sub">$${Math.round(t.revenue).toLocaleString()} revenue</div>
+            <div class="tstat-val" style="color:#40c4ff">${t.admissions ? money(t.avgTicket) : "—"}</div>
+            <div class="tstat-sub">${money(t.revenue)} total revenue</div>
           </div>
-          <div class="tstat">
-            <div class="tstat-val">${t.admissions}</div>
+
+          <div class="tstat" style="--stat-color:${ZONE_COLOR.green}">
             <div class="tstat-lbl">Admissions</div>
-            <div class="tstat-sub">$${Math.round(t.newUpfront).toLocaleString()} new · $${Math.round(t.futureUpfront).toLocaleString()} future</div>
+            <div class="tstat-val" style="color:${ZONE_COLOR.green}">${t.admissions}</div>
+            <div class="tstat-sub">${money(t.newUpfront)} new · ${money(t.futureUpfront)} future</div>
           </div>
-          <div class="tstat">
-            <div class="tstat-val" style="color:${t.convColor}">${t.presHeld ? t.convPct + "%" : "—"}</div>
+
+          <div class="tstat" style="--stat-color:${t.convColor}">
             <div class="tstat-lbl">Pres → Enrolment</div>
+            <div class="tstat-val" style="color:${t.convColor}">${t.presHeld ? t.convPct + "<small>%</small>" : "—"}</div>
+            <div class="tstat-bar"><i style="width:${Math.min(100, t.convPct)}%"></i></div>
             <div class="tstat-sub">${t.admissions} of ${t.presHeld} held</div>
           </div>
         </div>
-        <div class="team-meta">${present.length} active · ${members.length} total</div>
+
+        <div class="team-meta"><b>${present.length}</b> active<br>${members.length} on roster</div>
       </div>
       <div class="team-body">
         <div class="cards">${members.map(card).join("")}</div>
@@ -363,6 +416,10 @@ function renderSummary(people){
   });
   return html;
 }
+
+// Snapshots store the short team-lead key; these are the names to show.
+const TL_FULL_NAME = { "Soham": "Soham Bajpai", "Tejasvi": "Tejasvi Pathe", "Mamta Das": "Mamta Das" };
+const initials = name => name.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
 // Team-level roll-up behind the four header figures.
 //   Avg ticket    = (new upfront + future upfront) / admissions
@@ -374,11 +431,17 @@ function renderSummary(people){
 function teamTotals(members){
   const t = { revenue:0, newUpfront:0, futureUpfront:0, admissions:0, presHeld:0, presCompleted:0 };
   members.forEach(p => {
+    t.presCompleted += p.presCompleted || 0;   // builder-side, shown for reference only
+    // Admissions, revenue and presentations held are all closer-side. A builder
+    // row also carries a deal count for the deals they sourced, but never the
+    // money or the presentation behind them — counting those too double-counted
+    // the same enrolment and dragged the average ticket down against a revenue
+    // figure that never included them.
+    if (p.role !== "Closer") return;
     t.newUpfront    += p.newUpfront || 0;
     t.futureUpfront += p.futureUpfront || 0;
     t.admissions    += p.dealsClosed || 0;
     t.presHeld      += p.presentations || 0;
-    t.presCompleted += p.presCompleted || 0;
   });
   t.revenue   = t.newUpfront + t.futureUpfront;
   t.avgTicket = t.admissions ? t.revenue / t.admissions : 0;
