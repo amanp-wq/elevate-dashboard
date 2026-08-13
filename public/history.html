@@ -201,8 +201,10 @@
     content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
     background: var(--team-color); box-shadow: 0 0 20px var(--team-color);
   }
-  .org-head { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 18px 22px 18px 26px; }
-  .org-id { display: flex; align-items: center; gap: 14px; flex: none; min-width: 208px; }
+  /* Block, not flex — .org-layout is the grid here, and as a lone flex item it
+     sized to its content and left the tiles short of the right edge. */
+  .org-head { display: block; padding: 28px; }
+  .org-id { display: flex; align-items: center; gap: 16px; }
   .org-badge {
     width: 48px; height: 48px; border-radius: 14px; flex: none;
     display: flex; align-items: center; justify-content: center;
@@ -224,26 +226,33 @@
      the numeral variant instead of a second typeface. */
   .mstat {
     border: 1px solid var(--border); border-top: 2px solid var(--stat-color, var(--border));
-    border-radius: 16px; background: var(--surface-2);
-    padding: 16px; display: flex; flex-direction: column; gap: 13px;
+    border-radius: 14px; background: var(--surface-2);
+    padding: 15px; display: flex; flex-direction: column; gap: 11px;
     transition: transform 0.2s ease, border-color 0.2s ease; min-width: 0;
   }
-  .mstat:hover { transform: translateY(-3px); }
+  .mstat:hover { transform: translateY(-2px); }
+  /* The organisation's tiles sit a size above a team's, as in the design. */
+  .org-block .mstat { border-radius: 16px; padding: 18px; gap: 14px; }
+  .org-block .mstat:hover { transform: translateY(-3px); }
+  .org-block .mstat-val { font-size: 40px; }
+  .org-block .mstat-val small { font-size: 17px; }
+  .org-block .mstat-bar { height: 4px; }
   .mstat-lbl {
     font-size: 10.5px; letter-spacing: 0.13em; text-transform: uppercase;
     color: var(--muted); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .mstat-val {
     display: flex; align-items: baseline; gap: 3px;
-    font-size: 34px; font-weight: 800; letter-spacing: -0.035em; line-height: 0.9;
+    font-size: 27px; font-weight: 800; letter-spacing: -0.03em; line-height: 0.9;
     color: var(--stat-color); font-variant-numeric: tabular-nums; white-space: nowrap;
   }
-  .mstat-val small { font-size: 16px; font-weight: 700; opacity: 0.7; }
+  .mstat-val small { font-size: 13px; font-weight: 700; opacity: 0.7; }
   .mstat-foot { margin-top: auto; display: flex; flex-direction: column; gap: 9px; }
-  .mstat-bar { height: 4px; border-radius: 999px; background: rgba(255,255,255,0.09); overflow: hidden; }
+  .mstat-bar { height: 3px; border-radius: 999px; background: rgba(255,255,255,0.09); overflow: hidden; }
   .mstat-bar i { display: block; height: 100%; border-radius: 999px; background: var(--stat-color); transition: width 1s cubic-bezier(0.22,1,0.36,1); }
-  .mstat-note { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .mstat-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
+  .mstat-note { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mstat-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+  .org-block .mstat-grid { gap: 14px; }
   @media (max-width: 1180px) { .mstat-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
   @media (max-width: 640px)  { .mstat-grid { grid-template-columns: 1fr; } }
 
