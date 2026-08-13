@@ -194,25 +194,35 @@ function buildNav(email) {
 }
 
 // Sales roster shared by attendance.html and manage-targets-sales.html.
+//
+// Names must match Zoho's full_name exactly — the TV board resolves a person's
+// team by looking their reported name up in here, and attendance is stored
+// against these strings.
+//
+// Last reconciled against the 12 Aug snapshot: Aryan Sharma moved from Builder
+// to Closer; Dhruvil Chauhan and Soumya Singh left; Kavya Prajapati, Hemant
+// Rathore, Jatin Bhavsar and Talha Shaikh joined as Builders.
 const SALES_TEAM_MEMBERS = [
   // Team Soham
   { name: "Yashraj Modasara",  team: "Soham",     role: "Builder" },
-  { name: "Aryan Sharma",      team: "Soham",     role: "Builder" },
-  { name: "Dhruvil Chauhan",   team: "Soham",     role: "Builder" },
   { name: "Avni Gajjar",       team: "Soham",     role: "Builder" },
   { name: "Maharshi Patel",    team: "Soham",     role: "Builder" },
+  { name: "Kavya Prajapati",   team: "Soham",     role: "Builder" },
+  { name: "Aryan Sharma",      team: "Soham",     role: "Closer"  },
   { name: "Harsh Bhojak",      team: "Soham",     role: "Closer"  },
   { name: "Nikunj Patel",      team: "Soham",     role: "Closer"  },
   // Team Tejasvi
   { name: "Lekhraj Prajapati", team: "Tejasvi",   role: "Builder" },
   { name: "Nupur Vyas",        team: "Tejasvi",   role: "Builder" },
+  { name: "Hemant Rathore",    team: "Tejasvi",   role: "Builder" },
+  { name: "Jatin Bhavsar",     team: "Tejasvi",   role: "Builder" },
   { name: "Yash Mishra",       team: "Tejasvi",   role: "Closer"  },
   { name: "Kartik Deshawar",   team: "Tejasvi",   role: "Closer"  },
   { name: "Abhijeet Das",      team: "Tejasvi",   role: "Closer"  },
   // Team Mamta Das
   { name: "Shivam Rathi",      team: "Mamta Das", role: "Builder" },
-  { name: "Soumya Singh",      team: "Mamta Das", role: "Builder" },
   { name: "Nishant Sharma",    team: "Mamta Das", role: "Builder" },
+  { name: "Talha Shaikh",      team: "Mamta Das", role: "Builder" },
   { name: "Pranali Mishra",    team: "Mamta Das", role: "Closer"  },
   { name: "Meet Patel",        team: "Mamta Das", role: "Closer"  },
   { name: "Vidhi Patel",       team: "Mamta Das", role: "Closer"  },

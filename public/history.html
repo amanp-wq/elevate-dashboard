@@ -300,6 +300,12 @@ function aggregate(rows){
       days:0, leaveDays:0,
     };
     const m = map[id];
+    // Rows arrive oldest-first, so keep overwriting: a person who changed role
+    // or team mid-period is shown and scored as what they are now, not as
+    // whatever they were on the first day of the range.
+    m.name = row.person_name;
+    m.role = row.role;
+    if (row.team_lead) m.tl = row.team_lead;
     m.calls += row.calls; m.inbound += row.inbound; m.outbound += row.outbound; m.missed += row.missed;
     m.minutes += row.minutes; m.leads += row.leads; m.discoveries += row.discoveries;
     m.presBooked += row.pres_booked; m.presCompleted += row.pres_completed;
