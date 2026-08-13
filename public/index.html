@@ -125,7 +125,11 @@
      one per tile, because .tile clips its own overflow and would cut it off —
      JS positions it next to whichever calls figure is hovered. */
   .kpi-hoverable { cursor: help; }
-  .kpi-hoverable .val { border-bottom: 1px dotted currentColor; display: inline-block; }
+  /* The dotted underline is the only hint that a figure has more behind it, so
+     it has to follow whichever class holds the number — `.val` on a person's
+     tile, `.total-val` in the team totals row at the top. */
+  .kpi-hoverable .val,
+  .kpi-hoverable .total-val { border-bottom: 1px dotted currentColor; display: inline-block; }
   #call-pop {
     position: fixed; z-index: 5000; pointer-events: none;
     opacity: 0; transition: opacity 0.12s; min-width: 244px;
@@ -558,6 +562,14 @@ function tileKpiCell(label, value, bands, total) {
   if (label !== "calls" || !bands) return `<div><div class="val">${value}</div><div class="lbl">${label}</div></div>`;
   return `<div class="kpi-hoverable" data-bands='${JSON.stringify(bands)}' data-total="${total}">`
        + `<div class="val">${value}</div><div class="lbl">${label}</div></div>`;
+}
+
+// Adds the per-person bands together so the totals row at the top of the board
+// can offer the same breakdown for the whole team.
+function sumBands(people) {
+  const t = { red: 0, yellow: 0, green: 0, gold: 0 };
+  people.forEach(p => { const b = p.callBands; if (b) for (const k in t) t[k] += b[k] || 0; });
+  return t;
 }
 
 function callPopHtml(bands, total) {
@@ -1096,6 +1108,7 @@ document.getElementById("btn-gen").onclick = async function(){
       const tot = { calls:0, inbound:0, outbound:0, missed:0, minutes:0, presentations:0, dealsClosed:0, newUpfront:0, futureUpfront:0, revenue:0 };
       closers.forEach(c => { tot.calls+=c.calls; tot.inbound+=c.inbound; tot.outbound+=c.outbound; tot.missed+=c.missed; tot.minutes+=c.minutes; tot.presentations+=c.presentations; tot.dealsClosed+=c.dealsClosed; tot.newUpfront+=c.newUpfront; tot.futureUpfront+=c.futureUpfront; tot.revenue+=c.revenue; });
       const n = closers.length;
+      const totBands = sumBands(closers);
       document.getElementById("totals-grid").innerHTML = [
         ["calls","Calls",(n*TC.calls).toFixed(0)],
         ["minutes","Minutes",(n*TC.minutes).toFixed(0)],
@@ -1104,7 +1117,7 @@ document.getElementById("btn-gen").onclick = async function(){
         ["newUpfront","New Upfront","—"],
         ["futureUpfront","Future Upfront","—"],
         ["revenue","Revenue (Total)","—"],
-      ].map(([k,lbl,tg]) => `<div class="total-item"><div class="total-val">${k==="newUpfront"||k==="futureUpfront"||k==="revenue"?"$"+tot[k].toLocaleString():tot[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${tot.inbound} in</span> <span class="bd-out">↗${tot.outbound} out</span> <span class="bd-miss">✕${tot.missed} miss</span></div>`:""}</div>`).join("");
+      ].map(([k,lbl,tg]) => `<div class="total-item${k==="calls"?" kpi-hoverable":""}"${k==="calls"?` data-bands='${JSON.stringify(totBands)}' data-total="${tot.calls}"`:""}><div class="total-val">${k==="newUpfront"||k==="futureUpfront"||k==="revenue"?"$"+tot[k].toLocaleString():tot[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${tot.inbound} in</span> <span class="bd-out">↗${tot.outbound} out</span> <span class="bd-miss">✕${tot.missed} miss</span></div>`:""}</div>`).join("");
 
       document.getElementById("tiles").innerHTML = closers.map(c => {
         const onLeave = (leaveMap[c.name] || 0) >= effectiveDays;
@@ -1153,6 +1166,7 @@ document.getElementById("btn-gen").onclick = async function(){
       const totals = { calls:0, inbound:0, outbound:0, missed:0, minutes:0, leads:0, discoveries:0, presBooked:0, presCompleted:0 };
       builders.forEach(b => { totals.calls+=b.calls; totals.inbound+=b.inbound; totals.outbound+=b.outbound; totals.missed+=b.missed; totals.minutes+=b.minutes; totals.leads+=b.leads; totals.discoveries+=b.discoveries; totals.presBooked+=b.presBooked; totals.presCompleted+=b.presCompleted; });
       const tgt = v => (builders.length * v).toFixed(0);
+      const totalsBands = sumBands(builders);
       document.getElementById("totals-grid").innerHTML = [
         ["calls","Calls",tgt(T.calls)],
         ["minutes","Minutes",tgt(T.minutes)],
@@ -1160,7 +1174,7 @@ document.getElementById("btn-gen").onclick = async function(){
         ["discoveries","Discoveries",tgt(T.discoveries)],
         ["presBooked","Pres. Booked",tgt(T.presBooked)],
         ["presCompleted","Pres. Completed",tgt(T.presCompleted)]
-      ].map(([k,lbl,tg]) => `<div class="total-item"><div class="total-val">${totals[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${totals.inbound} in</span> <span class="bd-out">↗${totals.outbound} out</span> <span class="bd-miss">✕${totals.missed} miss</span></div>`:""}</div>`).join("");
+      ].map(([k,lbl,tg]) => `<div class="total-item${k==="calls"?" kpi-hoverable":""}"${k==="calls"?` data-bands='${JSON.stringify(totalsBands)}' data-total="${totals.calls}"`:""}><div class="total-val">${totals[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${totals.inbound} in</span> <span class="bd-out">↗${totals.outbound} out</span> <span class="bd-miss">✕${totals.missed} miss</span></div>`:""}</div>`).join("");
 
       document.getElementById("tiles").innerHTML = builders.map(b => {
         const onLeave = (leaveMap[b.name] || 0) >= effectiveDays;

@@ -118,6 +118,35 @@
   .team-body { display: none; padding: 4px 20px 20px 25px; border-top: 1px solid var(--border); }
   .team-block.open .team-body { display: block; }
 
+  /* Organisation banner — same four tiles as a team, sat above them and styled
+     a step heavier so it reads as the roll-up rather than a fourth team. It has
+     no member list, so nothing here is clickable. */
+  .org-block {
+    margin-bottom: 20px; border-radius: 16px; position: relative; overflow: hidden;
+    border: 1px solid var(--border);
+    background: rgba(17,21,38,0.9);
+    background:
+      radial-gradient(130% 150% at 0% 0%, color-mix(in srgb, var(--team-color) 14%, transparent) 0%, transparent 60%),
+      linear-gradient(180deg, rgba(20,25,45,0.95), rgba(12,15,28,0.8));
+  }
+  .org-block::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: var(--team-color); box-shadow: 0 0 20px var(--team-color);
+  }
+  .org-head { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 18px 22px 18px 26px; }
+  .org-id { display: flex; align-items: center; gap: 14px; flex: none; min-width: 208px; }
+  .org-badge {
+    width: 48px; height: 48px; border-radius: 14px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; letter-spacing: 1px;
+    color: var(--team-color); border: 2px solid var(--team-color);
+    background: rgba(255,255,255,0.05);
+    background: color-mix(in srgb, var(--team-color) 14%, transparent);
+    box-shadow: 0 0 20px -5px var(--team-color);
+  }
+  .org-name { font-size: 19px; font-weight: 800; letter-spacing: -0.2px; }
+  .org-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; position: relative; overflow: hidden; }
   .card.leave { opacity: 0.65; }
@@ -355,9 +384,60 @@ function card(p){
   </div>`;
 }
 
+// Organisation-wide banner above the team blocks — the same four figures each
+// team lead is shown, computed over everyone in the current filter rather than
+// per team. Deliberately not an average of the team averages: that would weight
+// a six-person team the same as a twelve-person one.
+function renderOrgSummary(people){
+  if (!people.length) return "";
+  const isFullyOnLeave = p => p.days > 0 && p.leaveDays >= p.days;
+  const present = people.filter(p => !isFullyOnLeave(p));
+  const health = Math.round(people.reduce((s,p) => s + (isFullyOnLeave(p) ? 0 : scoreFor(p)), 0) / people.length);
+  const z = zone(health), color = ZONE_COLOR[z];
+  const t = teamTotals(people);
+  const money = n => "$" + Math.round(n).toLocaleString();
+  const teamCount = new Set(people.map(p => p.tl)).size;
+
+  return `<div class="org-block" style="--team-color:${color}">
+    <div class="org-head">
+      <div class="org-id">
+        <div class="org-badge">ALL</div>
+        <div>
+          <div class="org-name">Organisation</div>
+          <div class="org-sub">${teamCount} team${teamCount!==1?"s":""} · ${present.length} active · ${people.length} people</div>
+        </div>
+      </div>
+      <div class="team-stats">
+        <div class="tstat" style="--stat-color:${color}">
+          <div class="tstat-lbl">Health Score</div>
+          <div class="tstat-val" style="color:${color}">${health}<small>%</small></div>
+          <div class="tstat-bar"><i style="width:${Math.min(100, health)}%"></i></div>
+          <div class="tstat-sub">${CARD_LABEL[z]}</div>
+        </div>
+        <div class="tstat" style="--stat-color:#40c4ff">
+          <div class="tstat-lbl">Avg Ticket Size</div>
+          <div class="tstat-val" style="color:#40c4ff">${t.admissions ? money(t.avgTicket) : "—"}</div>
+          <div class="tstat-sub">${money(t.revenue)} total revenue</div>
+        </div>
+        <div class="tstat" style="--stat-color:${ZONE_COLOR.green}">
+          <div class="tstat-lbl">Admissions</div>
+          <div class="tstat-val" style="color:${ZONE_COLOR.green}">${t.admissions}</div>
+          <div class="tstat-sub">${money(t.newUpfront)} new · ${money(t.futureUpfront)} future</div>
+        </div>
+        <div class="tstat" style="--stat-color:${t.convColor}">
+          <div class="tstat-lbl">Pres → Enrolment</div>
+          <div class="tstat-val" style="color:${t.convColor}">${t.presHeld ? t.convPct + "<small>%</small>" : "—"}</div>
+          <div class="tstat-bar"><i style="width:${Math.min(100, t.convPct)}%"></i></div>
+          <div class="tstat-sub">${t.admissions} of ${t.presHeld} held</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderSummary(people){
   const teams = ["Soham","Tejasvi","Mamta Das","Unassigned"];
-  let html = "";
+  let html = renderOrgSummary(people);
   teams.forEach(tl => {
     const members = people.filter(p => p.tl === tl).sort((a,b) => (a.role<b.role?-1:1) || 0);
     if (!members.length) return;
