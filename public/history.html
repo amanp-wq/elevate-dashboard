@@ -122,39 +122,30 @@
 
   /* The header carries the whole team summary; member cards sit collapsed
      underneath until someone actually wants the individual detail. */
+  /* Flat panel and a flat edge, per the design. The tinted wash and the glowing
+     stripe this had before put the team colour in three places at once, which
+     is most of what made a page of these hard to read. */
   .team-block {
     margin-bottom: 14px; border-radius: 22px; position: relative; overflow: hidden;
-    border: 1px solid var(--border);
-    /* Plain fill first so a browser without color-mix() still gets a surface
-       rather than dropping the whole declaration and rendering transparent. */
-    background: var(--panel);
-    background:
-      radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--team-color) 9%, transparent) 0%, transparent 55%),
-      var(--panel);
-    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    border: 1px solid var(--border); background: var(--panel);
+    transition: border-color 0.2s ease;
   }
   .team-block::before {
-    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-    background: var(--team-color); box-shadow: 0 0 16px var(--team-color);
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: var(--team-color);
   }
-  .team-block:hover { border-color: #2c3556; border-color: color-mix(in srgb, var(--team-color) 45%, var(--border)); transform: translateY(-1px); }
-  .team-block.open { box-shadow: 0 14px 38px rgba(0,0,0,0.45); }
+  .team-block:hover { border-color: #414958; border-color: oklch(0.34 0.02 250); }
 
-  .team-head {
-    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
-    padding: 16px 20px 16px 25px; cursor: pointer; user-select: none;
-  }
+  .team-head { display: block; padding: 24px; cursor: pointer; user-select: none; }
   .team-id { display: flex; align-items: center; gap: 13px; flex: none; min-width: 208px; }
   .team-avatar {
-    width: 44px; height: 44px; border-radius: 50%; flex: none;
+    width: 48px; height: 48px; border-radius: 50%; flex: none;
     display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 800; letter-spacing: 0.5px;
+    font-size: 14px; font-weight: 700;
     color: var(--team-color); border: 2px solid var(--team-color);
-    background: rgba(255,255,255,0.05);
-    background: color-mix(in srgb, var(--team-color) 12%, transparent);
-    box-shadow: 0 0 18px -5px var(--team-color);
+    background: transparent;
   }
-  .team-name { font-size: 17px; font-weight: 800; line-height: 1.2; letter-spacing: -0.2px; }
+  .team-name { font-size: 20px; font-weight: 700; line-height: 1.2; letter-spacing: -0.2px; }
   .team-role { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
   .team-caret { font-size: 9px; color: var(--muted); transition: transform 0.2s; }
   .team-block.open .team-caret { transform: rotate(90deg); }
@@ -197,24 +188,27 @@
       linear-gradient(180deg, oklch(0.175 0.016 250), oklch(0.145 0.012 250));
     border-radius: 24px;
   }
+  /* Amber into the accent, per the design — a fixed gradient, not the health
+     colour. The health colour already appears on the tile beside it; repeating
+     it down the whole edge was what made the banner read as one big status. */
   .org-block::before {
     content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
-    background: var(--team-color); box-shadow: 0 0 20px var(--team-color);
+    background: linear-gradient(180deg, var(--neon-gold), var(--accent));
   }
   /* Block, not flex — .org-layout is the grid here, and as a lone flex item it
      sized to its content and left the tiles short of the right edge. */
   .org-head { display: block; padding: 28px; }
   .org-id { display: flex; align-items: center; gap: 16px; }
+  /* Amber regardless of health, as in the design — the badge identifies the
+     row, it does not grade it. */
   .org-badge {
-    width: 48px; height: 48px; border-radius: 14px; flex: none;
+    width: 56px; height: 56px; border-radius: 50%; flex: none;
     display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 800; letter-spacing: 1px;
-    color: var(--team-color); border: 2px solid var(--team-color);
-    background: rgba(255,255,255,0.05);
-    background: color-mix(in srgb, var(--team-color) 14%, transparent);
-    box-shadow: 0 0 20px -5px var(--team-color);
+    font-size: 15px; font-weight: 700; letter-spacing: 0.02em;
+    color: var(--neon-gold); border: 2px solid var(--neon-gold);
+    background: transparent;
   }
-  .org-name { font-size: 27px; font-weight: 800; letter-spacing: -0.03em; }
+  .org-name { font-size: 27px; font-weight: 700; letter-spacing: -0.03em; }
   .org-sub { font-size: 12.5px; color: var(--muted); margin-top: 5px; font-variant-numeric: tabular-nums; }
 
   /* ── Redesign ────────────────────────────────────────────────────────────
@@ -232,7 +226,7 @@
   }
   .mstat:hover { transform: translateY(-2px); }
   /* The organisation's tiles sit a size above a team's, as in the design. */
-  .org-block .mstat { border-radius: 16px; padding: 18px; gap: 14px; }
+  .org-block .mstat { border-radius: 16px; padding: 18px; gap: 14px; background: oklch(0.135 0.012 250); }
   .org-block .mstat:hover { transform: translateY(-3px); }
   .org-block .mstat-val { font-size: 40px; }
   .org-block .mstat-val small { font-size: 17px; }
@@ -243,12 +237,12 @@
   }
   .mstat-val {
     display: flex; align-items: baseline; gap: 3px;
-    font-size: 27px; font-weight: 800; letter-spacing: -0.03em; line-height: 0.9;
+    font-size: 27px; font-weight: 700; letter-spacing: -0.03em; line-height: 0.9;
     color: var(--stat-color); font-variant-numeric: tabular-nums; white-space: nowrap;
   }
-  .mstat-val small { font-size: 13px; font-weight: 700; opacity: 0.7; }
+  .mstat-val small { font-size: 13px; font-weight: 600; opacity: 0.7; }
   .mstat-foot { margin-top: auto; display: flex; flex-direction: column; gap: 9px; }
-  .mstat-bar { height: 3px; border-radius: 999px; background: rgba(255,255,255,0.09); overflow: hidden; }
+  .mstat-bar { height: 3px; border-radius: 999px; background: oklch(0.23 0.014 250); overflow: hidden; }
   .mstat-bar i { display: block; height: 100%; border-radius: 999px; background: var(--stat-color); transition: width 1s cubic-bezier(0.22,1,0.36,1); }
   .mstat-note { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mstat-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
@@ -263,11 +257,40 @@
   .org-trend svg { width: 100%; height: 76px; display: block; overflow: visible; }
   .org-trend-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
+  /* Hover readout on the trend. The chart is drawn with preserveAspectRatio
+     "none", so the SVG's own coordinates stretch with the container and can't
+     be used to place anything — the hit areas and the marker are HTML, laid out
+     in percentages over the top instead. */
+  .spark { position: relative; }
+  .spark-hits { position: absolute; inset: 0; display: flex; }
+  .spark-hits i { flex: 1; cursor: crosshair; }
+  .spark-marker {
+    position: absolute; width: 9px; height: 9px; border-radius: 50%;
+    border: 2px solid var(--bg); background: var(--spark-color, var(--neon-gold));
+    transform: translate(-50%, -50%); pointer-events: none;
+    opacity: 0; transition: opacity 0.12s ease;
+  }
+  .spark-rule {
+    position: absolute; top: 0; bottom: 0; width: 1px;
+    background: rgba(255,255,255,0.18); transform: translateX(-50%);
+    pointer-events: none; opacity: 0; transition: opacity 0.12s ease;
+  }
+  .spark-tip {
+    position: absolute; bottom: calc(100% + 9px); transform: translateX(-50%);
+    background: #0b0e16; border: 1px solid var(--border-strong); border-radius: 9px;
+    padding: 7px 11px; white-space: nowrap; pointer-events: none; z-index: 5;
+    opacity: 0; transition: opacity 0.12s ease;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.6);
+  }
+  .spark-tip b { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--spark-color, var(--neon-gold)); }
+  .spark-tip span { display: block; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+  .spark.on .spark-marker, .spark.on .spark-rule, .spark.on .spark-tip { opacity: 1; }
+
   /* Team row: identity, metrics, then a rail of counts. */
-  .team-grid { display: grid; grid-template-columns: 290px 1fr 128px; gap: 26px; align-items: center; }
+  .team-grid { display: grid; grid-template-columns: 290px 1fr 130px; gap: 28px; align-items: center; }
   @media (max-width: 1180px) { .team-grid { grid-template-columns: 1fr; gap: 18px; } }
   .team-rail { display: flex; flex-direction: column; gap: 9px; align-items: flex-end; text-align: right; }
-  .team-rail b { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; display: block; }
+  .team-rail b { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; display: block; }
   .team-rail span { font-size: 11.5px; color: var(--muted); }
   .team-rail .rail-card {
     font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 800;
@@ -283,7 +306,7 @@
   }
   @media (max-width: 900px) { .team-detail { grid-template-columns: repeat(2, minmax(0,1fr)); } }
   .team-detail dt { font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
-  .team-detail dd { font-size: 17px; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .team-detail dd { font-size: 17px; font-weight: 600; margin-top: 6px; font-variant-numeric: tabular-nums; }
 
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; position: relative; overflow: hidden; }
@@ -602,19 +625,51 @@ function sparkline(series, color){
   if (series.length < 2) return "";
   const W = 268, H = 76;
   const top = Math.max(100, ...series.map(s => s.health));
-  const x = i => (i / (series.length - 1)) * W;
-  const y = v => H - (v / top) * H;
-  const line = series.map((s, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(s.health).toFixed(1)}`).join(" ");
+  const xPct = i => (i / (series.length - 1)) * 100;
+  const yPct = v => 100 - (v / top) * 100;
+  const line = series.map((s, i) =>
+    `${i ? "L" : "M"}${(xPct(i) / 100 * W).toFixed(1)},${(yPct(s.health) / 100 * H).toFixed(1)}`).join(" ");
   const short = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-US", { timeZone:"UTC", month:"short", day:"2-digit" });
+  const long  = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-US", { timeZone:"UTC", weekday:"short", month:"short", day:"numeric" });
+  // One hit area per day, each carrying the values the readout needs.
+  const hits = series.map((s, i) =>
+    `<i data-x="${xPct(i).toFixed(2)}" data-y="${yPct(s.health).toFixed(2)}" data-v="${s.health}" data-d="${long(s.date)}"></i>`).join("");
+
   return `<div class="org-trend">
     <div class="org-trend-lbl">Health score trend</div>
-    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Daily organisation health score">
-      <path d="${line} L${W},${H} L0,${H} Z" fill="${color}" opacity="0.16"></path>
-      <path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-    </svg>
+    <div class="spark" style="--spark-color:${color}">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Daily organisation health score">
+        <path d="${line} L${W},${H} L0,${H} Z" fill="${color}" opacity="0.16"></path>
+        <path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <div class="spark-rule"></div>
+      <div class="spark-marker"></div>
+      <div class="spark-tip"><b></b><span></span></div>
+      <div class="spark-hits">${hits}</div>
+    </div>
     <div class="org-trend-axis"><span>${short(series[0].date)}</span><span>${short(series[series.length-1].date)}</span></div>
   </div>`;
 }
+
+// Delegated so it survives every re-render of the results container.
+document.addEventListener("mouseover", e => {
+  const hit = e.target.closest && e.target.closest(".spark-hits > i");
+  if (!hit) return;
+  const spark = hit.closest(".spark");
+  const x = hit.dataset.x + "%";
+  spark.querySelector(".spark-marker").style.left = x;
+  spark.querySelector(".spark-marker").style.top  = hit.dataset.y + "%";
+  spark.querySelector(".spark-rule").style.left   = x;
+  const tip = spark.querySelector(".spark-tip");
+  tip.style.left = x;
+  tip.querySelector("b").textContent = hit.dataset.v + "%";
+  tip.querySelector("span").textContent = hit.dataset.d;
+  spark.classList.add("on");
+});
+document.addEventListener("mouseout", e => {
+  const spark = e.target.closest && e.target.closest(".spark");
+  if (spark && !spark.contains(e.relatedTarget)) spark.classList.remove("on");
+});
 
 // Organisation-wide banner above the team blocks — the same four figures each
 // team lead is shown, computed over everyone in the current filter rather than
