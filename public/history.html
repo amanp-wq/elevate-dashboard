@@ -9,61 +9,128 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  /* v2 palette: a cool blue-grey set on near-black, with a warmer red accent.
+     Hex first so a browser without oklch() still gets the right colour, then
+     the oklch value the design actually specifies. */
   :root {
-    --bg: #080b14; --surface: #0f1322; --border: #1e2640;
-    --text: #e8eaf6; --muted: #6b7499;
-    --neon-gold: #ffd740; --neon-green: #00e676;
-    --neon-yellow: #ffab00; --neon-orange: #ff6d00; --neon-red: #ff1744;
+    --bg: #06080d;            --bg: oklch(0.09 0.008 250);
+    --surface: #161922;       --surface: oklch(0.145 0.012 250);
+    --surface-2: #12151d;     --surface-2: oklch(0.128 0.012 250);
+    --panel: #171a23;         --panel: oklch(0.148 0.012 250);
+    --border: #2c313d;        --border: oklch(0.25 0.014 250);
+    --border-soft: #282d37;   --border-soft: oklch(0.23 0.014 250);
+    --border-strong: #313641; --border-strong: oklch(0.27 0.014 250);
+    --text: #f1f2f6;          --text: oklch(0.96 0.005 250);
+    --text-dim: #c4c7cf;      --text-dim: oklch(0.80 0.008 250);
+    --muted: #8b909d;         --muted: oklch(0.62 0.01 250);
+    --accent: #f24a2b;        --accent: oklch(0.64 0.21 32);
+    --accent-hi: #ff5c3d;     --accent-hi: oklch(0.68 0.20 32);
+    --neon-gold: #f5b52f;     --neon-gold: oklch(0.80 0.17 85);
+    --neon-green: #2fcf8f;    --neon-green: oklch(0.76 0.17 150);
+    --neon-yellow: #f5b52f;   --neon-yellow: oklch(0.80 0.17 85);
+    --neon-orange: #ee8340;   --neon-orange: oklch(0.70 0.19 45);
+    --neon-red: #ef5f70;      --neon-red: oklch(0.68 0.19 15);
+    --neon-blue: #4ba4d9;     --neon-blue: oklch(0.72 0.14 235);
     --neon-leave: #8888cc;
   }
   body {
     background: var(--bg); color: var(--text);
     font-family: 'Nunito Sans', sans-serif; min-height: 100vh;
-    background-image: radial-gradient(ellipse at 20% 10%, rgba(196,72,56,0.06) 0%, transparent 50%),
-                      radial-gradient(ellipse at 80% 80%, rgba(0,230,118,0.04) 0%, transparent 50%);
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 90px; position: relative; overflow-x: hidden;
   }
+  /* Wash behind the top of the page, as in the design. */
+  body::before {
+    content: ""; position: absolute; top: -420px; left: 50%; width: 1400px; height: 820px;
+    transform: translateX(-50%); pointer-events: none; z-index: 0;
+    background: radial-gradient(closest-side, rgba(255,92,61,0.10), transparent 72%);
+    background: radial-gradient(closest-side, oklch(0.68 0.20 32 / 0.10), transparent 72%);
+  }
+
   header {
-    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
-    background: #000; border-bottom: 1px solid var(--border);
-    padding: 14px 24px; position: sticky; top: 0; z-index: 100;
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px;
+    padding: 16px 40px; border-bottom: 1px solid var(--border-soft);
+    background: rgba(16,19,26,0.75);
+    background: oklch(0.115 0.01 250 / 0.75);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   }
-  .logo { display: flex; align-items: center; gap: 12px; }
-  .logo-img { height: 36px; width: auto; display: block; }
-  .logo-sub { font-size: 15px; font-weight: 400; color: #888; letter-spacing: 0.2px; }
+  .logo { display: flex; align-items: center; gap: 16px; }
+  .logo-img { height: 26px; width: auto; display: block; }
+  .logo-sub { font-size: 17px; font-weight: 600; color: var(--text-dim); letter-spacing: -0.01em; }
   .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
-  .nav-btn { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; color: var(--muted);
-    text-decoration: none; border: 1px solid var(--border); background: none; transition: all .2s; }
-  .nav-btn:hover { border-color: #ff4d3a; color: #ff4d3a; }
-  .nav-btn.active { background: #ff4d3a; color: #fff; border-color: #ff4d3a; }
-  .container { width: 100%; padding: 1.5rem; max-width: 1600px; margin: 0 auto; }
-
-  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 1rem; align-items: end; }
-  .field label { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-  .field input, .field select {
-    width: 100%; background: var(--surface); border: 1px solid var(--border);
-    color: var(--text); padding: 10px; border-radius: 8px; font-family: inherit; font-size: 14px;
+  .nav-btn {
+    padding: 8px 15px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--text-dim);
+    text-decoration: none; border: 1px solid var(--border-strong); background: var(--surface-2);
+    transition: all 0.15s ease; white-space: nowrap;
   }
-  .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.2rem; }
-  .preset-btn { padding: 7px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
-    background: var(--surface); border: 1px solid var(--border); color: var(--muted); cursor: pointer; }
-  .preset-btn.active { color: #fff; background: #ff4d3a; border-color: #ff4d3a; }
-  .btn-gen { padding: 10px 20px; border-radius: 8px; font-weight: 800; font-size: 14px;
-    background: #ff4d3a; color: #fff; border: none; cursor: pointer; }
-  .btn-gen:disabled { opacity: 0.5; cursor: default; }
+  .nav-btn:hover { border-color: var(--accent-hi); color: var(--text); }
+  .nav-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .container { width: 100%; padding: 28px 40px 0; max-width: 1760px; margin: 0 auto; position: relative; z-index: 1; }
+  @media (max-width: 700px) { header { padding: 14px 18px; } .container { padding: 20px 18px 0; } }
 
-  .status { font-size: 13px; color: var(--muted); margin-bottom: 1rem; min-height: 18px; }
+  .controls {
+    display: grid; grid-template-columns: repeat(5, minmax(0,1fr)) auto;
+    gap: 14px; margin-bottom: 16px; align-items: end;
+  }
+  @media (max-width: 1100px) { .controls { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 560px)  { .controls { grid-template-columns: 1fr; } }
+  .field label {
+    display: block; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; margin-bottom: 9px;
+  }
+  .field input, .field select {
+    width: 100%; background: var(--surface); border: 1px solid var(--border-strong);
+    color: var(--text); padding: 13px 15px; border-radius: 12px;
+    font-family: inherit; font-size: 14.5px; outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent-hi); }
+  .field select { appearance: none; cursor: pointer; }
+  .field input[type=date]::-webkit-calendar-picker-indicator { filter: invert(1) opacity(0.45); cursor: pointer; }
+
+  .presets { display: flex; gap: 9px; flex-wrap: wrap; }
+  .preset-btn {
+    padding: 9px 18px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
+    background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text-dim);
+    cursor: pointer; transition: all 0.16s ease; font-family: inherit;
+  }
+  .preset-btn:hover { border-color: var(--accent); }
+  .preset-btn.active { color: #fff; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+  .btn-gen {
+    padding: 14px 34px; border-radius: 12px; font-weight: 700; font-size: 14.5px;
+    background: var(--accent); color: #fff; border: none; cursor: pointer; font-family: inherit;
+    box-shadow: 0 5px 20px rgba(242,74,43,0.34);
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+  }
+  .btn-gen:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(242,74,43,0.48); }
+  .btn-gen:active:not(:disabled) { transform: translateY(0); }
+  .btn-gen:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
+
+  /* Preset row and the record count share a line, as in the design. */
+  .preset-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 26px; }
+  .status {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12.5px; color: var(--muted); min-height: 18px; font-variant-numeric: tabular-nums;
+  }
+  .status::before {
+    content: ""; width: 7px; height: 7px; border-radius: 50%; flex: none;
+    background: var(--neon-green); animation: pulseDot 1.9s ease-in-out infinite;
+  }
+  .status:empty { display: none; }
+  @keyframes pulseDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.75); } }
 
   /* The header carries the whole team summary; member cards sit collapsed
      underneath until someone actually wants the individual detail. */
   .team-block {
-    margin-bottom: 14px; border-radius: 16px; position: relative; overflow: hidden;
+    margin-bottom: 14px; border-radius: 22px; position: relative; overflow: hidden;
     border: 1px solid var(--border);
     /* Plain fill first so a browser without color-mix() still gets a surface
        rather than dropping the whole declaration and rendering transparent. */
-    background: rgba(17,21,38,0.85);
+    background: var(--panel);
     background:
       radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--team-color) 9%, transparent) 0%, transparent 55%),
-      linear-gradient(180deg, rgba(17,21,38,0.92), rgba(12,15,28,0.75));
+      var(--panel);
     transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
   }
   .team-block::before {
@@ -124,10 +191,11 @@
   .org-block {
     margin-bottom: 20px; border-radius: 16px; position: relative; overflow: hidden;
     border: 1px solid var(--border);
-    background: rgba(17,21,38,0.9);
+    background: #1c2029;
     background:
       radial-gradient(130% 150% at 0% 0%, color-mix(in srgb, var(--team-color) 14%, transparent) 0%, transparent 60%),
-      linear-gradient(180deg, rgba(20,25,45,0.95), rgba(12,15,28,0.8));
+      linear-gradient(180deg, oklch(0.175 0.016 250), oklch(0.145 0.012 250));
+    border-radius: 24px;
   }
   .org-block::before {
     content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
@@ -156,7 +224,7 @@
      the numeral variant instead of a second typeface. */
   .mstat {
     border: 1px solid var(--border); border-top: 2px solid var(--stat-color, var(--border));
-    border-radius: 16px; background: rgba(10,13,24,0.55);
+    border-radius: 16px; background: var(--surface-2);
     padding: 16px; display: flex; flex-direction: column; gap: 13px;
     transition: transform 0.2s ease, border-color 0.2s ease; min-width: 0;
   }
@@ -223,7 +291,7 @@
   .attend { font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 8px; margin-top: 6px; }
   .attend .leave-tag { color: var(--neon-leave); font-weight: 800; }
 
-  .raw-section { border: 1px solid var(--border); border-radius: 22px; background: rgba(15,19,34,0.55); overflow: hidden; margin-top: 16px; }
+  .raw-section { border: 1px solid var(--border); border-radius: 22px; background: var(--panel); overflow: hidden; margin-top: 16px; }
   .toggle-daily {
     width: 100%; display: flex; align-items: center; gap: 12px;
     background: transparent; border: none; padding: 20px 24px; cursor: pointer;
@@ -236,12 +304,20 @@
   .toggle-daily .raw-count { margin-left: auto; font-size: 11.5px; color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
   .daily-wrap { overflow-x: auto; display: none; padding: 0 24px 22px; }
   .daily-wrap.show { display: block; }
-  table.daily { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; }
-  table.daily th, table.daily td { padding: 7px 10px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  table.daily th { color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; position: sticky; top: 0; background: var(--bg); }
-  table.daily td.name { text-align: left; font-weight: 700; }
+  table.daily { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; font-variant-numeric: tabular-nums; }
+  table.daily th, table.daily td { padding: 12px 10px; text-align: center; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
+  table.daily th {
+    color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 0.12em;
+    font-weight: 700; position: sticky; top: 0; background: var(--panel); padding-bottom: 11px;
+  }
+  table.daily tbody tr { transition: background 0.14s ease; }
+  table.daily tbody tr:hover { background: rgba(255,255,255,0.025); }
+  table.daily td.name { text-align: left; font-weight: 700; font-variant-numeric: normal; }
   .st-leave { color: var(--neon-leave); font-weight: 800; }
-  .empty { text-align: center; color: var(--muted); padding: 3rem; font-size: 15px; }
+  .empty {
+    text-align: center; color: var(--muted); padding: 3.5rem; font-size: 15px;
+    border: 1px solid var(--border); border-radius: 22px; background: var(--panel);
+  }
 </style>
 </head>
 <body>
@@ -278,15 +354,17 @@
     <div class="field"><label>&nbsp;</label><button class="btn-gen" id="btn-gen">Generate</button></div>
   </div>
 
-  <div class="presets" id="presets">
-    <div class="preset-btn active" data-preset="yesterday">Yesterday</div>
-    <div class="preset-btn" data-preset="week">This Week</div>
-    <div class="preset-btn" data-preset="month">This Month</div>
-    <div class="preset-btn" data-preset="lastmonth">Last Month</div>
-    <div class="preset-btn" data-preset="7">Last 7 Days</div>
+  <div class="preset-row">
+    <div class="presets" id="presets">
+      <div class="preset-btn active" data-preset="yesterday">Yesterday</div>
+      <div class="preset-btn" data-preset="week">This Week</div>
+      <div class="preset-btn" data-preset="month">This Month</div>
+      <div class="preset-btn" data-preset="lastmonth">Last Month</div>
+      <div class="preset-btn" data-preset="7">Last 7 Days</div>
+    </div>
+    <div class="status" id="status"></div>
   </div>
 
-  <div class="status" id="status"></div>
   <div id="results"></div>
 
   <div class="raw-section" id="raw-section" style="display:none">
