@@ -200,8 +200,13 @@ function buildNav(email) {
 // against these strings.
 //
 // Last reconciled against the 12 Aug snapshot: Aryan Sharma moved from Builder
-// to Closer; Dhruvil Chauhan and Soumya Singh left; Kavya Prajapati, Hemant
-// Rathore, Jatin Bhavsar and Talha Shaikh joined as Builders.
+// to Closer; Dhruvil Chauhan, Soumya Singh and Yash Mishra left; Kavya
+// Prajapati, Hemant Rathore, Jatin Bhavsar and Talha Shaikh joined as Builders.
+//
+// Removing a leaver only takes them off Attendance and Manage Targets. Their
+// past figures stay in the daily snapshots, so History still reports them for
+// any range they worked — which is the only place their history survives, since
+// live reports build their person list from whoever holds the role today.
 const SALES_TEAM_MEMBERS = [
   // Team Soham
   { name: "Yashraj Modasara",  team: "Soham",     role: "Builder" },
@@ -216,7 +221,6 @@ const SALES_TEAM_MEMBERS = [
   { name: "Nupur Vyas",        team: "Tejasvi",   role: "Builder" },
   { name: "Hemant Rathore",    team: "Tejasvi",   role: "Builder" },
   { name: "Jatin Bhavsar",     team: "Tejasvi",   role: "Builder" },
-  { name: "Yash Mishra",       team: "Tejasvi",   role: "Closer"  },
   { name: "Kartik Deshawar",   team: "Tejasvi",   role: "Closer"  },
   { name: "Abhijeet Das",      team: "Tejasvi",   role: "Closer"  },
   // Team Mamta Das
