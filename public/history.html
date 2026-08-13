@@ -144,8 +144,69 @@
     background: color-mix(in srgb, var(--team-color) 14%, transparent);
     box-shadow: 0 0 20px -5px var(--team-color);
   }
-  .org-name { font-size: 19px; font-weight: 800; letter-spacing: -0.2px; }
-  .org-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .org-name { font-size: 27px; font-weight: 800; letter-spacing: -0.03em; }
+  .org-sub { font-size: 12.5px; color: var(--muted); margin-top: 5px; font-variant-numeric: tabular-nums; }
+
+  /* ── Redesign ────────────────────────────────────────────────────────────
+     Metric tiles are bordered cards with a coloured top edge, a large figure,
+     a progress bar and a caption. The org banner pairs them with a health
+     sparkline; a team row pairs them with a right-hand rail. Numerals are set
+     tabular so columns of figures line up — the design used a monospace face
+     for this, but Nunito Sans is the project font, so the alignment comes from
+     the numeral variant instead of a second typeface. */
+  .mstat {
+    border: 1px solid var(--border); border-top: 2px solid var(--stat-color, var(--border));
+    border-radius: 16px; background: rgba(10,13,24,0.55);
+    padding: 16px; display: flex; flex-direction: column; gap: 13px;
+    transition: transform 0.2s ease, border-color 0.2s ease; min-width: 0;
+  }
+  .mstat:hover { transform: translateY(-3px); }
+  .mstat-lbl {
+    font-size: 10.5px; letter-spacing: 0.13em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mstat-val {
+    display: flex; align-items: baseline; gap: 3px;
+    font-size: 34px; font-weight: 800; letter-spacing: -0.035em; line-height: 0.9;
+    color: var(--stat-color); font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .mstat-val small { font-size: 16px; font-weight: 700; opacity: 0.7; }
+  .mstat-foot { margin-top: auto; display: flex; flex-direction: column; gap: 9px; }
+  .mstat-bar { height: 4px; border-radius: 999px; background: rgba(255,255,255,0.09); overflow: hidden; }
+  .mstat-bar i { display: block; height: 100%; border-radius: 999px; background: var(--stat-color); transition: width 1s cubic-bezier(0.22,1,0.36,1); }
+  .mstat-note { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mstat-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
+  @media (max-width: 1180px) { .mstat-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 640px)  { .mstat-grid { grid-template-columns: 1fr; } }
+
+  .org-layout { display: grid; grid-template-columns: 300px 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 1180px) { .org-layout { grid-template-columns: 1fr; gap: 22px; } }
+  .org-trend { border-top: 1px solid var(--border); padding-top: 18px; display: flex; flex-direction: column; gap: 8px; }
+  .org-trend-lbl { font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .org-trend svg { width: 100%; height: 76px; display: block; overflow: visible; }
+  .org-trend-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* Team row: identity, metrics, then a rail of counts. */
+  .team-grid { display: grid; grid-template-columns: 290px 1fr 128px; gap: 26px; align-items: center; }
+  @media (max-width: 1180px) { .team-grid { grid-template-columns: 1fr; gap: 18px; } }
+  .team-rail { display: flex; flex-direction: column; gap: 9px; align-items: flex-end; text-align: right; }
+  .team-rail b { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; display: block; }
+  .team-rail span { font-size: 11.5px; color: var(--muted); }
+  .team-rail .rail-card {
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 800;
+    border: 1px solid var(--team-color); color: var(--team-color);
+    border-radius: 999px; padding: 4px 11px; margin-top: 2px; white-space: nowrap;
+  }
+  @media (max-width: 1180px) { .team-rail { flex-direction: row; align-items: center; gap: 18px; text-align: left; } }
+
+  /* Derived figures shown when a team is expanded, above the member cards. */
+  .team-detail {
+    display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 20px;
+    padding: 18px 0 20px; border-bottom: 1px solid var(--border); margin-bottom: 18px;
+  }
+  @media (max-width: 900px) { .team-detail { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  .team-detail dt { font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .team-detail dd { font-size: 17px; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
 
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; position: relative; overflow: hidden; }
@@ -162,8 +223,18 @@
   .attend { font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 8px; margin-top: 6px; }
   .attend .leave-tag { color: var(--neon-leave); font-weight: 800; }
 
-  .toggle-daily { margin: 1.5rem 0 0.8rem; cursor: pointer; color: var(--neon-green); font-weight: 700; font-size: 14px; user-select: none; }
-  .daily-wrap { overflow-x: auto; display: none; }
+  .raw-section { border: 1px solid var(--border); border-radius: 22px; background: rgba(15,19,34,0.55); overflow: hidden; margin-top: 16px; }
+  .toggle-daily {
+    width: 100%; display: flex; align-items: center; gap: 12px;
+    background: transparent; border: none; padding: 20px 24px; cursor: pointer;
+    color: var(--text); font-size: 15px; font-weight: 700; text-align: left;
+    font-family: inherit; transition: background 0.16s ease; user-select: none;
+  }
+  .toggle-daily:hover { background: rgba(255,255,255,0.03); }
+  .toggle-daily .caret { font-size: 10px; color: var(--neon-green); transition: transform 0.22s ease; display: inline-block; }
+  .toggle-daily.open .caret { transform: rotate(90deg); }
+  .toggle-daily .raw-count { margin-left: auto; font-size: 11.5px; color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .daily-wrap { overflow-x: auto; display: none; padding: 0 24px 22px; }
   .daily-wrap.show { display: block; }
   table.daily { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; }
   table.daily th, table.daily td { padding: 7px 10px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
@@ -218,8 +289,14 @@
   <div class="status" id="status"></div>
   <div id="results"></div>
 
-  <div class="toggle-daily" id="toggle-daily" style="display:none">▸ Show daily breakdown (raw saved data)</div>
-  <div class="daily-wrap" id="daily-wrap"></div>
+  <div class="raw-section" id="raw-section" style="display:none">
+    <button type="button" class="toggle-daily" id="toggle-daily">
+      <span class="caret">▶</span>
+      <span id="raw-label">Show daily breakdown</span>
+      <span class="raw-count" id="raw-count"></span>
+    </button>
+    <div class="daily-wrap" id="daily-wrap"></div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -384,118 +461,152 @@ function card(p){
   </div>`;
 }
 
+const money = n => "$" + Math.round(n).toLocaleString();
+const isFullyOnLeave = p => p.days > 0 && p.leaveDays >= p.days;
+
+// One metric tile. `pct` drives the bar; pass null for a figure with no natural
+// ceiling (revenue, say) and the bar is left off rather than faked.
+function mstat(label, value, unit, note, color, pct){
+  return `<div class="mstat" style="--stat-color:${color}">
+    <div class="mstat-lbl">${label}</div>
+    <div class="mstat-val">${value}${unit ? `<small>${unit}</small>` : ""}</div>
+    <div class="mstat-foot">
+      ${pct === null ? "" : `<div class="mstat-bar"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></div>`}
+      <div class="mstat-note">${note}</div>
+    </div>
+  </div>`;
+}
+
+// The four tiles, from a teamTotals() roll-up plus a health score. Shared so the
+// organisation banner and every team row cannot drift apart.
+function metricTiles(health, t){
+  const z = zone(health);
+  return mstat("Health score", health, "%", CARD_LABEL[z], ZONE_COLOR[z], health)
+       + mstat("Avg ticket size", t.admissions ? money(t.avgTicket) : "—", "",
+               `${money(t.revenue)} total revenue`, "#40c4ff", null)
+       + mstat("Admissions", t.admissions, "",
+               `${money(t.newUpfront)} new · ${money(t.futureUpfront)} future`, ZONE_COLOR.green, null)
+       + mstat("Pres → enrolment", t.presHeld ? t.convPct : "—", t.presHeld ? "%" : "",
+               `${t.admissions} of ${t.presHeld} held`, t.convColor, t.convPct);
+}
+
+// Organisation health for each day in the range, for the banner's sparkline.
+// Each day is scored on its own — a person's daily row against one day's target
+// — and averaged over everyone, with anyone on leave that day counting as 0.
+function orgHealthSeries(rows){
+  const byDate = {};
+  rows.forEach(r => { (byDate[r.date] = byDate[r.date] || []).push(r); });
+  return Object.keys(byDate).sort().map(date => {
+    const day = byDate[date];
+    const total = day.reduce((s, r) => {
+      if (_leaveSet.has(`${r.person_name}|${date}`)) return s;
+      return s + scoreFor({
+        role: r.role, days: 1,
+        calls: r.calls, minutes: r.minutes, leads: r.leads, discoveries: r.discoveries,
+        presBooked: r.pres_booked, presCompleted: r.pres_completed,
+        presentations: r.presentations, dealsClosed: r.deals_closed,
+      });
+    }, 0);
+    return { date, health: Math.round(total / day.length) };
+  });
+}
+
+function sparkline(series, color){
+  if (series.length < 2) return "";
+  const W = 268, H = 76;
+  const top = Math.max(100, ...series.map(s => s.health));
+  const x = i => (i / (series.length - 1)) * W;
+  const y = v => H - (v / top) * H;
+  const line = series.map((s, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(s.health).toFixed(1)}`).join(" ");
+  const short = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-US", { timeZone:"UTC", month:"short", day:"2-digit" });
+  return `<div class="org-trend">
+    <div class="org-trend-lbl">Health score trend</div>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Daily organisation health score">
+      <path d="${line} L${W},${H} L0,${H} Z" fill="${color}" opacity="0.16"></path>
+      <path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+    <div class="org-trend-axis"><span>${short(series[0].date)}</span><span>${short(series[series.length-1].date)}</span></div>
+  </div>`;
+}
+
 // Organisation-wide banner above the team blocks — the same four figures each
 // team lead is shown, computed over everyone in the current filter rather than
 // per team. Deliberately not an average of the team averages: that would weight
 // a six-person team the same as a twelve-person one.
-function renderOrgSummary(people){
+function renderOrgSummary(people, rows){
   if (!people.length) return "";
-  const isFullyOnLeave = p => p.days > 0 && p.leaveDays >= p.days;
   const present = people.filter(p => !isFullyOnLeave(p));
   const health = Math.round(people.reduce((s,p) => s + (isFullyOnLeave(p) ? 0 : scoreFor(p)), 0) / people.length);
-  const z = zone(health), color = ZONE_COLOR[z];
-  const t = teamTotals(people);
-  const money = n => "$" + Math.round(n).toLocaleString();
+  const color = ZONE_COLOR[zone(health)];
   const teamCount = new Set(people.map(p => p.tl)).size;
 
   return `<div class="org-block" style="--team-color:${color}">
     <div class="org-head">
-      <div class="org-id">
-        <div class="org-badge">ALL</div>
+      <div class="org-layout">
         <div>
-          <div class="org-name">Organisation</div>
-          <div class="org-sub">${teamCount} team${teamCount!==1?"s":""} · ${present.length} active · ${people.length} people</div>
+          <div class="org-id">
+            <div class="org-badge">ALL</div>
+            <div>
+              <div class="org-name">Organisation</div>
+              <div class="org-sub">${teamCount} team${teamCount!==1?"s":""} · ${present.length} active · ${people.length} people</div>
+            </div>
+          </div>
+          ${sparkline(orgHealthSeries(rows || []), color)}
         </div>
-      </div>
-      <div class="team-stats">
-        <div class="tstat" style="--stat-color:${color}">
-          <div class="tstat-lbl">Health Score</div>
-          <div class="tstat-val" style="color:${color}">${health}<small>%</small></div>
-          <div class="tstat-bar"><i style="width:${Math.min(100, health)}%"></i></div>
-          <div class="tstat-sub">${CARD_LABEL[z]}</div>
-        </div>
-        <div class="tstat" style="--stat-color:#40c4ff">
-          <div class="tstat-lbl">Avg Ticket Size</div>
-          <div class="tstat-val" style="color:#40c4ff">${t.admissions ? money(t.avgTicket) : "—"}</div>
-          <div class="tstat-sub">${money(t.revenue)} total revenue</div>
-        </div>
-        <div class="tstat" style="--stat-color:${ZONE_COLOR.green}">
-          <div class="tstat-lbl">Admissions</div>
-          <div class="tstat-val" style="color:${ZONE_COLOR.green}">${t.admissions}</div>
-          <div class="tstat-sub">${money(t.newUpfront)} new · ${money(t.futureUpfront)} future</div>
-        </div>
-        <div class="tstat" style="--stat-color:${t.convColor}">
-          <div class="tstat-lbl">Pres → Enrolment</div>
-          <div class="tstat-val" style="color:${t.convColor}">${t.presHeld ? t.convPct + "<small>%</small>" : "—"}</div>
-          <div class="tstat-bar"><i style="width:${Math.min(100, t.convPct)}%"></i></div>
-          <div class="tstat-sub">${t.admissions} of ${t.presHeld} held</div>
-        </div>
+        <div class="mstat-grid">${metricTiles(health, teamTotals(people))}</div>
       </div>
     </div>
   </div>`;
 }
 
-function renderSummary(people){
+function renderSummary(people, rows){
   const teams = ["Soham","Tejasvi","Mamta Das","Unassigned"];
-  let html = renderOrgSummary(people);
+  let html = renderOrgSummary(people, rows);
   teams.forEach(tl => {
     const members = people.filter(p => p.tl === tl).sort((a,b) => (a.role<b.role?-1:1) || 0);
     if (!members.length) return;
-    const isFullyOnLeave = p => p.days > 0 && p.leaveDays >= p.days;
     const present = members.filter(p => !isFullyOnLeave(p));
     // Everyone on the roster counts toward the team average, including anyone
     // on leave for the whole period — they contribute 0, because cover for an
     // absent member is the team lead's responsibility. Matches the main
     // dashboard and the TV Board, which were showing a different number for
     // the same team on the same day.
-    const avg = members.length
-      ? Math.round(members.reduce((s,p) => s + (isFullyOnLeave(p) ? 0 : scoreFor(p)), 0) / members.length)
-      : 0;
-    const z = zone(avg); const color = ZONE_COLOR[z];
+    const avg = Math.round(members.reduce((s,p) => s + (isFullyOnLeave(p) ? 0 : scoreFor(p)), 0) / members.length);
+    const z = zone(avg), color = ZONE_COLOR[z];
     const t = teamTotals(members);
     const full = TL_FULL_NAME[tl] || tl;
-    const money = n => "$" + Math.round(n).toLocaleString();
+    // Derived figures, shown once the row is expanded. Per-person uses the
+    // active headcount — dividing by people who were out all period would
+    // understate what the team on the floor actually did.
+    const per = present.length || 1;
+    const detail = [
+      ["Revenue per person", money(t.revenue / per)],
+      ["Admissions per person", (t.admissions / per).toFixed(1)],
+      ["Presentations held", t.presHeld],
+      ["Future revenue share", t.revenue ? Math.round(t.futureUpfront / t.revenue * 100) + "%" : "—"],
+    ];
     html += `<div class="team-block" style="--team-color:${color}">
       <div class="team-head">
-        <div class="team-id">
-          <div class="team-avatar">${initials(full)}</div>
-          <div>
-            <div class="team-name">${full}</div>
-            <div class="team-role"><span class="team-caret">▶</span> Team Lead</div>
+        <div class="team-grid">
+          <div class="team-id">
+            <div class="team-avatar">${initials(full)}</div>
+            <div>
+              <div class="team-name">${full}</div>
+              <div class="team-role"><span class="team-caret">▶</span> Team Lead</div>
+            </div>
+          </div>
+          <div class="mstat-grid">${metricTiles(avg, t)}</div>
+          <div class="team-rail">
+            <div><b>${present.length}</b><span>active</span></div>
+            <div><b style="font-size:15px;color:var(--muted)">${members.length}</b><span>on roster</span></div>
+            <span class="rail-card">${CARD_LABEL[z]}</span>
           </div>
         </div>
-
-        <div class="team-stats">
-          <div class="tstat" style="--stat-color:${color}">
-            <div class="tstat-lbl">Health Score</div>
-            <div class="tstat-val" style="color:${color}">${avg}<small>%</small></div>
-            <div class="tstat-bar"><i style="width:${Math.min(100, avg)}%"></i></div>
-            <div class="tstat-sub">${CARD_LABEL[z]}</div>
-          </div>
-
-          <div class="tstat" style="--stat-color:#40c4ff">
-            <div class="tstat-lbl">Avg Ticket Size</div>
-            <div class="tstat-val" style="color:#40c4ff">${t.admissions ? money(t.avgTicket) : "—"}</div>
-            <div class="tstat-sub">${money(t.revenue)} total revenue</div>
-          </div>
-
-          <div class="tstat" style="--stat-color:${ZONE_COLOR.green}">
-            <div class="tstat-lbl">Admissions</div>
-            <div class="tstat-val" style="color:${ZONE_COLOR.green}">${t.admissions}</div>
-            <div class="tstat-sub">${money(t.newUpfront)} new · ${money(t.futureUpfront)} future</div>
-          </div>
-
-          <div class="tstat" style="--stat-color:${t.convColor}">
-            <div class="tstat-lbl">Pres → Enrolment</div>
-            <div class="tstat-val" style="color:${t.convColor}">${t.presHeld ? t.convPct + "<small>%</small>" : "—"}</div>
-            <div class="tstat-bar"><i style="width:${Math.min(100, t.convPct)}%"></i></div>
-            <div class="tstat-sub">${t.admissions} of ${t.presHeld} held</div>
-          </div>
-        </div>
-
-        <div class="team-meta"><b>${present.length}</b> active<br>${members.length} on roster</div>
       </div>
       <div class="team-body">
+        <dl class="team-detail">
+          ${detail.map(([k,v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}
+        </dl>
         <div class="cards">${members.map(card).join("")}</div>
       </div>
     </div>`;
@@ -587,12 +698,15 @@ function applyAndRender(){
   if (!rows.length){
     document.getElementById("results").innerHTML = `<div class="empty">No saved data found for this filter/range.</div>`;
     document.getElementById("daily-wrap").innerHTML = "";
-    document.getElementById("toggle-daily").style.display = "none";
+    document.getElementById("raw-section").style.display = "none";
     return;
   }
-  document.getElementById("results").innerHTML = renderSummary(aggregate(rows));
+  // The raw rows go through too — the banner's sparkline needs a health score
+  // per day, which the aggregated people no longer carry.
+  document.getElementById("results").innerHTML = renderSummary(aggregate(rows), rows);
   document.getElementById("daily-wrap").innerHTML = renderDaily(rows);
-  document.getElementById("toggle-daily").style.display = "block";
+  document.getElementById("raw-count").textContent = `raw saved data · ${rows.length} records`;
+  document.getElementById("raw-section").style.display = "block";
 }
 
 async function load(){
@@ -621,8 +735,9 @@ document.getElementById("btn-gen").onclick = load;
   document.getElementById(id).addEventListener("change", applyAndRender));
 document.getElementById("toggle-daily").onclick = function(){
   const w = document.getElementById("daily-wrap");
-  w.classList.toggle("show");
-  this.textContent = (w.classList.contains("show") ? "▾ Hide" : "▸ Show") + " daily breakdown (raw saved data)";
+  const open = w.classList.toggle("show");
+  this.classList.toggle("open", open);
+  document.getElementById("raw-label").textContent = (open ? "Hide" : "Show") + " daily breakdown";
 };
 
 // Team blocks open on click. Delegated, because renderSummary() replaces the
