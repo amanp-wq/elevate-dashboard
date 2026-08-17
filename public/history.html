@@ -497,8 +497,19 @@ function weekdaysBetween(start, end){
   return n;
 }
 
+// Named columns rather than `select=*` — id, created_at and updated_at are
+// never read anywhere on this page, and daily_kpi rows are fetched by the
+// hundreds every time a range loads.
+const DAILY_KPI_COLS = [
+  "date","person_id","person_name","role","team_lead",
+  "calls","inbound","outbound","missed","minutes",
+  "leads","discoveries","pres_booked","pres_completed",
+  "presentations","deals_closed","new_upfront","future_upfront",
+  "score","zone",
+].join(",");
+
 async function fetchRows(start, end){
-  const url = `${SNAPSHOT_SUPABASE_URL}/rest/v1/daily_kpi?date=gte.${start}&date=lte.${end}&select=*&order=date.asc,person_name.asc&limit=100000`;
+  const url = `${SNAPSHOT_SUPABASE_URL}/rest/v1/daily_kpi?date=gte.${start}&date=lte.${end}&select=${DAILY_KPI_COLS}&order=date.asc,person_name.asc&limit=100000`;
   const r = await fetch(url, { headers:{ apikey:SNAPSHOT_SUPABASE_ANON, Authorization:`Bearer ${SNAPSHOT_SUPABASE_ANON}` } });
   if (!r.ok) throw new Error("Supabase " + r.status);
   return r.json();
@@ -889,6 +900,11 @@ async function load(){
   const start = document.getElementById("inp-start").value;
   const end   = document.getElementById("inp-end").value;
   if (!start || !end) return;
+  // Re-clicking a preset or Generate for the exact range already on screen used
+  // to refetch the same few hundred rows from Supabase every time — this range
+  // was already fetched and its rows are still in _rawRows, so re-render from
+  // there instead of asking Supabase again.
+  if (_rawRows.length && _range.start === start && _range.end === end) { applyAndRender(); return; }
   const btn = document.getElementById("btn-gen");
   btn.disabled = true; btn.textContent = "Loading...";
   document.getElementById("status").textContent = "Loading saved data…";
