@@ -116,6 +116,15 @@
   }
   .kpi-field input:focus { outline: none; border-color: var(--accent); }
 
+  /* Deal-count override fields — visually split from the KPI targets above
+     them so a team lead doesn't read them as one more rate to hit. */
+  .kpi-grid-override { padding-top: 10px; border-top: 1px dashed var(--border); }
+  .kpi-field-override label { color: #ffd740; }
+  .kpi-field-override input { border-color: rgba(255,215,64,0.3); }
+  .kpi-field-override input:focus { border-color: #ffd740; }
+  .override-hint { font-size: 11.5px; color: var(--muted); margin: 6px 0 10px; line-height: 1.5; }
+  .override-hint b { color: #ffd740; font-weight: 800; }
+
   .member-actions { display: flex; align-items: center; gap: 10px; }
   .btn-save {
     background: var(--accent); color: #fff; border: none; padding: 7px 16px;
@@ -190,7 +199,14 @@ const TEAM_MEMBERS = SALES_TEAM_MEMBERS;
 
 const TARGETS_BUILDER = { calls:150, minutes:180, leads:4, discoveries:2, presBooked:2, presCompleted:2 };
 const TARGETS_CLOSER  = { calls:60, minutes:120, presentations:2 };
-const KPI_LABELS = { calls:"Calls", minutes:"Minutes", leads:"Q. Leads", discoveries:"Discoveries", presBooked:"Pres. Booked", presCompleted:"Pres. Completed", presentations:"Presentations" };
+// Gold/Green deal-count override for closers, on the main dashboard's score.
+// Stored the same way as every KPI target above (kpi_target_overrides, keyed
+// by month) but as a raw deal count, not a daily rate — so unlike the KPI
+// fields, these are never multiplied by WORKING_DAYS_PER_MONTH. Defaults match
+// the dashboard's original fixed rule: 2+ deals for Gold, 1+ for Green.
+const CLOSER_OVERRIDE_DEFAULTS = { goldDeals: 2, greenDeals: 1 };
+const KPI_LABELS = { calls:"Calls", minutes:"Minutes", leads:"Q. Leads", discoveries:"Discoveries", presBooked:"Pres. Booked", presCompleted:"Pres. Completed", presentations:"Presentations",
+  goldDeals:"Gold Override — Min Deals", greenDeals:"Green Override — Min Deals" };
 const WORKING_DAYS_PER_MONTH = 22;
 
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -262,6 +278,17 @@ async function saveMember(name, kpiKeys) {
 
 function cssId(name) { return name.replace(/[^a-z0-9]/gi, ""); }
 
+// Keeps the "gets Gold at N+ deals" hint in sync while a team lead is typing,
+// before they've saved — saveMember()/saveAll() are what actually persist it.
+function updateOverrideHint(id) {
+  const goldEl = document.getElementById(`in-${id}-goldDeals`);
+  const greenEl = document.getElementById(`in-${id}-greenDeals`);
+  const goldHint = document.getElementById(`hint-gold-${id}`);
+  const greenHint = document.getElementById(`hint-green-${id}`);
+  if (goldEl && goldHint) goldHint.textContent = goldEl.value || CLOSER_OVERRIDE_DEFAULTS.goldDeals;
+  if (greenEl && greenHint) greenHint.textContent = greenEl.value || CLOSER_OVERRIDE_DEFAULTS.greenDeals;
+}
+
 let RENDERED_MEMBERS = []; // [{ name, kpiKeys }] — reset each render(), used by Save All
 
 async function saveAll() {
@@ -307,8 +334,10 @@ async function saveAll() {
 }
 
 function memberCard(m) {
-  const defaults = m.role === "Builder" ? TARGETS_BUILDER : TARGETS_CLOSER;
-  const kpiKeys = Object.keys(defaults);
+  const isCloser = m.role !== "Builder";
+  const defaults = isCloser ? TARGETS_CLOSER : TARGETS_BUILDER;
+  const overrideKeys = isCloser ? Object.keys(CLOSER_OVERRIDE_DEFAULTS) : [];
+  const kpiKeys = Object.keys(defaults).concat(overrideKeys);
   const id = cssId(m.name);
   RENDERED_MEMBERS.push({ name: m.name, kpiKeys });
   return `<div class="member-card">
@@ -320,7 +349,7 @@ function memberCard(m) {
       </div>
     </div>
     <div class="kpi-grid">
-      ${kpiKeys.map(k => {
+      ${Object.keys(defaults).map(k => {
         const resolved = resolveOverride(m.name, k, SELECTED_MONTH);
         const monthly = resolved != null ? resolved : Math.round(defaults[k] * WORKING_DAYS_PER_MONTH);
         return `<div class="kpi-field">
@@ -329,6 +358,21 @@ function memberCard(m) {
         </div>`;
       }).join("")}
     </div>
+    ${overrideKeys.length ? `
+    <div class="kpi-grid kpi-grid-override">
+      ${overrideKeys.map(k => {
+        const resolved = resolveOverride(m.name, k, SELECTED_MONTH);
+        const value = resolved != null ? resolved : CLOSER_OVERRIDE_DEFAULTS[k];
+        return `<div class="kpi-field kpi-field-override">
+          <label>${KPI_LABELS[k] || k}</label>
+          <input type="number" min="0" id="in-${id}-${k}" value="${value}" oninput="updateOverrideHint(${JSON.stringify(id)})">
+        </div>`;
+      }).join("")}
+    </div>
+    <div class="override-hint">On the main dashboard: ${m.name.split(" ")[0]}'s score gets the Gold floor at
+      <b id="hint-gold-${id}">${resolveOverride(m.name,"goldDeals",SELECTED_MONTH) ?? CLOSER_OVERRIDE_DEFAULTS.goldDeals}</b>+ deals,
+      the Green floor at <b id="hint-green-${id}">${resolveOverride(m.name,"greenDeals",SELECTED_MONTH) ?? CLOSER_OVERRIDE_DEFAULTS.greenDeals}</b>+ deals,
+      for ${SELECTED_MONTH}.</div>` : ""}
     <div class="member-actions">
       <button class="btn-save" id="btn-${id}" onclick='saveMember(${JSON.stringify(m.name)}, ${JSON.stringify(kpiKeys)})'>Save Target</button>
       <span class="save-status" id="status-${id}">Saved!</span>

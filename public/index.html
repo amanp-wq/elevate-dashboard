@@ -780,8 +780,12 @@ function renderBreakdownTable(people, kpis, targets, weights, isCloser){
     const scoreColor = onLeave ? "#3a3a48" : (zoneNeon[p.zone] || "#aaa");
     const rank = i + 1;
     const rankClass = rank === 1 ? "r1" : rank === 2 ? "r2" : rank === 3 ? "r3" : "";
-    const dealOverride = !onLeave && p.dealsClosed >= 1;
-    const overrideLabel = p.dealsClosed >= 2 ? "🏆 Gold Override" : p.dealsClosed === 1 ? "✅ Green Override" : "";
+    // p.dealGold/p.dealGreen are this closer's own thresholds (default 2/1),
+    // set via the deal-count fields on /manage-targets-sales.html.
+    const dealGold  = p.dealGold  != null ? p.dealGold  : 2;
+    const dealGreen = p.dealGreen != null ? p.dealGreen : 1;
+    const dealOverride = !onLeave && p.dealsClosed >= dealGreen;
+    const overrideLabel = p.dealsClosed >= dealGold ? "🏆 Gold Override" : p.dealsClosed >= dealGreen ? "✅ Green Override" : "";
     return `<tr>
       <td><div class="bt-rank ${rankClass}">${onLeave ? "—" : rank}</div></td>
       <td>
@@ -792,9 +796,9 @@ function renderBreakdownTable(people, kpis, targets, weights, isCloser){
         ? kpis.map(() => `<td style="color:#2e2e3a;font-size:12px">—</td>`).join("")
         : kpis.map(k => k.override
             ? `<td><div class="bt-kpi">
-                <div class="bt-val" style="color:${p.dealsClosed>=2?"#ffd740":p.dealsClosed>=1?"#00e676":"#ff4d6a"}">${p.dealsClosed}</div>
+                <div class="bt-val" style="color:${p.dealsClosed>=dealGold?"#ffd740":p.dealsClosed>=dealGreen?"#00e676":"#ff4d6a"}">${p.dealsClosed}</div>
                 <div class="bt-target">deals</div>
-                ${dealOverride ? `<div class="bt-pct" style="color:${p.dealsClosed>=2?"#ffd740":"#00e676"};font-size:10px;margin-top:3px">${overrideLabel}</div>` : ""}
+                ${dealOverride ? `<div class="bt-pct" style="color:${p.dealsClosed>=dealGold?"#ffd740":"#00e676"};font-size:10px;margin-top:3px">${overrideLabel}</div>` : ""}
                </div></td>`
             : kpiCell(p[k.field], k.target, k.weight)
           ).join("")
@@ -821,15 +825,19 @@ function scoreBuilder(b, t){
   );
 }
 
-function scoreCloser(c, t){
+// `deals` is the per-closer {gold, green} deal-count override, editable per
+// month on /manage-targets-sales.html. Defaults to the original fixed rule —
+// 2+ deals for Gold, 1+ for Green — for anyone without a saved override.
+function scoreCloser(c, t, deals){
+  const g = deals || { gold: 2, green: 1 };
   const cap = (v,tgt) => Math.min(150, tgt>0 ? (v/tgt)*100 : 0);
   const kpiScore =
     cap(c.calls,t.calls)*WEIGHTS_CLOSER.calls +
     cap(c.minutes,t.minutes)*WEIGHTS_CLOSER.minutes +
     cap(c.presentations,t.presentations)*WEIGHTS_CLOSER.presentations;
-  // 0 deals: KPI only max 110 | 1 deal: ×1.25 floor 95 cap 125 | 2+ deals: ×1.50 floor 110 cap 150
-  if (c.dealsClosed >= 2) return Math.round(Math.min(Math.max(kpiScore * 1.50, 110), 150));
-  if (c.dealsClosed === 1) return Math.round(Math.min(Math.max(kpiScore * 1.25, 95), 125));
+  // below green threshold: KPI only max 110 | green..below gold: ×1.25 floor 95 cap 125 | gold+: ×1.50 floor 110 cap 150
+  if (c.dealsClosed >= g.gold)  return Math.round(Math.min(Math.max(kpiScore * 1.50, 110), 150));
+  if (c.dealsClosed >= g.green) return Math.round(Math.min(Math.max(kpiScore * 1.25, 95), 125));
   return Math.round(Math.min(kpiScore, 110));
 }
 
@@ -841,7 +849,7 @@ function zoneCloser(c, score){
 const ZONE_NEON = { gold:"#ffd740", green:"#00e676", yellow:"#ffab00", orange:"#ff6d00", red:"#ff4d6a" };
 
 
-function renderTLView(teams, T, TC, leaveMap = {}, personTargets = null, effectiveDays = 1) {
+function renderTLView(teams, T, TC, leaveMap = {}, personTargets = null, effectiveDays = 1, personDealThresholds = null) {
   document.getElementById("tiles").style.display = "none";
   document.getElementById("tl-grid").style.display = "grid";
 
@@ -861,7 +869,8 @@ function renderTLView(teams, T, TC, leaveMap = {}, personTargets = null, effecti
     });
     const scoredClosers = team.closers.map(c => {
       const tgt = personTargets ? personTargets(c.name, TC) : TC;
-      const s = scoreCloser(c, tgt);
+      const deals = personDealThresholds ? personDealThresholds(c.name) : undefined;
+      const s = scoreCloser(c, tgt, deals);
       return { ...c, composite: s, zone: zoneCloser(c, s), type: "Closer" };
     });
 
@@ -1061,6 +1070,17 @@ document.getElementById("btn-gen").onclick = async function(){
       }));
     }
 
+    // Per-closer Gold/Green deal-count override, stored the same way as every
+    // other target (kpi_target_overrides, keyed by month) but as a raw deal
+    // count rather than a daily rate — the same 2 deals means Gold whether the
+    // report covers one day or the whole month, unless a team lead has set
+    // this closer's own thresholds for reportMonth on /manage-targets-sales.html.
+    function personDealThresholds(name) {
+      const gold  = resolveOverride(name, "goldDeals",  reportMonth);
+      const green = resolveOverride(name, "greenDeals", reportMonth);
+      return { gold: gold != null ? gold : 2, green: green != null ? green : 1 };
+    }
+
     // Live report timestamp in EST
     const nowEST = new Date().toLocaleString("en-US", { timeZone:"America/New_York", hour:"numeric", minute:"2-digit", hour12:true });
     const todayEST = new Date().toLocaleDateString("en-CA", { timeZone:"America/New_York" });
@@ -1090,7 +1110,7 @@ document.getElementById("btn-gen").onclick = async function(){
       document.getElementById("totals-grid").innerHTML = "";
       document.getElementById("breakdown-toggle").style.display = "none";
       document.getElementById("breakdown-table-wrap").classList.remove("show");
-      renderTLView(data.teams, T, TC, leaveMap, personTargets, effectiveDays);
+      renderTLView(data.teams, T, TC, leaveMap, personTargets, effectiveDays, personDealThresholds);
       document.getElementById("results").style.display = "block";
       setStatus("");
       return;
@@ -1101,7 +1121,11 @@ document.getElementById("btn-gen").onclick = async function(){
     document.getElementById("breakdown-toggle").style.display = "";
 
     if (isCloser) {
-      const closers = data.closers.map(c => { const s=scoreCloser(c,personTargets(c.name,TARGETS_CLOSER)); return {...c, composite:s, zone:zoneCloser(c,s)}; });
+      const closers = data.closers.map(c => {
+        const deals = personDealThresholds(c.name);
+        const s = scoreCloser(c, personTargets(c.name, TARGETS_CLOSER), deals);
+        return { ...c, composite: s, zone: zoneCloser(c, s), dealGold: deals.gold, dealGreen: deals.green };
+      });
       closers.sort((a,b) => b.composite - a.composite);
       document.getElementById("meta-right").textContent = `${closers.length} Closer${closers.length!==1?"s":""}`;
 
@@ -1223,7 +1247,11 @@ document.getElementById("btn-gen").onclick = async function(){
         { label:"Deals Closed",    field:"dealsClosed",    target:"—",              weight:0, override:true },
       ];
       renderBreakdownTable(
-        data.closers.map(c=>{ const s=scoreCloser(c,personTargets(c.name,TC)); return {...c, composite:s, zone:zoneCloser(c,s)}; }).sort((a,b)=>b.composite-a.composite),
+        data.closers.map(c=>{
+          const deals = personDealThresholds(c.name);
+          const s = scoreCloser(c, personTargets(c.name, TC), deals);
+          return { ...c, composite: s, zone: zoneCloser(c, s), dealGold: deals.gold, dealGreen: deals.green };
+        }).sort((a,b)=>b.composite-a.composite),
         closerKpis, TC, WEIGHTS_CLOSER, true
       );
     } else {
