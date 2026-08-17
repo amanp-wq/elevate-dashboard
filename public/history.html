@@ -245,8 +245,9 @@
   .mstat-bar { height: 3px; border-radius: 999px; background: oklch(0.23 0.014 250); overflow: hidden; }
   .mstat-bar i { display: block; height: 100%; border-radius: 999px; background: var(--stat-color); transition: width 1s cubic-bezier(0.22,1,0.36,1); }
   .mstat-note { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .mstat-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+  .mstat-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; }
   .org-block .mstat-grid { gap: 14px; }
+  @media (max-width: 1500px) { .mstat-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
   @media (max-width: 1180px) { .mstat-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
   @media (max-width: 640px)  { .mstat-grid { grid-template-columns: 1fr; } }
 
@@ -320,6 +321,17 @@
   .kpi { text-align: center; }
   .kpi-val { font-size: 17px; font-weight: 800; }
   .kpi-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  /* A closer's per-deal averages, on their own card. */
+  .card-avgs {
+    display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px;
+    border-top: 1px solid var(--border); padding-top: 9px; margin-top: 4px;
+  }
+  .card-avgs div { text-align: center; min-width: 0; }
+  .card-avgs span {
+    display: block; font-size: 9px; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .card-avgs b { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; display: block; }
   .attend { font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 8px; margin-top: 6px; }
   .attend .leave-tag { color: var(--neon-leave); font-weight: 800; }
 
@@ -553,6 +565,17 @@ function card(p){
   const kpis = p.role === "Closer"
     ? [["calls",p.calls],["mins",p.minutes],["pres",p.presentations],["deals",p.dealsClosed],["$new",Math.round(p.newUpfront)],["$fut",Math.round(p.futureUpfront)]]
     : [["calls",p.calls],["mins",p.minutes],["leads",p.leads],["disco",p.discoveries],["pres.b",p.presBooked],["pres.c",p.presCompleted]];
+
+  // A closer's own per-deal averages. Divided by THEIR deal count, so two
+  // closers on the same revenue read differently when one took more deals to
+  // get there — which is the whole point of showing it per person.
+  const avgRow = (p.role === "Closer" && p.dealsClosed > 0) ? `
+    <div class="card-avgs">
+      <div><span>Avg upfront</span><b style="color:#40c4ff">${money(p.newUpfront / p.dealsClosed)}</b></div>
+      <div><span>Avg future</span><b style="color:#b388ff">${money(p.futureUpfront / p.dealsClosed)}</b></div>
+      <div><span>Avg total</span><b>${money((p.newUpfront + p.futureUpfront) / p.dealsClosed)}</b></div>
+    </div>` : "";
+
   return `<div class="card ${onLeaveAll?'leave':''}">
     <div class="card-top">
       <div><div class="card-name">${p.name}</div><div class="card-role">${p.role} · ${p.tl}</div></div>
@@ -564,6 +587,7 @@ function card(p){
     <div class="kpis">
       ${kpis.map(([l,v]) => `<div class="kpi"><div class="kpi-val">${v}</div><div class="kpi-lbl">${l}</div></div>`).join("")}
     </div>
+    ${avgRow}
     <div class="attend">
       Attendance: <b style="color:var(--text)">${workDays}</b>/${p.days} days present
       ${p.leaveDays>0 ? `· <span class="leave-tag">Leave: ${p.leaveDays}</span>` : ''}
@@ -591,11 +615,14 @@ function mstat(label, value, unit, note, color, pct){
 // organisation banner and every team row cannot drift apart.
 function metricTiles(health, t){
   const z = zone(health);
+  const per = t.admissions ? ` over ${t.admissions} admission${t.admissions !== 1 ? "s" : ""}` : "";
   return mstat("Health score", health, "%", CARD_LABEL[z], ZONE_COLOR[z], health)
-       + mstat("Avg ticket size", t.admissions ? money(t.avgTicket) : "—", "",
-               `${money(t.revenue)} total revenue`, "#40c4ff", null)
+       + mstat("Avg new upfront", t.admissions ? money(t.avgNewTicket) : "—", "",
+               `${money(t.newUpfront)} collected${per}`, "#40c4ff", null)
+       + mstat("Avg future booked", t.admissions ? money(t.avgFutureTicket) : "—", "",
+               `${money(t.futureUpfront)} booked${per}`, "#b388ff", null)
        + mstat("Admissions", t.admissions, "",
-               `${money(t.newUpfront)} new · ${money(t.futureUpfront)} future`, ZONE_COLOR.green, null)
+               `${money(t.revenue)} total revenue`, ZONE_COLOR.green, null)
        + mstat("Pres → enrolment", t.presHeld ? t.convPct : "—", t.presHeld ? "%" : "",
                `${t.admissions} of ${t.presHeld} held`, t.convColor, t.convPct);
 }
@@ -717,13 +744,15 @@ function renderSummary(people, rows){
     const z = zone(avg), color = ZONE_COLOR[z];
     const t = teamTotals(members);
     const full = TL_FULL_NAME[tl] || tl;
-    // Derived figures, shown once the row is expanded. Per-person uses the
-    // active headcount — dividing by people who were out all period would
-    // understate what the team on the floor actually did.
-    const per = present.length || 1;
+    // Derived figures, shown once the row is expanded. Per-head divides by the
+    // team's active CLOSERS, not everyone: the revenue and admissions above are
+    // closer-side only, so dividing them by a headcount that includes builders
+    // reported a number no closer is accountable for.
+    const closers = members.filter(p => p.role === "Closer" && !isFullyOnLeave(p));
+    const per = closers.length;
     const detail = [
-      ["Revenue per person", money(t.revenue / per)],
-      ["Admissions per person", (t.admissions / per).toFixed(1)],
+      ["Revenue per closer", per ? money(t.revenue / per) : "—"],
+      ["Admissions per closer", per ? (t.admissions / per).toFixed(1) : "—"],
       ["Presentations held", t.presHeld],
       ["Future revenue share", t.revenue ? Math.round(t.futureUpfront / t.revenue * 100) + "%" : "—"],
     ];
@@ -783,7 +812,12 @@ function teamTotals(members){
     t.presHeld      += p.presentations || 0;
   });
   t.revenue   = t.newUpfront + t.futureUpfront;
-  t.avgTicket = t.admissions ? t.revenue / t.admissions : 0;
+  // Both averages divide by admissions, not by their own deal count — every
+  // enrolment carries an upfront and a future-booked figure, so the same
+  // denominator keeps the two comparable and makes them add to avgTicket.
+  t.avgTicket       = t.admissions ? t.revenue / t.admissions : 0;
+  t.avgNewTicket    = t.admissions ? t.newUpfront / t.admissions : 0;
+  t.avgFutureTicket = t.admissions ? t.futureUpfront / t.admissions : 0;
   t.convPct   = t.presHeld ? Math.round(t.admissions / t.presHeld * 100) : 0;
   t.convColor = !t.presHeld ? "var(--muted)"
               : t.convPct >= 50 ? ZONE_COLOR.green
