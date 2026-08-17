@@ -1102,7 +1102,10 @@ document.getElementById("btn-gen").onclick = async function(){
 
     document.getElementById("meta-left").innerHTML =
       `${dl} &nbsp;·&nbsp; ${DISPLAY} &nbsp;<span style="color:${isLive?"#ffab00":"var(--muted)"}">· ${timeLabel}</span>`;
-    document.getElementById("closer-rules").className = "closer-rules" + (isCloser ? " show" : "");
+    // Hidden — it stated a fixed 2+/1 deal rule for the Gold/Green override,
+    // which is no longer true for every closer now that manage-targets-sales.html
+    // can set each one's own thresholds per month.
+    document.getElementById("closer-rules").className = "closer-rules";
     document.getElementById("tl-rules").className = "closer-rules" + (isTL ? " show" : "");
 
     if (isTL) {
