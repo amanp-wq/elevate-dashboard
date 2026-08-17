@@ -283,7 +283,15 @@
   /* Closer explanation banner */
   .closer-rules { display:none; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; margin-bottom: 1.5rem; }
   .closer-rules.show { display: block; }
-  .closer-rules-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; }
+  .closer-rules-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 0; }
+  /* Collapsed by default — clicking the title expands the KPI/deal-rule detail
+     rather than the panel always taking up the space. */
+  .closer-rules-toggle { display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; }
+  .closer-rules-toggle:hover { color: var(--text); }
+  .closer-rules-toggle .chevron { transition: transform 0.2s; display: inline-block; font-size: 9px; }
+  .closer-rules-toggle.open .chevron { transform: rotate(90deg); }
+  .closer-rules-body { display: none; margin-top: 14px; }
+  .closer-rules-body.open { display: block; }
   .closer-rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .cr-section { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
   .cr-section-title { font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
@@ -466,30 +474,37 @@
     </div>
 
     <div class="closer-rules" id="closer-rules">
-      <div class="closer-rules-title">How Closer Scores Work</div>
-      <div class="closer-rules-grid">
-        <div class="cr-section">
-          <div class="cr-section-title">📊 KPI Weights</div>
-          <div class="cr-row"><span class="cr-kpi">Follow-up Calls</span><span><span class="cr-detail">target 60 &nbsp;</span><span class="cr-weight" style="color:#ff6b6b">40%</span></span></div>
-          <div class="cr-row"><span class="cr-kpi">Call Minutes</span><span><span class="cr-detail">target 120 min &nbsp;</span><span class="cr-weight" style="color:#ffab00">20%</span></span></div>
-          <div class="cr-row"><span class="cr-kpi">Presentations Held</span><span><span class="cr-detail">target 2 &nbsp;</span><span class="cr-weight" style="color:#40c4ff">40%</span></span></div>
-          <div class="cr-row" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08)">
-            <span class="cr-detail">Each KPI capped at 150% of target</span>
+      <div class="closer-rules-title closer-rules-toggle" id="closer-rules-toggle" onclick="toggleCloserRules()">
+        <span class="chevron">▶</span> How Closer Scores Work
+      </div>
+      <div class="closer-rules-body" id="closer-rules-body">
+        <!-- The Deal Multiplier side shows the DEFAULT 2+/1 rule — a closer with
+             their own saved override on manage-targets-sales.html scores by
+             their own thresholds instead; this stays the fallback reference. -->
+        <div class="closer-rules-grid">
+          <div class="cr-section">
+            <div class="cr-section-title">📊 KPI Weights</div>
+            <div class="cr-row"><span class="cr-kpi">Follow-up Calls</span><span><span class="cr-detail">target 60 &nbsp;</span><span class="cr-weight" style="color:#ff6b6b">40%</span></span></div>
+            <div class="cr-row"><span class="cr-kpi">Call Minutes</span><span><span class="cr-detail">target 120 min &nbsp;</span><span class="cr-weight" style="color:#ffab00">20%</span></span></div>
+            <div class="cr-row"><span class="cr-kpi">Presentations Held</span><span><span class="cr-detail">target 2 &nbsp;</span><span class="cr-weight" style="color:#40c4ff">40%</span></span></div>
+            <div class="cr-row" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08)">
+              <span class="cr-detail">Each KPI capped at 150% of target</span>
+            </div>
           </div>
-        </div>
-        <div class="cr-section">
-          <div class="cr-section-title">⚡ Deal Multiplier</div>
-          <div class="override-row">
-            <span class="override-badge" style="color:#ffd740;border-color:#ffd740">2+ Deals</span>
-            <span class="override-desc">KPI × <strong style="color:#ffd740">1.50</strong> — min <strong style="color:#ffd740">110%</strong> → guaranteed <strong style="color:#ffd740">Gold Card</strong> — max 150%</span>
-          </div>
-          <div class="override-row">
-            <span class="override-badge" style="color:#00e676;border-color:#00e676">1 Deal</span>
-            <span class="override-desc">KPI × <strong style="color:#00e676">1.25</strong> — min <strong style="color:#00e676">95%</strong> → guaranteed <strong style="color:#00e676">Green Card</strong> — max 125%</span>
-          </div>
-          <div class="override-row">
-            <span class="override-badge" style="color:#6b7499;border-color:#6b7499">0 Deals</span>
-            <span class="override-desc">KPI score only — max <strong style="color:#6b7499">110%</strong> — Gold Card achievable through overachievement</span>
+          <div class="cr-section">
+            <div class="cr-section-title">⚡ Deal Multiplier (default — a closer's own override on Manage Targets takes priority)</div>
+            <div class="override-row">
+              <span class="override-badge" style="color:#ffd740;border-color:#ffd740">2+ Deals</span>
+              <span class="override-desc">KPI × <strong style="color:#ffd740">1.50</strong> — min <strong style="color:#ffd740">110%</strong> → guaranteed <strong style="color:#ffd740">Gold Card</strong> — max 150%</span>
+            </div>
+            <div class="override-row">
+              <span class="override-badge" style="color:#00e676;border-color:#00e676">1 Deal</span>
+              <span class="override-desc">KPI × <strong style="color:#00e676">1.25</strong> — min <strong style="color:#00e676">95%</strong> → guaranteed <strong style="color:#00e676">Green Card</strong> — max 125%</span>
+            </div>
+            <div class="override-row">
+              <span class="override-badge" style="color:#6b7499;border-color:#6b7499">0 Deals</span>
+              <span class="override-desc">KPI score only — max <strong style="color:#6b7499">110%</strong> — Gold Card achievable through overachievement</span>
+            </div>
           </div>
         </div>
       </div>
@@ -745,6 +760,11 @@ function toggleBreakdown(){
   const wrap = document.getElementById("breakdown-table-wrap");
   tog.classList.toggle("open");
   wrap.classList.toggle("show");
+}
+
+function toggleCloserRules(){
+  document.getElementById("closer-rules-toggle").classList.toggle("open");
+  document.getElementById("closer-rules-body").classList.toggle("open");
 }
 
 const ZONE_COLOR = { gold:"#ffd740", green:"#00e676", yellow:"#ffab00", orange:"#ff6d00", red:"#ff4d6a", leave:"#3a3a48" };
@@ -1102,10 +1122,7 @@ document.getElementById("btn-gen").onclick = async function(){
 
     document.getElementById("meta-left").innerHTML =
       `${dl} &nbsp;·&nbsp; ${DISPLAY} &nbsp;<span style="color:${isLive?"#ffab00":"var(--muted)"}">· ${timeLabel}</span>`;
-    // Hidden — it stated a fixed 2+/1 deal rule for the Gold/Green override,
-    // which is no longer true for every closer now that manage-targets-sales.html
-    // can set each one's own thresholds per month.
-    document.getElementById("closer-rules").className = "closer-rules";
+    document.getElementById("closer-rules").className = "closer-rules" + (isCloser ? " show" : "");
     document.getElementById("tl-rules").className = "closer-rules" + (isTL ? " show" : "");
 
     if (isTL) {
@@ -1241,6 +1258,8 @@ document.getElementById("btn-gen").onclick = async function(){
     // Reset breakdown toggle closed on each new report
     document.getElementById("breakdown-toggle").classList.remove("open");
     document.getElementById("breakdown-table-wrap").classList.remove("show");
+    document.getElementById("closer-rules-toggle").classList.remove("open");
+    document.getElementById("closer-rules-body").classList.remove("open");
 
     if (isCloser) {
       const closerKpis = [

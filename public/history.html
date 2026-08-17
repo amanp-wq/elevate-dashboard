@@ -245,7 +245,7 @@
   .mstat-bar { height: 3px; border-radius: 999px; background: oklch(0.23 0.014 250); overflow: hidden; }
   .mstat-bar i { display: block; height: 100%; border-radius: 999px; background: var(--stat-color); transition: width 1s cubic-bezier(0.22,1,0.36,1); }
   .mstat-note { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .mstat-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; }
+  .mstat-grid { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 12px; }
   .org-block .mstat-grid { gap: 14px; }
   @media (max-width: 1500px) { .mstat-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
   @media (max-width: 1180px) { .mstat-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
@@ -632,6 +632,8 @@ function metricTiles(health, t){
                `${money(t.newUpfront)} collected${per}`, "#40c4ff", null)
        + mstat("Avg future booked", t.admissions ? money(t.avgFutureTicket) : "—", "",
                `${money(t.futureUpfront)} booked${per}`, "#b388ff", null)
+       + mstat("Avg ticket size", t.admissions ? money(t.avgTicket) : "—", "",
+               `${money(t.revenue)} total${per}`, "#ffab00", null)
        + mstat("Admissions", t.admissions, "",
                `${money(t.revenue)} total revenue`, ZONE_COLOR.green, null)
        + mstat("Pres → enrolment", t.presHeld ? t.convPct : "—", t.presHeld ? "%" : "",
