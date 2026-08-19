@@ -238,14 +238,20 @@ export default async function handler(req, res) {
     const end = new Date(endDate + "T12:00:00Z");
     while (d <= end) { dates.push(d.toISOString().split("T")[0]); d.setUTCDate(d.getUTCDate() + 1); }
 
+    // Split each day into 4 × 6-hour windows so no single window exceeds
+    // the 2000-record COQL pagination cap. Work hours (10:30 AM – 7:30 PM ET)
+    // concentrate ~80% of calls in the noon–midnight half; with 2 windows
+    // that half was silently truncated at 2000 records, dropping ~400 calls
+    // per day.  Four windows keep each chunk under 1000 records comfortably.
     async function oneDay(date) {
       const dayStart = nyMidnightUTC(date);
-      const dayMid   = new Date(dayStart.getTime() + 12 * 60 * 60 * 1000);
-      const dayEnd   = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1000);
-      const windows = [
-        [fmtCOQL(dayStart), fmtCOQL(new Date(dayMid.getTime() - 1000))],
-        [fmtCOQL(dayMid), fmtCOQL(dayEnd)],
-      ];
+      const H6  = 6 * 60 * 60 * 1000;
+      const windows = [];
+      for (let i = 0; i < 4; i++) {
+        const wStart = new Date(dayStart.getTime() + i * H6);
+        const wEnd   = new Date(dayStart.getTime() + (i + 1) * H6 - 1000);
+        windows.push([fmtCOQL(wStart), fmtCOQL(wEnd)]);
+      }
       const parts = await Promise.all(windows.map(([s, e]) => coqlCallsWindow(token, s, e)));
       return parts.flat();
     }
