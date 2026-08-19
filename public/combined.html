@@ -445,7 +445,7 @@ function renderClosers(closers, TC, effectiveDays, leaveMap){
 
   document.getElementById("closer-tiles").innerHTML = closers.map(c=>{
     const onLeave=(leaveMap[c.name]||0)>=effectiveDays;
-    const sc=scoreCloser(c,TC,personDealThresholds(c.name)); const z=zoneCloser(c,sc);
+    const sc=c.composite; const z=c.zone;
     const star=z==="gold"?'<span style="font-size:14px">★</span>':'';
     return `<div class="tile ${onLeave?"zone-leave":"zone-"+z}">
       <div class="tile-header">
