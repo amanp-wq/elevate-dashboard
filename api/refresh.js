@@ -181,7 +181,7 @@ async function fetchCallsForRange(token, date) {
 }
 
 async function refreshRole(token, allUsers, role, date) {
-  const cacheKey = `${role}|${date}|${date}`;
+  const cacheKey = `${role}|v2|${date}|${date}`;
   const isCloser   = role.toLowerCase().includes("closer");
   const isTeamLead = role.toLowerCase().includes("team leader");
 
