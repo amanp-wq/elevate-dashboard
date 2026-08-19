@@ -524,7 +524,11 @@ document.getElementById("btn-gen").onclick = async function(){
       const row = _overrides.find(r => r.person_key === name && r.kpi_label === label && r.month === month);
       return row ? row.monthly_target : null;
     }
+    // Daily / short ranges (≤7 days): fixed 2/1 rule.
+    // Monthly / long ranges: apply TL's per-closer override if set.
+    const _rangeDays = Math.round((new Date(endDate+"T12:00:00Z") - new Date(startDate+"T12:00:00Z")) / 86400000) + 1;
     function personDealThresholds(name) {
+      if (_rangeDays <= 7) return { gold: 2, green: 1 };
       const gold  = resolveOverride(name, "goldDeals",  reportMonth);
       const green = resolveOverride(name, "greenDeals", reportMonth);
       return { gold: gold != null ? gold : 2, green: green != null ? green : 1 };

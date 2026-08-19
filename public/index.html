@@ -1088,12 +1088,14 @@ document.getElementById("btn-gen").onclick = async function(){
       }));
     }
 
-    // Per-closer Gold/Green deal-count override, stored the same way as every
-    // other target (kpi_target_overrides, keyed by month) but as a raw deal
-    // count rather than a daily rate — the same 2 deals means Gold whether the
-    // report covers one day or the whole month, unless a team lead has set
-    // this closer's own thresholds for reportMonth on /manage-targets-sales.html.
+    // Per-closer Gold/Green deal-count thresholds.
+    // Daily / short ranges (≤7 days): always use the fixed 2/1 rule — it
+    // makes no sense to require 8 deals for Gold on a single day.
+    // Monthly / long ranges (>7 days): apply the TL's per-closer override
+    // from /manage-targets-sales.html if one exists for this month.
+    const _rangeDays = Math.round((new Date(endDate+"T12:00:00Z") - new Date(startDate+"T12:00:00Z")) / 86400000) + 1;
     function personDealThresholds(name) {
+      if (_rangeDays <= 7) return { gold: 2, green: 1 };
       const gold  = resolveOverride(name, "goldDeals",  reportMonth);
       const green = resolveOverride(name, "greenDeals", reportMonth);
       return { gold: gold != null ? gold : 2, green: green != null ? green : 1 };
