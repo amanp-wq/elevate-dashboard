@@ -213,6 +213,9 @@ const SALES_TEAM_MEMBERS = [
   { name: "Avni Gajjar",       team: "Soham",     role: "Builder" },
   { name: "Maharshi Patel",    team: "Soham",     role: "Builder" },
   { name: "Kavya Prajapati",   team: "Soham",     role: "Builder" },
+  { name: "Yash Parikh",       team: "Soham",     role: "Builder" },
+  { name: "Varsha Mahto",      team: "Soham",     role: "Builder" },
+  { name: "Umair Mansuri",     team: "Soham",     role: "Builder" },
   { name: "Aryan Sharma",      team: "Soham",     role: "Closer"  },
   { name: "Harsh Bhojak",      team: "Soham",     role: "Closer"  },
   { name: "Nikunj Patel",      team: "Soham",     role: "Closer"  },
@@ -221,6 +224,8 @@ const SALES_TEAM_MEMBERS = [
   { name: "Nupur Vyas",        team: "Tejasvi",   role: "Builder" },
   { name: "Hemant Rathore",    team: "Tejasvi",   role: "Builder" },
   { name: "Jatin Bhavsar",     team: "Tejasvi",   role: "Builder" },
+  { name: "Dev Sompura",       team: "Tejasvi",   role: "Builder" },
+  { name: "Aditya Pipaliya",   team: "Tejasvi",   role: "Builder" },
   { name: "Kartik Deshawar",   team: "Tejasvi",   role: "Closer"  },
   { name: "Abhijeet Das",      team: "Tejasvi",   role: "Closer"  },
   // Team Mamta Das

@@ -299,23 +299,33 @@ export default async function handler(req, res) {
     const isCloser   = role.toLowerCase().includes("closer");
     const isTeamLead = role.toLowerCase().includes("team leader");
 
+    // Extract the team-lead name from the Zoho role, e.g.
+    // "Builder - Soham Bajpai" → "Soham", "Closer - Mamta Das" → "Mamta Das".
+    // Falls back to empty string for roles without a " - " separator.
+    function tlFromRole(roleName) {
+      const m = (roleName || "").match(/(?:Builder|Closer)\s*-\s*(.+)/i);
+      if (!m) return "";
+      const full = m[1].trim();                         // "Soham Bajpai"
+      // Check well-known two-word TL names first
+      if (/^Mamta\b/i.test(full))  return "Mamta Das";
+      return full.split(/\s+/)[0];                      // first name: "Soham", "Tejasvi"
+    }
+
+    // Build a userId → teamLead lookup from the users list so every person
+    // gets a team lead even if they have zero leads/deals in the period.
+    const userTLMap = {};
+    allUsers.forEach(u => { userTLMap[u.id] = tlFromRole(u.role?.name); });
+
     // ── TEAM LEADER REPORT ───────────────────────────────────────────────────
     if (isTeamLead) {
-      function getTLName(roleName) {
-        if (roleName.includes("Soham"))   return "Soham";
-        if (roleName.includes("Tejasvi")) return "Tejasvi";
-        if (roleName.includes("Mamta"))   return "Mamta Das";
-        return null;
-      }
-
       const tlMembers = allUsers.filter(u => {
         const r = u.role?.name || "";
-        return getTLName(r) && (r.includes("Builder") || r.includes("Closer"));
+        return tlFromRole(r) && (r.includes("Builder") || r.includes("Closer"));
       });
 
       const builderMap = {}, closerMap = {};
       tlMembers.forEach(u => {
-        const tl = getTLName(u.role.name);
+        const tl = tlFromRole(u.role.name);
         const isC = u.role.name.includes("Closer");
         const base = { name: u.full_name, id: u.id, tlName: tl,
           calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0, callBands: emptyBands() };
@@ -386,7 +396,7 @@ export default async function handler(req, res) {
     if (isCloser) {
       const map = {};
       users.forEach(u => {
-        map[u.id] = { name: u.full_name, id: u.id, teamLead: "",
+        map[u.id] = { name: u.full_name, id: u.id, teamLead: userTLMap[u.id] || "",
           calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0, callBands: emptyBands(),
           presentations: 0, dealsClosed: 0, newUpfront: 0, futureUpfront: 0 };
       });
@@ -448,7 +458,7 @@ export default async function handler(req, res) {
     // ── BUILDER REPORT ───────────────────────────────────────────────────────
     const map = {};
     users.forEach(u => {
-      map[u.id] = { name: u.full_name, id: u.id, teamLead: "",
+      map[u.id] = { name: u.full_name, id: u.id, teamLead: userTLMap[u.id] || "",
         calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0, callBands: emptyBands(),
         leads: 0, discoveries: 0, presBooked: 0, presCompleted: 0 };
     });
