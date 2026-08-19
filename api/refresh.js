@@ -335,7 +335,10 @@ export default async function handler(req, res) {
     const date  = getTodayEST();
     const t0    = Date.now();
     const token = await getAccessToken();
-    const ud    = await zohoGet(token, `${API_DOMAIN}/crm/v2/users?type=ActiveUsers&per_page=200`);
+    // AllUsers, not ActiveUsers — see the matching fix/comment in report.js:
+    // a deactivated closer/builder still owns calls logged before the status
+    // change, and ActiveUsers was silently dropping them from the pre-warmed cache.
+    const ud    = await zohoGet(token, `${API_DOMAIN}/crm/v2/users?type=AllUsers&per_page=200`);
     const allUsers = ud?.users || [];
 
     // Refresh all 3 roles in parallel

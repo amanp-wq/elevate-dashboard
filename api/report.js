@@ -285,7 +285,12 @@ export default async function handler(req, res) {
     if (_usersCache.users && Date.now() < _usersCache.expiresAt) {
       allUsers = _usersCache.users;
     } else {
-      const ud = await zohoGet(token, `${API_DOMAIN}/crm/v2/users?type=ActiveUsers&per_page=200`);
+      // AllUsers (not ActiveUsers): a closer/builder deactivated in Zoho mid-period
+      // still owns calls logged before their status changed. ActiveUsers excluded
+      // them from `users`/`map`, so their calls were silently dropped at the
+      // `if (!map[id]) return` guards below — undercounting the role's total
+      // vs. Zoho's own count. funnel.js already fetches AllUsers for this reason.
+      const ud = await zohoGet(token, `${API_DOMAIN}/crm/v2/users?type=AllUsers&per_page=200`);
       allUsers = ud?.users || [];
       if (allUsers.length) _usersCache = { users: allUsers, expiresAt: Date.now() + USERS_TTL_MS };
     }
