@@ -316,11 +316,12 @@ function scoreBuilder(b, T){
   );
 }
 
-function scoreCloser(c, TC){
+function scoreCloser(c, TC, deals){
+  const g = deals || { gold: 2, green: 1 };
   const cap = (v,t) => { const p = t>0?(v/t)*100:0; return Math.min(150,p); };
   const kpi = cap(c.calls,TC.calls)*WEIGHTS_CLOSER.calls + cap(c.minutes,TC.minutes)*WEIGHTS_CLOSER.minutes + cap(c.presentations,TC.presentations)*WEIGHTS_CLOSER.presentations;
-  if (c.dealsClosed >= 2) return Math.round(Math.min(Math.max(kpi*1.50,110),150));
-  if (c.dealsClosed === 1) return Math.round(Math.min(Math.max(kpi*1.25,95),125));
+  if (c.dealsClosed >= g.gold)  return Math.round(Math.min(Math.max(kpi*1.50,110),150));
+  if (c.dealsClosed >= g.green) return Math.round(Math.min(Math.max(kpi*1.25,95),125));
   return Math.round(Math.min(kpi,110));
 }
 
@@ -444,7 +445,7 @@ function renderClosers(closers, TC, effectiveDays, leaveMap){
 
   document.getElementById("closer-tiles").innerHTML = closers.map(c=>{
     const onLeave=(leaveMap[c.name]||0)>=effectiveDays;
-    const sc=scoreCloser(c,TC); const z=zoneCloser(c,sc);
+    const sc=scoreCloser(c,TC,personDealThresholds(c.name)); const z=zoneCloser(c,sc);
     const star=z==="gold"?'<span style="font-size:14px">★</span>':'';
     return `<div class="tile ${onLeave?"zone-leave":"zone-"+z}">
       <div class="tile-header">
@@ -511,13 +512,31 @@ document.getElementById("btn-gen").onclick = async function(){
       return baseT;
     }
 
+    // Per-closer deal-band overrides (same source as index.html)
+    const reportMonth = startDate.slice(0, 7);
+    let _overrides = [];
+    try {
+      const or = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,month,monthly_target`,
+        { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } });
+      if (or.ok) _overrides = await or.json();
+    } catch {}
+    function resolveOverride(name, label, month) {
+      const row = _overrides.find(r => r.person_key === name && r.kpi_label === label && r.month === month);
+      return row ? row.monthly_target : null;
+    }
+    function personDealThresholds(name) {
+      const gold  = resolveOverride(name, "goldDeals",  reportMonth);
+      const green = resolveOverride(name, "greenDeals", reportMonth);
+      return { gold: gold != null ? gold : 2, green: green != null ? green : 1 };
+    }
+
     // Score and sort
     const builders = (builderData.builders||[])
       .map(b=>({...b, composite:scoreBuilder(b,personT(b.name,T)), zone:zone(scoreBuilder(b,personT(b.name,T)))}))
       .sort((a,b)=>b.composite-a.composite);
 
     const closers = (closerData.closers||[])
-      .map(c=>{ const s=scoreCloser(c,personT(c.name,TC)); return {...c, composite:s, zone:zoneCloser(c,s)}; })
+      .map(c=>{ const deals=personDealThresholds(c.name); const s=scoreCloser(c,personT(c.name,TC),deals); return {...c, composite:s, zone:zoneCloser(c,s)}; })
       .sort((a,b)=>b.composite-a.composite);
 
     // Meta bar
