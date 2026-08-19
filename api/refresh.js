@@ -168,14 +168,21 @@ async function coqlCallsWindow(token, startDT, endDT) {
   }
   return out;
 }
+// 4 x 6-hour windows, matching report.js's fetchCallsForRange. The old 2x12h
+// split let the noon-midnight half (~80% of daily calls) exceed the COQL
+// 2000-record ceiling on busy days, silently truncating the pre-warmed cache
+// -- and because this cron writes to the same cache key report.js reads,
+// the frontend would get served the truncated count as a cache HIT even
+// after report.js's own fetch was fixed.
 async function fetchCallsForRange(token, date) {
   const dayStart = nyMidnightUTC(date);
-  const dayMid   = new Date(dayStart.getTime() + 12 * 60 * 60 * 1000);
-  const dayEnd   = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1000);
-  const windows = [
-    [fmtCOQL(dayStart), fmtCOQL(new Date(dayMid.getTime() - 1000))],
-    [fmtCOQL(dayMid), fmtCOQL(dayEnd)],
-  ];
+  const H6 = 6 * 60 * 60 * 1000;
+  const windows = [];
+  for (let i = 0; i < 4; i++) {
+    const wStart = new Date(dayStart.getTime() + i * H6);
+    const wEnd   = new Date(dayStart.getTime() + (i + 1) * H6 - 1000);
+    windows.push([fmtCOQL(wStart), fmtCOQL(wEnd)]);
+  }
   const parts = await Promise.all(windows.map(([s, e]) => coqlCallsWindow(token, s, e)));
   return parts.flat();
 }
