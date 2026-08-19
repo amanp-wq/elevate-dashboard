@@ -661,31 +661,6 @@ function callPopHtml(bands, total) {
 
 const DISPLAY = "10:30 AM – 7:30 PM EST";
 
-function estToday() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-}
-function estDateOffset(days) {
-  const d = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  d.setDate(d.getDate() + days);
-  return d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-}
-function estMonday(offset = 0) {
-  const d = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  const day = d.getDay() || 7; // Mon=1 … Sun=7
-  d.setDate(d.getDate() - (day - 1) + offset * 7);
-  return d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-}
-function estMonthStart(offset = 0) {
-  const d = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  d.setMonth(d.getMonth() + offset, 1);
-  return d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-}
-function estMonthEnd(offset = 0) {
-  const d = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  d.setMonth(d.getMonth() + offset + 1, 0);
-  return d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-}
-
 function setPreset(preset, btn) {
   document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
@@ -783,8 +758,6 @@ function toggleCloserRules(){
   document.getElementById("closer-rules-toggle").classList.toggle("open");
   document.getElementById("closer-rules-body").classList.toggle("open");
 }
-
-const ZONE_COLOR = { gold:"#ffd740", green:"#00e676", yellow:"#ffab00", orange:"#ff6d00", red:"#ff4d6a", leave:"#3a3a48" };
 
 function kpiCell(actual, target, weight){
   const raw = target > 0 ? (actual / target) * 100 : 0;
