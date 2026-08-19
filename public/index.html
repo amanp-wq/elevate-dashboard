@@ -813,7 +813,7 @@ function renderBreakdownTable(people, kpis, targets, weights, isCloser){
   </tr></thead>`;
 
   const rows = people.map((p, i) => {
-    const onLeave = p.calls === 0;
+    const onLeave = p.calls === 0 && !p.dealsClosed && !p.presentations;
     const scoreColor = onLeave ? "#3a3a48" : (zoneNeon[p.zone] || "#aaa");
     const rank = i + 1;
     const rankClass = rank === 1 ? "r1" : rank === 2 ? "r2" : rank === 3 ? "r3" : "";
