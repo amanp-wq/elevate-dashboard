@@ -309,6 +309,12 @@
   .total-lbl { font-size: 13px; color: var(--muted); margin-top: 2px; }
   .total-target { font-size: 12px; color: var(--muted); opacity: 0.5; }
 
+  .scoring-toggle {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 1rem;
+    font-size: 12px; color: var(--muted);
+  }
+  .scoring-toggle label { cursor: pointer; font-weight: 700; }
+  .scoring-toggle input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
   .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1rem; }
   .preset-btn {
     font-family: 'Nunito Sans', sans-serif;
@@ -439,6 +445,11 @@
     <button class="preset-btn" onclick="setPreset('this_month',this)">This Month</button>
     <button class="preset-btn" onclick="setPreset('last_month',this)">Last Month</button>
     <button class="preset-btn" onclick="setPreset('custom',this)">Custom Range</button>
+  </div>
+  <div class="scoring-toggle">
+    <input type="checkbox" id="chk-fullday">
+    <label for="chk-fullday">Full Day Targets</label>
+    <span style="color:var(--muted);opacity:0.6">(ignore current time — score against full day targets)</span>
   </div>
 
   <div class="controls">
@@ -685,39 +696,45 @@ function setPreset(preset, btn) {
   fields[0].style.display = isCustom ? "" : "none";
   fields[1].style.display = isCustom ? "" : "none";
 
-  const nowEST = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  const dow = nowEST.getDay() || 7; // 1=Mon … 7=Sun
+  // Build an unambiguous YYYY-MM-DD in Eastern time, then do all
+  // arithmetic on plain strings — avoids the IST→ET timezone bug where
+  // midnight IST on the 1st became the 30th/31st in ET.
+  const todayET = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  const [yy, mm, dd] = todayET.split("-").map(Number);
 
-  const fmt = d => d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  // ISO-date helper: offset by N days from a YYYY-MM-DD string
+  function offD(iso, n) {
+    const d = new Date(iso + "T12:00:00Z");
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().split("T")[0];
+  }
+  // Day-of-week (1=Mon..7=Sun) from ISO string
+  const dow = (new Date(todayET + "T12:00:00Z").getUTCDay() || 7);
 
-  function offsetDay(base, n) { const d = new Date(base); d.setDate(d.getDate()+n); return d; }
+  function pad2(n) { return String(n).padStart(2, "0"); }
 
   switch(preset) {
     case "today":
-      s.value = e.value = fmt(nowEST); break;
+      s.value = e.value = todayET; break;
     case "yesterday":
-      s.value = e.value = fmt(offsetDay(nowEST, -1)); break;
-    case "till_yesterday": {
-      const mon = offsetDay(nowEST, -(dow-1));
-      s.value = fmt(mon); e.value = fmt(offsetDay(nowEST, -1)); break;
-    }
-    case "this_week": {
-      const mon = offsetDay(nowEST, -(dow-1));
-      s.value = fmt(mon); e.value = fmt(nowEST); break;
-    }
+      s.value = e.value = offD(todayET, -1); break;
+    case "till_yesterday":
+      s.value = offD(todayET, -(dow-1)); e.value = offD(todayET, -1); break;
+    case "this_week":
+      s.value = offD(todayET, -(dow-1)); e.value = todayET; break;
     case "last_week": {
-      const lastMon = offsetDay(nowEST, -(dow-1)-7);
-      const lastSun = offsetDay(lastMon, 6);
-      s.value = fmt(lastMon); e.value = fmt(lastSun); break;
+      const lm = offD(todayET, -(dow-1)-7);
+      s.value = lm; e.value = offD(lm, 6); break;
     }
-    case "this_month": {
-      const m1 = new Date(nowEST.getFullYear(), nowEST.getMonth(), 1);
-      s.value = fmt(m1); e.value = fmt(nowEST); break;
-    }
+    case "this_month":
+      s.value = `${yy}-${pad2(mm)}-01`; e.value = todayET; break;
     case "last_month": {
-      const lm1 = new Date(nowEST.getFullYear(), nowEST.getMonth()-1, 1);
-      const lme  = new Date(nowEST.getFullYear(), nowEST.getMonth(), 0);
-      s.value = fmt(lm1); e.value = fmt(lme); break;
+      const pm = mm === 1 ? 12 : mm - 1;
+      const py = mm === 1 ? yy - 1 : yy;
+      s.value = `${py}-${pad2(pm)}-01`;
+      // last day of previous month = day 0 of current month
+      const ld = new Date(Date.UTC(yy, mm - 1, 0)).getUTCDate();
+      e.value = `${py}-${pad2(pm)}-${pad2(ld)}`; break;
     }
     case "custom": break;
   }
@@ -1043,19 +1060,27 @@ document.getElementById("btn-gen").onclick = async function(){
     // Work window: 9:00 AM – 8:00 PM EST = 11 hours
     const WORK_START_H = 10.5, WORK_END_H = 19.5, WORK_HOURS = 9.0;
 
+    const fullDayMode = document.getElementById("chk-fullday")?.checked;
+
     function getDayFraction(dateStr) {
+      // Skip weekends — no targets on Sat/Sun
+      const dow = new Date(dateStr + "T12:00:00Z").getUTCDay();
+      if (dow === 0 || dow === 6) return 0;
+
+      if (fullDayMode) return 1; // toggle: always full-day targets
+
       const todayEST = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-      if (dateStr < todayEST) return 1;          // past date → full day
-      if (dateStr > todayEST) return 1;          // future date → full day (shouldn't happen)
+      if (dateStr < todayEST) return 1;          // past weekday → full day
+      if (dateStr > todayEST) return 1;          // future weekday → full day
       // It's today — calculate elapsed fraction in EST
       const nowEST = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
       const hDecimal = nowEST.getHours() + nowEST.getMinutes() / 60;
-      if (hDecimal <= WORK_START_H) return 0.01; // before 9AM — near zero
-      if (hDecimal >= WORK_END_H)   return 1;    // after 8PM  — full day
+      if (hDecimal <= WORK_START_H) return 0.01; // before work — near zero
+      if (hDecimal >= WORK_END_H)   return 1;    // after work  — full day
       return (hDecimal - WORK_START_H) / WORK_HOURS;
     }
 
-    // Sum fractions across date range
+    // Sum fractions across date range (weekends return 0 from getDayFraction)
     function totalDayFraction(start, end) {
       let total = 0;
       const d = new Date(start + "T12:00:00Z");
