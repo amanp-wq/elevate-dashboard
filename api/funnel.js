@@ -161,7 +161,7 @@ export default async function handler(req, res) {
     const cached = await getCached(cacheKey);
     if (cached) {
       res.setHeader("X-Cache", "HIT");
-      logAPI("cache_hit", "funnel", `${startDate} to ${endDate}`, "user", Date.now() - t0);
+      await logAPI("cache_hit", "funnel", `${startDate} to ${endDate}`, "user", Date.now() - t0);
       return res.status(200).json(cached);
     }
   } catch (_) {}
@@ -191,7 +191,7 @@ export default async function handler(req, res) {
     const keep = arr => (dropGeneric ? arr.filter(r => !excludedIds.has(r.Owner?.id)) : arr);
 
     // Build COQL WHERE fragments from the optional filters
-    const esc = v => String(v).replace(/'/g, "\\'");
+    const esc = v => String(v).replace(/'/g, "''");
     function lcCriteria(extra) {
       const parts = [];
       if (teamLead) parts.push(`Team_Lead = '${esc(teamLead)}'`);
@@ -271,7 +271,7 @@ export default async function handler(req, res) {
     };
 
     await setCached(cacheKey, result);
-    logAPI("zoho_call", "funnel", `${startDate} to ${endDate}`, "user", Date.now() - t0);
+    await logAPI("zoho_call", "funnel", `${startDate} to ${endDate}`, "user", Date.now() - t0);
     return res.status(200).json(result);
 
   } catch (e) {
