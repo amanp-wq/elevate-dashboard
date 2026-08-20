@@ -99,6 +99,12 @@
     <div class="field"><label>Start date</label><input type="date" id="inp-start"></div>
     <div class="field"><label>End date</label><input type="date" id="inp-end"></div>
     <div class="field"><label>&nbsp;</label><button class="btn-gen" id="btn-gen">Generate</button></div>
+    <div class="field"><label>View</label>
+      <select id="inp-view" style="background:#0f1322;border:1px solid var(--border);color:inherit;padding:9px 11px;border-radius:8px;font-family:inherit;font-size:14px">
+        <option value="team">By KPI team</option>
+        <option value="tl">By team lead</option>
+      </select>
+    </div>
   </div>
   <div class="presets" id="presets">
     <div class="preset-btn active" data-preset="today">Today</div>
@@ -214,6 +220,7 @@ function canEditTargets(member){
 }
 
 let TARGET_ROWS = []; // raw rows: { person_key, kpi_label, month, monthly_target }
+let _lastBdes = null, _lastRange = { start: "", end: "" };  // for view switching
 let CURRENT_REPORT_MONTH = ""; // YYYY-MM of the report's start date, set by render()
 async function loadTargetOverrides(){
   try {
@@ -236,6 +243,27 @@ function resolveOverride(personKey, kpiLabel, month) {
 // Targets are edited on /manage-targets-bd.html — this page only reads and applies them.
 
 const WORKING_DAYS_PER_MONTH = 22; // basis for converting a stored "monthly target" into a daily rate
+// Days marked "leave" per person over the report range. Same table and
+// shape the Sales dashboard reads, written by /attendance-bd.html.
+let LEAVE_MAP = {};
+async function loadLeaveMap(start, end){
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/attendance?date=gte.${start}&date=lte.${end}&status=eq.leave&select=person_name,date`, {
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
+    });
+    if (!r.ok) { LEAVE_MAP = {}; return; }
+    const rows = await r.json();
+    const map = {};
+    rows.forEach(row => { map[row.person_name] = (map[row.person_name] || 0) + 1; });
+    LEAVE_MAP = map;
+  } catch { LEAVE_MAP = {}; }
+}
+
+// Which KPI team a BDE is measured against, regardless of who they report to.
+function kpiTeamOf(member){
+  return TEAMS.find(t => t.members.includes(member)) || null;
+}
+
 function scoreMember(member, kpis, bmap, wDays){
   const b = bmap[member.toLowerCase()] || {};
   const key = pkey(member);
@@ -246,8 +274,13 @@ function scoreMember(member, kpis, bmap, wDays){
     const dailyRate = resolved != null ? resolved / WORKING_DAYS_PER_MONTH : k.dailyTarget;
     const target = Math.max(1, Math.round(dailyRate * wDays));
     const pct = target>0 ? Math.min(150, actual/target*100) : 0;
-    score += pct * k.weight;
-    return { label:k.label, note:k.note, actual, target, pct:Math.round(pct), weight:k.weight };
+    // Weightage is stored as a whole percentage under a "w:" prefixed label
+    // by /manage-targets.html. Previously this always used the built-in
+    // k.weight, so anything set there was silently ignored.
+    const wOverride = resolveOverride(key, "w:" + k.label, CURRENT_REPORT_MONTH);
+    const weight = wOverride != null ? wOverride / 100 : k.weight;
+    score += pct * weight;
+    return { label:k.label, note:k.note, actual, target, pct:Math.round(pct), weight };
   });
   return { score: Math.round(score), rows };
 }
@@ -317,6 +350,8 @@ function render(bdes, start, end){
   const wDays = workingDays(start, end);
   const bmap = {};
   bdes.forEach(b => { bmap[(b.name||"").toLowerCase()] = b; });
+  const view = (document.getElementById("inp-view") || {}).value || "team";
+  if (view === "tl") return renderByTL(bmap, wDays);
   let html = "";
   TEAMS.forEach(team => {
     const scores = team.members.map(m => scoreMember(m, team.kpis, bmap, wDays).score);
@@ -335,6 +370,60 @@ function render(bdes, start, end){
   document.getElementById("results").innerHTML = html;
 }
 
+// Grouped by reporting lead, not by KPI team. A BDE is scored against their
+// own KPI team's targets and weights, then counted in their lead's bucket.
+function renderByTL(bmap, wDays){
+  // Built from TEAM_LEADS so a roster change in one place is enough.
+  const buckets = {};
+  Object.entries(TEAM_LEADS).forEach(([member, lead]) => {
+    (buckets[lead] = buckets[lead] || []).push(member);
+  });
+  // Anyone in a KPI team but missing from TEAM_LEADS would otherwise vanish
+  // from this view entirely, so they are surfaced rather than dropped.
+  const assigned = new Set(Object.keys(TEAM_LEADS));
+  const orphans = TEAMS.flatMap(t => t.members).filter(m => !assigned.has(m));
+  if (orphans.length) buckets["Unassigned"] = orphans;
+
+  const leads = Object.keys(buckets).sort((a, b) =>
+    a === "Unassigned" ? 1 : b === "Unassigned" ? -1 : a.localeCompare(b));
+
+  let html = "";
+  leads.forEach(lead => {
+    const members = buckets[lead];
+    // Everyone on the roster counts toward the lead, including anyone on
+    // leave for the whole period — they contribute 0, because covering for
+    // an absent member is the lead's responsibility. Matches how the Sales
+    // team-lead health score is computed.
+    const scored = members.map(m => {
+      const team = kpiTeamOf(m);
+      const onLeave = (LEAVE_MAP[m] || 0) >= wDays && wDays > 0;
+      const s = team ? scoreMember(m, team.kpis, bmap, wDays).score : 0;
+      return { name: m, team, onLeave, score: onLeave ? 0 : s };
+    });
+    const health = scored.length
+      ? Math.round(scored.reduce((a, m) => a + m.score, 0) / scored.length)
+      : 0;
+    const z = ZONE(health); const col = ZCOL[z];
+    const onLeaveCount = scored.filter(m => m.onLeave).length;
+    const sorted = [
+      ...scored.filter(m => !m.onLeave).sort((a, b) => b.score - a.score),
+      ...scored.filter(m => m.onLeave),
+    ];
+    html += `<div class="team-block">
+      <div class="team-head">
+        <div class="team-name" style="color:${col}">${lead}</div>
+        <div class="team-avg">Health <b style="color:${col}">${health}%</b></div>
+        <div class="team-kpi-note">${scored.length} member${scored.length === 1 ? "" : "s"}${onLeaveCount ? ` · ${onLeaveCount} on leave (counted as 0)` : ""} · ${wDays} working days</div>
+      </div>
+      <div class="cards">${sorted.map(m => m.team
+        ? tile(m.name, m.team.role, m.team.kpis, bmap, wDays)
+        : `<div class="card"><div class="card-top"><div class="card-id"><div><div class="card-name">${m.name}</div><div class="card-role">No KPI team configured</div></div></div></div></div>`
+      ).join("")}</div>
+    </div>`;
+  });
+  document.getElementById("results").innerHTML = html;
+}
+
 async function load(){
   const start = document.getElementById("inp-start").value;
   const end   = document.getElementById("inp-end").value;
@@ -344,6 +433,7 @@ async function load(){
   document.getElementById("status").textContent = "Fetching BDE data from Zoho…";
   try {
     await loadTargetOverrides();
+    await loadLeaveMap(start, end);
     const { data: { session: bdeSession } } = await _auth.auth.getSession();
     const res = await fetch(`/api/bde?startDate=${start}&endDate=${end}`, {
       headers: { Authorization: `Bearer ${bdeSession?.access_token || ""}` }
@@ -353,7 +443,9 @@ async function load(){
     const cache = res.headers.get("X-Cache")==="HIT";
     document.getElementById("status").textContent =
       `${start} → ${end} · ${workingDays(start,end)} working days · ${cache?"cache ⚡":"live from Zoho"}`;
-    render(data.bdes || [], start, end);
+    _lastBdes = data.bdes || [];
+    _lastRange = { start, end };
+    render(_lastBdes, start, end);
   } catch(e){
     document.getElementById("status").textContent = "Error: " + e.message;
     document.getElementById("results").innerHTML = `<div class="empty">${e.message}</div>`;
@@ -362,6 +454,11 @@ async function load(){
   }
 }
 document.getElementById("btn-gen").onclick = load;
+// Switching view is a pure re-render of data already fetched, so it must not
+// go back to Zoho.
+document.getElementById("inp-view").onchange = () => {
+  if (_lastBdes) render(_lastBdes, _lastRange.start, _lastRange.end);
+};
 
 // Require Google login (same session as the dashboard); bounce to / otherwise.
 document.body.style.visibility = "hidden";

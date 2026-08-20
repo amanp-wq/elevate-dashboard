@@ -125,7 +125,10 @@ function buildNav(email) {
     { label: "Combined", href: "/combined.html" },
     { label: "History", href: "/history.html" },
     { group: "BD", items: [
-      ...(isAdmin ? [{ label: "Funnel", href: "/funnel.html" }, { label: "BDE", href: "/bde.html" }, { label: "BD Scorecard", href: "/bde-scorecard.html" }] : []),
+      ...(isAdmin ? [{ label: "Funnel", href: "/funnel.html" }, { label: "BDE", href: "/bde.html" }] : []),
+      // BD team leads need the scorecard for their own team-health view, so this
+      // one is not admin-only like the other two BD pages.
+      ...(isAdmin || isBdTL ? [{ label: "BD Scorecard", href: "/bde-scorecard.html" }] : []),
     ]},
     { group: "Attendance", items: [
       { label: "Sales Attendance", href: "/attendance.html" },
