@@ -198,6 +198,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/config.js"></script>
+<script src="/scoring.js"></script>
 
 <div id="auth-overlay">
   <div class="auth-card">
@@ -305,27 +306,15 @@ const WEIGHTS_CLOSER = { calls:0.40, minutes:0.20, presentations:0.40 };
 const ZONE_NEON      = { gold:"#ffd740", green:"#00e676", yellow:"#ffab00", orange:"#ff6d00", red:"#ff4d6a" };
 const CARD_LABELS    = { gold:"Golden Card", green:"Green Card", yellow:"Yellow Card", orange:"Orange Card", red:"Red Card" };
 
-function zone(s){ return s>=110?"gold":s>=95?"green":s>=75?"yellow":s>=50?"orange":"red"; }
+const zone = Scoring.zone;
 
-function scoreBuilder(b, T){
-  const cap = (v,t) => { const p = t>0?(v/t)*100:0; return Math.min(150,p); };
-  return Math.round(
-    cap(b.calls,T.calls)*WEIGHTS.calls + cap(b.minutes,T.minutes)*WEIGHTS.minutes +
-    cap(b.leads,T.leads)*WEIGHTS.leads + cap(b.discoveries,T.discoveries)*WEIGHTS.discoveries +
-    cap(b.presBooked,T.presBooked)*WEIGHTS.presBooked + cap(b.presCompleted,T.presCompleted)*WEIGHTS.presCompleted
-  );
-}
+// Scoring comes from /scoring.js, shared with index.html, history.html and
+// tv-board.html so the same person cannot score differently per page.
+function scoreBuilder(b, T, w){ return Scoring.builder(b, T, w); }
 
-function scoreCloser(c, TC, deals){
-  const g = deals || { gold: 2, green: 1 };
-  const cap = (v,t) => { const p = t>0?(v/t)*100:0; return Math.min(150,p); };
-  const kpi = cap(c.calls,TC.calls)*WEIGHTS_CLOSER.calls + cap(c.minutes,TC.minutes)*WEIGHTS_CLOSER.minutes + cap(c.presentations,TC.presentations)*WEIGHTS_CLOSER.presentations;
-  if (c.dealsClosed >= g.gold)  return Math.round(Math.min(Math.max(kpi*1.50,110),150));
-  if (c.dealsClosed >= g.green) return Math.round(Math.min(Math.max(kpi*1.25,95),125));
-  return Math.round(Math.min(kpi,110));
-}
+function scoreCloser(c, TC, deals, w){ return Scoring.closer(c, TC, deals, w); }
 
-function zoneCloser(c, s){ if(!c.calls && !c.dealsClosed) return "red"; return zone(s); }
+const zoneCloser = Scoring.zoneCloser;
 
 // Date helpers
 function estNow(){ return new Date(new Date().toLocaleString("en-US",{timeZone:"America/New_York"})); }
@@ -356,21 +345,8 @@ function setPreset(preset, btn){
 function setStatus(msg){ const el=document.getElementById("status"); el.className="status-bar"+(msg?" show":""); document.getElementById("status-text").textContent=msg||""; }
 function setError(msg){ const el=document.getElementById("error-box"); el.className="error-box"+(msg?" show":""); el.textContent=msg||""; }
 
-function getDayFraction(dateStr){
-  const d = new Date(dateStr+"T12:00:00Z"); const dow=d.getUTCDay();
-  if(dow===0||dow===6) return 0;
-  const todayEST = fmt(estNow());
-  if(dateStr<todayEST||dateStr>todayEST) return 1;
-  const now=estNow(); const h=now.getHours()+now.getMinutes()/60;
-  if(h<=10.5) return 0.01; if(h>=19.5) return 1;
-  return (h-10.5)/9.0;
-}
-
-function totalDayFraction(start, end){
-  let total=0; const d=new Date(start+"T12:00:00Z"); const e=new Date(end+"T12:00:00Z");
-  while(d<=e){ total+=getDayFraction(d.toISOString().split("T")[0]); d.setUTCDate(d.getUTCDate()+1); }
-  return total;
-}
+const getDayFraction = Scoring.dayFraction;
+const totalDayFraction = Scoring.totalDayFraction;
 
 async function fetchLeaveMap(startDate, endDate){
   try {
@@ -408,7 +384,7 @@ function renderBuilders(builders, T, effectiveDays, leaveMap){
 
   document.getElementById("builder-tiles").innerHTML = builders.map(b=>{
     const onLeave=(leaveMap[b.name]||0)>=effectiveDays;
-    const sc=scoreBuilder(b,T); const z=zone(sc);
+    const sc=b.composite; const z=b.zone;
     const col=onLeave?"#4a4a5a":(ZONE_NEON[z]||"#aaa");
     const star=z==="gold"?'<span style="font-size:14px">★</span>':'';
     return `<div class="tile ${onLeave?"zone-leave":"zone-"+z}">
@@ -505,14 +481,15 @@ document.getElementById("btn-gen").onclick = async function(){
     const T  = Object.fromEntries(Object.entries(TARGETS).map(([k,v])        =>[k,Math.max(1,Math.round(v*effectiveDays))]));
     const TC = Object.fromEntries(Object.entries(TARGETS_CLOSER).map(([k,v]) =>[k,Math.max(1,Math.round(v*effectiveDays))]));
 
-    // Leave is deliberately NOT deducted from the target — see the same note
-    // in index.html. The target covers every working day in the period whether
-    // the person was in or not.
-    function personT(name, baseT){
-      return baseT;
-    }
-
-    // Per-closer deal-band overrides (same source as index.html)
+    // Per-person targets, weightage and deal bands, all resolved from the same
+    // override rows via /scoring.js. This page previously had its own copies:
+    // personT was a no-op that returned the base target, so monthly overrides
+    // never reached this page at all, and its resolveOverride lacked the legacy
+    // no-month fallback the other pages had.
+    //
+    // Leave is deliberately NOT deducted from the target — see the same note in
+    // index.html. The target covers every working day in the period whether the
+    // person was in or not.
     const reportMonth = startDate.slice(0, 7);
     let _overrides = [];
     try {
@@ -520,27 +497,18 @@ document.getElementById("btn-gen").onclick = async function(){
         { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } });
       if (or.ok) _overrides = await or.json();
     } catch {}
-    function resolveOverride(name, label, month) {
-      const row = _overrides.find(r => r.person_key === name && r.kpi_label === label && r.month === month);
-      return row ? row.monthly_target : null;
-    }
-    // Daily / short ranges (≤7 days): fixed 2/1 rule.
-    // Monthly / long ranges: apply TL's per-closer override if set.
-    const _rangeDays = Math.round((new Date(endDate+"T12:00:00Z") - new Date(startDate+"T12:00:00Z")) / 86400000) + 1;
-    function personDealThresholds(name) {
-      if (_rangeDays <= 7) return { gold: 2, green: 1 };
-      const gold  = resolveOverride(name, "goldDeals",  reportMonth);
-      const green = resolveOverride(name, "greenDeals", reportMonth);
-      return { gold: gold != null ? gold : 2, green: green != null ? green : 1 };
-    }
+    const _rangeDays = Scoring.rangeDays(startDate, endDate);
+    const personT  = (name, baseT) => Scoring.personTargets(_overrides, name, baseT, reportMonth, effectiveDays);
+    const personW  = (name, role)  => Scoring.personWeights(_overrides, name, role, reportMonth);
+    const personDealThresholds = name => Scoring.dealThresholds(_overrides, name, reportMonth, _rangeDays);
 
     // Score and sort
     const builders = (builderData.builders||[])
-      .map(b=>({...b, composite:scoreBuilder(b,personT(b.name,T)), zone:zone(scoreBuilder(b,personT(b.name,T)))}))
+      .map(b=>{ const s=scoreBuilder(b,personT(b.name,T),personW(b.name,"Builder")); return {...b, composite:s, zone:zone(s)}; })
       .sort((a,b)=>b.composite-a.composite);
 
     const closers = (closerData.closers||[])
-      .map(c=>{ const deals=personDealThresholds(c.name); const s=scoreCloser(c,personT(c.name,TC),deals); return {...c, composite:s, zone:zoneCloser(c,s)}; })
+      .map(c=>{ const s=scoreCloser(c,personT(c.name,TC),personDealThresholds(c.name),personW(c.name,"Closer")); return {...c, composite:s, zone:zoneCloser(c,s)}; })
       .sort((a,b)=>b.composite-a.composite);
 
     // Meta bar

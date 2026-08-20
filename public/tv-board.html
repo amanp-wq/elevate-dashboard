@@ -75,6 +75,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/config.js"></script>
+<script src="/scoring.js"></script>
 
 <div id="auth-overlay">
   <div class="auth-card">
@@ -116,21 +117,24 @@ const C_T = { calls:60, minutes:120, presentations:2 };
 const C_W = { calls:0.40, minutes:0.20, presentations:0.40 };
 const cap = (v, t) => Math.min(150, t > 0 ? (v / t) * 100 : 0);
 
-function scoreBuilder(b, t) {
-  return Math.round(
-    cap(b.calls,t.calls)*B_W.calls + cap(b.minutes,t.minutes)*B_W.minutes +
-    cap(b.leads,t.leads)*B_W.leads + cap(b.discoveries,t.discoveries)*B_W.discoveries +
-    cap(b.presBooked,t.presBooked)*B_W.presBooked + cap(b.presCompleted,t.presCompleted)*B_W.presCompleted
-  );
+// Scoring comes from /scoring.js. This copy hardcoded 2/1 deal thresholds and
+// applied no per-person overrides, so a team lead's settings never showed on
+// the board even though the dashboard honoured them.
+function scoreBuilder(b, t, w){ return Scoring.builder(b, t, w); }
+function scoreCloser(c, t, deals, w){ return Scoring.closer(c, t, deals, w); }
+const zone = Scoring.zone;
+const zoneCloser = Scoring.zoneCloser;
+
+// Per-person overrides, loaded once and refreshed with the board's own cycle.
+let TARGET_ROWS = [];
+async function loadTargetOverrides(){
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,month,monthly_target`, {
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
+    });
+    TARGET_ROWS = r.ok ? await r.json() : [];
+  } catch { TARGET_ROWS = []; }
 }
-function scoreCloser(c, t) {
-  const k = cap(c.calls,t.calls)*C_W.calls + cap(c.minutes,t.minutes)*C_W.minutes + cap(c.presentations,t.presentations)*C_W.presentations;
-  if (c.dealsClosed >= 2) return Math.round(Math.min(Math.max(k * 1.50, 110), 150));
-  if (c.dealsClosed === 1) return Math.round(Math.min(Math.max(k * 1.25, 95), 125));
-  return Math.round(Math.min(k, 110));
-}
-const zone = s => s >= 110 ? "gold" : s >= 95 ? "green" : s >= 75 ? "yellow" : s >= 50 ? "orange" : "red";
-const zoneCloser = (c, s) => (c.calls === 0 && c.dealsClosed === 0) ? "red" : zone(s);
 
 const TIER = {
   gold:   { ink:"#ffd740", line:"rgba(255,215,64,0.62)",  bg:"linear-gradient(150deg,#1d1804 0%,#0b0a04 100%)", label:"Golden Card" },
@@ -286,12 +290,11 @@ function monthStartET() { const p = etParts(); return `${p.year}-${p.month}-01`;
 // Eastern wall-clock hour as a decimal (e.g. 14.5 for 2:30pm).
 function etHour() { const p = etParts(); return Number(p.hour) + Number(p.minute) / 60; }
 function dayFraction(dateStr, isCustomRange) {
+  // Weekends carry no target. Without this the board showed prorated targets
+  // and live scores on a Saturday, unlike every other page.
+  if (Scoring.isWeekend(dateStr)) return 0;
   if (isCustomRange) return 1; // a picked historical range is always "full"
-  if (dateStr !== todayET()) return 1;
-  const h = etHour();
-  if (h <= WORK_START_H) return 0.01;
-  if (h >= WORK_END_H) return 1;
-  return (h - WORK_START_H) / WORK_HOURS;
+  return Scoring.dayFraction(dateStr);
 }
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -371,6 +374,9 @@ function onResize() {
 // a few consecutive misses so it comes back with a fresh session.
 let _consecutiveLoadFailures = 0;
 async function loadData() {
+  // Refreshed each cycle: the board runs unattended for hours, so picking
+  // overrides up once at boot would leave it stale after any target change.
+  await loadTargetOverrides();
   const today = todayET();
   const startDate = STATE.isLive ? today : STATE.rangeStart;
   const endDate = STATE.isLive ? today : STATE.rangeEnd;

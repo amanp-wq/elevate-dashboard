@@ -408,6 +408,7 @@
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/config.js"></script>
+<script src="/scoring.js"></script>
 
 <!-- Auth overlay -->
 <div id="auth-overlay">
@@ -743,9 +744,15 @@ function resolveOverride(personKey, kpiLabel, month) {
   const fallback = TARGET_ROWS.find(r => r.person_key === personKey && r.kpi_label === kpiLabel && !r.month);
   return fallback ? fallback.monthly_target : null;
 }
-// Targets are edited on /manage-targets-sales.html — this page only reads and applies them.
+// Per-person weightage, resolved from the same override rows as the targets and
+// edited on /manage-targets.html. Each KPI falls back to its role default on its
+// own, so a partly configured person still scores.
+function personWeights(name, role, month) {
+  return Scoring.personWeights(TARGET_ROWS, name, role, month);
+}
+// Targets and weightage are edited on /manage-targets.html — this page only reads and applies them.
 
-function zone(s){ return s>=110?"gold":s>=95?"green":s>=75?"yellow":s>=50?"orange":"red"; }
+const zone = Scoring.zone;
 
 function toggleBreakdown(){
   const tog = document.getElementById("breakdown-toggle");
@@ -776,16 +783,39 @@ function kpiCell(actual, target, weight){
   </td>`;
 }
 
-function renderBreakdownTable(people, kpis, targets, weights, isCloser){
+// `perPerson(name)` returns that person's { targets, weights } — the same ones
+// their score was computed from. Omitted, the shared base values are used and
+// the table behaves exactly as before.
+function renderBreakdownTable(people, kpis, targets, weights, isCloser, perPerson = null){
   const zoneNeon = { gold:"#ffd740", green:"#00e676", yellow:"#ffab00", orange:"#ff6d00", red:"#ff4d6a" };
+
+  const forPerson = name => (perPerson ? perPerson(name) : { targets, weights });
+  const resolved = new Map(people.map(p => [p.name, forPerson(p.name)]));
+  // One header serves every row, so only state a figure when every person in
+  // view shares it. Otherwise say "varies" rather than quietly showing one
+  // person's number as if it applied to all.
+  const shared = (field, pick) => {
+    const vals = new Set(people.map(p => pick(resolved.get(p.name), field)));
+    return vals.size === 1 ? [...vals][0] : null;
+  };
+  const headCell = k => {
+    if (k.override) return `target ${k.target}`;
+    const w = shared(k.field, (r, f) => r.weights?.[f]);
+    const t = shared(k.field, (r, f) => r.targets?.[f]);
+    const wTxt = w == null ? "weight varies" : `${Math.round(w * 100)}% weight`;
+    const tTxt = t == null ? "target varies" : `target ${t}`;
+    return `${wTxt} · ${tTxt}`;
+  };
+
   const head = `<thead><tr>
     <th>#</th>
     <th style="text-align:left">Name</th>
-    ${kpis.map(k=>`<th>${k.label}<br><span style="font-size:10px;opacity:0.5">${Math.round(k.weight*100)}% weight · target ${k.target}</span></th>`).join("")}
+    ${kpis.map(k=>`<th>${k.label}<br><span style="font-size:10px;opacity:0.5">${headCell(k)}</span></th>`).join("")}
     <th>Score</th>
   </tr></thead>`;
 
   const rows = people.map((p, i) => {
+    const { targets: myTargets, weights: myWeights } = resolved.get(p.name) || {};
     const onLeave = p.calls === 0 && !p.dealsClosed && !p.presentations;
     const scoreColor = onLeave ? "#3a3a48" : (zoneNeon[p.zone] || "#aaa");
     const rank = i + 1;
@@ -810,7 +840,7 @@ function renderBreakdownTable(people, kpis, targets, weights, isCloser){
                 <div class="bt-target">deals</div>
                 ${dealOverride ? `<div class="bt-pct" style="color:${p.dealsClosed>=dealGold?"#ffd740":"#00e676"};font-size:10px;margin-top:3px">${overrideLabel}</div>` : ""}
                </div></td>`
-            : kpiCell(p[k.field], k.target, k.weight)
+            : kpiCell(p[k.field], myTargets?.[k.field] ?? k.target, myWeights?.[k.field] ?? k.weight)
           ).join("")
       }
       <td>
@@ -823,43 +853,22 @@ function renderBreakdownTable(people, kpis, targets, weights, isCloser){
   document.getElementById("breakdown-table").innerHTML = head + `<tbody>${rows}</tbody>`;
 }
 
-function scoreBuilder(b, t){
-  const cap = (v,tgt) => Math.min(150, tgt>0 ? (v/tgt)*100 : 0);
-  return Math.round(
-    cap(b.calls,t.calls)*WEIGHTS.calls +
-    cap(b.minutes,t.minutes)*WEIGHTS.minutes +
-    cap(b.leads,t.leads)*WEIGHTS.leads +
-    cap(b.discoveries,t.discoveries)*WEIGHTS.discoveries +
-    cap(b.presBooked,t.presBooked)*WEIGHTS.presBooked +
-    cap(b.presCompleted,t.presCompleted)*WEIGHTS.presCompleted
-  );
-}
+// Scoring lives in /scoring.js so this page, combined.html, history.html and
+// tv-board.html cannot drift apart again. `w` is the per-person weightage;
+// omitted, the role defaults apply and the score is unchanged from before.
+function scoreBuilder(b, t, w){ return Scoring.builder(b, t, w); }
 
 // `deals` is the per-closer {gold, green} deal-count override, editable per
 // month on /manage-targets-sales.html. Defaults to the original fixed rule —
 // 2+ deals for Gold, 1+ for Green — for anyone without a saved override.
-function scoreCloser(c, t, deals){
-  const g = deals || { gold: 2, green: 1 };
-  const cap = (v,tgt) => Math.min(150, tgt>0 ? (v/tgt)*100 : 0);
-  const kpiScore =
-    cap(c.calls,t.calls)*WEIGHTS_CLOSER.calls +
-    cap(c.minutes,t.minutes)*WEIGHTS_CLOSER.minutes +
-    cap(c.presentations,t.presentations)*WEIGHTS_CLOSER.presentations;
-  // below green threshold: KPI only max 110 | green..below gold: ×1.25 floor 95 cap 125 | gold+: ×1.50 floor 110 cap 150
-  if (c.dealsClosed >= g.gold)  return Math.round(Math.min(Math.max(kpiScore * 1.50, 110), 150));
-  if (c.dealsClosed >= g.green) return Math.round(Math.min(Math.max(kpiScore * 1.25, 95), 125));
-  return Math.round(Math.min(kpiScore, 110));
-}
+function scoreCloser(c, t, deals, w){ return Scoring.closer(c, t, deals, w); }
 
-function zoneCloser(c, score){
-  if (c.calls === 0 && c.dealsClosed === 0) return "red";
-  return zone(score);
-}
+const zoneCloser = Scoring.zoneCloser;
 
 const ZONE_NEON = { gold:"#ffd740", green:"#00e676", yellow:"#ffab00", orange:"#ff6d00", red:"#ff4d6a" };
 
 
-function renderTLView(teams, T, TC, leaveMap = {}, personTargets = null, effectiveDays = 1, personDealThresholds = null) {
+function renderTLView(teams, T, TC, leaveMap = {}, personTargets = null, effectiveDays = 1, personDealThresholds = null, personWeightsFn = null) {
   document.getElementById("tiles").style.display = "none";
   document.getElementById("tl-grid").style.display = "grid";
 
@@ -874,13 +883,13 @@ function renderTLView(teams, T, TC, leaveMap = {}, personTargets = null, effecti
     // Score each member against their leave-adjusted target (consistent with tiles)
     const scoredBuilders = team.builders.map(b => {
       const tgt = personTargets ? personTargets(b.name, T) : T;
-      const s = scoreBuilder(b, tgt);
+      const s = scoreBuilder(b, tgt, personWeightsFn ? personWeightsFn(b.name, "Builder") : undefined);
       return { ...b, composite: s, zone: zone(s), type: "Builder" };
     });
     const scoredClosers = team.closers.map(c => {
       const tgt = personTargets ? personTargets(c.name, TC) : TC;
       const deals = personDealThresholds ? personDealThresholds(c.name) : undefined;
-      const s = scoreCloser(c, tgt, deals);
+      const s = scoreCloser(c, tgt, deals, personWeightsFn ? personWeightsFn(c.name, "Closer") : undefined);
       return { ...c, composite: s, zone: zoneCloser(c, s), type: "Closer" };
     });
 
@@ -1088,6 +1097,9 @@ document.getElementById("btn-gen").onclick = async function(){
       }));
     }
 
+    // Per-person weightage for this report's month.
+    const personW = (name, role) => personWeights(name, role, reportMonth);
+
     // Per-closer Gold/Green deal-count thresholds.
     // Daily / short ranges (≤7 days): always use the fixed 2/1 rule — it
     // makes no sense to require 8 deals for Gold on a single day.
@@ -1130,7 +1142,7 @@ document.getElementById("btn-gen").onclick = async function(){
       document.getElementById("totals-grid").innerHTML = "";
       document.getElementById("breakdown-toggle").style.display = "none";
       document.getElementById("breakdown-table-wrap").classList.remove("show");
-      renderTLView(data.teams, T, TC, leaveMap, personTargets, effectiveDays, personDealThresholds);
+      renderTLView(data.teams, T, TC, leaveMap, personTargets, effectiveDays, personDealThresholds, personW);
       document.getElementById("results").style.display = "block";
       setStatus("");
       return;
@@ -1143,7 +1155,7 @@ document.getElementById("btn-gen").onclick = async function(){
     if (isCloser) {
       const closers = data.closers.map(c => {
         const deals = personDealThresholds(c.name);
-        const s = scoreCloser(c, personTargets(c.name, TARGETS_CLOSER), deals);
+        const s = scoreCloser(c, personTargets(c.name, TARGETS_CLOSER), deals, personW(c.name, "Closer"));
         return { ...c, composite: s, zone: zoneCloser(c, s), dealGold: deals.gold, dealGreen: deals.green };
       });
       closers.sort((a,b) => b.composite - a.composite);
@@ -1203,7 +1215,7 @@ document.getElementById("btn-gen").onclick = async function(){
       }).join("");
 
     } else {
-      const builders = data.builders.map(b => { const s=scoreBuilder(b,personTargets(b.name,TARGETS)); return {...b, composite:s, zone:zone(s)}; });
+      const builders = data.builders.map(b => { const s=scoreBuilder(b,personTargets(b.name,TARGETS),personW(b.name,"Builder")); return {...b, composite:s, zone:zone(s)}; });
       builders.sort((a,b) => b.composite - a.composite);
       document.getElementById("meta-right").textContent = `${builders.length} Builder${builders.length!==1?"s":""}`;
 
@@ -1271,10 +1283,11 @@ document.getElementById("btn-gen").onclick = async function(){
       renderBreakdownTable(
         data.closers.map(c=>{
           const deals = personDealThresholds(c.name);
-          const s = scoreCloser(c, personTargets(c.name, TC), deals);
+          const s = scoreCloser(c, personTargets(c.name, TC), deals, personW(c.name, "Closer"));
           return { ...c, composite: s, zone: zoneCloser(c, s), dealGold: deals.gold, dealGreen: deals.green };
         }).sort((a,b)=>b.composite-a.composite),
-        closerKpis, TC, WEIGHTS_CLOSER, true
+        closerKpis, TC, WEIGHTS_CLOSER, true,
+        name => ({ targets: personTargets(name, TC), weights: personW(name, "Closer") })
       );
     } else {
       const builderKpis = [
@@ -1286,8 +1299,9 @@ document.getElementById("btn-gen").onclick = async function(){
         { label:"Pres. Completed",    field:"presCompleted",   target:T.presCompleted,  weight:WEIGHTS.presCompleted },
       ];
       renderBreakdownTable(
-        data.builders.map(b=>({...b, composite:scoreBuilder(b,personTargets(b.name,T)), zone:zone(scoreBuilder(b,personTargets(b.name,T)))})).sort((a,b)=>b.composite-a.composite),
-        builderKpis, T, WEIGHTS, false
+        data.builders.map(b=>{ const s=scoreBuilder(b,personTargets(b.name,T),personW(b.name,"Builder")); return {...b, composite:s, zone:zone(s)}; }).sort((a,b)=>b.composite-a.composite),
+        builderKpis, T, WEIGHTS, false,
+        name => ({ targets: personTargets(name, T), weights: personW(name, "Builder") })
       );
     }
 

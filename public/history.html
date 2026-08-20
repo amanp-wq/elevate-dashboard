@@ -423,6 +423,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/config.js"></script>
+<script src="/scoring.js"></script>
 <script>
 // Data source: test Supabase snapshot project (daily_kpi lives here for now).
 // Named distinctly from the live SUPABASE_URL/SUPABASE_ANON in /config.js,
@@ -445,23 +446,34 @@ const WEIGHTS_CLOSER = { calls:0.40, minutes:0.20, presentations:0.40 };
 const ZONE_COLOR = { gold:"#ffd740", green:"#00e676", yellow:"#ffab00", orange:"#ff6d00", red:"#ff4d6a" };
 const CARD_LABEL = { gold:"Golden Card", green:"Green Card", yellow:"Yellow Card", orange:"Orange Card", red:"Red Card" };
 
-const zone = s => s>=110?"gold":s>=95?"green":s>=75?"yellow":s>=50?"orange":"red";
-const cap  = (v,t) => Math.min(150, t>0 ? (v/t)*100 : 0);
+const zone = Scoring.zone;
+const cap  = (v,t) => Math.min(150, t>0 ? (v/t)*100 : 0);   // still used by the KPI cells below
 
-function scoreBuilder(b, t){
-  return Math.round(
-    cap(b.calls,t.calls)*WEIGHTS.calls + cap(b.minutes,t.minutes)*WEIGHTS.minutes +
-    cap(b.leads,t.leads)*WEIGHTS.leads + cap(b.discoveries,t.discoveries)*WEIGHTS.discoveries +
-    cap(b.presBooked,t.presBooked)*WEIGHTS.presBooked + cap(b.presCompleted,t.presCompleted)*WEIGHTS.presCompleted
-  );
+// Scoring comes from /scoring.js. This page used to require 4 deals for Gold
+// and 2 for Green while every other page used 2/1, so the same closer scored
+// differently here; it also applied no per-person overrides at all.
+function scoreBuilder(b, t, w){ return Scoring.builder(b, t, w); }
+function scoreCloser(c, t, deals, w){ return Scoring.closer(c, t, deals, w); }
+
+// Per-person overrides. A history range can span months; the start month is
+// used, matching how index.html derives reportMonth.
+let TARGET_ROWS = [];
+async function loadTargetOverrides(){
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,month,monthly_target`, {
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
+    });
+    TARGET_ROWS = r.ok ? await r.json() : [];
+  } catch { TARGET_ROWS = []; }
 }
-function scoreCloser(c, t){
-  const k = cap(c.calls,t.calls)*WEIGHTS_CLOSER.calls + cap(c.minutes,t.minutes)*WEIGHTS_CLOSER.minutes +
-            cap(c.presentations,t.presentations)*WEIGHTS_CLOSER.presentations;
-  // Range report deal override: Gold >= 4 deals, Green >= 2 deals, else pure KPI
-  if (c.dealsClosed >= 4) return Math.round(Math.min(Math.max(k*1.50,110),150));
-  if (c.dealsClosed >= 2) return Math.round(Math.min(Math.max(k*1.25,95),125));
-  return Math.round(Math.min(k,110));
+function rangeMonth(){
+  const v = document.getElementById("inp-start").value;
+  return v ? v.slice(0, 7) : new Date().toISOString().slice(0, 7);
+}
+function rangeLengthDays(){
+  const a = document.getElementById("inp-start").value;
+  const b = document.getElementById("inp-end").value;
+  return (a && b) ? Scoring.rangeDays(a, b) : 1;
 }
 
 const fmt = d => d.toISOString().split("T")[0];
@@ -559,12 +571,15 @@ function scoreFor(p){
   // Target = ALL working days in the period; leave is NOT deducted (leave is the
   // person's own choice, so they're still measured against the full month).
   const workDays = Math.max(0.1, p.days);
-  if (p.role === "Closer"){
-    const t = Object.fromEntries(Object.entries(TARGETS_CLOSER).map(([k,v]) => [k, v*workDays]));
-    return scoreCloser(p, t);
+  const month = rangeMonth();
+  const role = p.role === "Closer" ? "Closer" : "Builder";
+  const base = role === "Closer" ? TARGETS_CLOSER : TARGETS;
+  const t = Scoring.personTargets(TARGET_ROWS, p.name, base, month, workDays);
+  const w = Scoring.personWeights(TARGET_ROWS, p.name, role, month);
+  if (role === "Closer") {
+    return scoreCloser(p, t, Scoring.dealThresholds(TARGET_ROWS, p.name, month, rangeLengthDays()), w);
   }
-  const t = Object.fromEntries(Object.entries(TARGETS).map(([k,v]) => [k, v*workDays]));
-  return scoreBuilder(p, t);
+  return scoreBuilder(p, t, w);
 }
 
 function card(p){
@@ -902,6 +917,10 @@ async function load(){
   const start = document.getElementById("inp-start").value;
   const end   = document.getElementById("inp-end").value;
   if (!start || !end) return;
+  // Refreshed on every Generate so a target edited on /manage-targets.html
+  // applies without a hard reload. Deliberately above the re-render shortcut
+  // below, which would otherwise score against stale overrides.
+  await loadTargetOverrides();
   // Re-clicking a preset or Generate for the exact range already on screen used
   // to refetch the same few hundred rows from Supabase every time — this range
   // was already fetched and its rows are still in _rawRows, so re-render from
