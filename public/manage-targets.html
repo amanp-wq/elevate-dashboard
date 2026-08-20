@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElevateMe — Targets &amp; Weightage</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080b14; --surface: #0f1322; --border: #1e2640;
+    --text: #e8eaf6; --muted: #6b7499;
+    --accent: #ff4d3a; --neon-green: #00e676;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Nunito Sans', sans-serif; min-height: 100vh;
+    background-image: radial-gradient(ellipse at 20% 10%, rgba(196,72,56,0.06) 0%, transparent 50%),
+                      radial-gradient(ellipse at 80% 80%, rgba(0,230,118,0.04) 0%, transparent 50%);
+  }
+  header {
+    background: #000; padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-img { height: 36px; width: auto; display: block; }
+  .logo-sub { font-size: 15px; font-weight: 400; color: #888; letter-spacing: 0.2px; }
+  .header-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
+  .header-right img { width: 28px; height: 28px; border-radius: 50%; }
+  .header-right strong { color: var(--text); }
+  #btn-signout {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 8px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+  }
+  #btn-signout:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-links { display: flex; gap: 8px; margin-right: 16px; flex-wrap: wrap; }
+  .nav-btn {
+    padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
+    border: 1px solid var(--border); color: var(--muted); text-decoration: none;
+    transition: all 0.2s; background: none;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  #auth-overlay {
+    position: fixed; inset: 0; z-index: 9999; background: #080b14;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .auth-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 48px 40px; text-align: center; max-width: 380px; width: 90%;
+  }
+  .auth-logo { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+  .auth-logo span { color: var(--accent); }
+  .auth-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+  .auth-google-btn {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    width: 100%; padding: 14px; border-radius: 12px;
+    background: #fff; color: #1a1a1a; font-size: 15px; font-weight: 700;
+    border: none; cursor: pointer;
+  }
+  .auth-google-btn img { width: 20px; height: 20px; }
+  .auth-error { margin-top: 14px; font-size: 13px; color: #ff4d6a; min-height: 18px; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 32px 20px; }
+  .page-header { margin-bottom: 24px; }
+  .page-header h1 { font-size: 22px; font-weight: 800; }
+  .page-header p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .month-row { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  .month-row label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .month-row input[type="month"], .month-row select {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 14px;
+    outline: none; color-scheme: dark; font-family: inherit;
+  }
+  .month-row select { cursor: pointer; }
+  .month-row input[type="month"]:focus, .month-row select:focus { border-color: var(--accent); }
+  .btn-save-all {
+    background: var(--accent); color: #fff; border: none; padding: 9px 20px;
+    border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .btn-save-all:hover { box-shadow: 0 0 14px rgba(255,77,58,0.5); }
+  .btn-save-all:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .team-section { margin-bottom: 28px; }
+  .team-title {
+    font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+
+  .member-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 12px;
+  }
+  .member-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(255,255,255,0.07); display: flex; align-items: center;
+    justify-content: center; font-size: 13px; font-weight: 800; color: var(--muted);
+    border: 1.5px solid var(--border);
+  }
+  .member-name { font-size: 15px; font-weight: 700; }
+  .role-badge {
+    display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px;
+    border-radius: 20px; border: 1px solid; margin-top: 2px; letter-spacing: 0.5px;
+  }
+  .role-builder { color: #40c4ff; border-color: #40c4ff44; background: #40c4ff11; }
+  .role-closer  { color: #ff6b9d; border-color: #ff6b9d44; background: #ff6b9d11; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 10px; }
+  .kpi-field label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .kpi-field input {
+    width: 100%; background: #111; border: 1px solid rgba(255,255,255,0.15); color: #fff;
+    border-radius: 6px; padding: 7px 9px; font-size: 13px;
+  }
+  .kpi-field input:focus { outline: none; border-color: var(--accent); }
+
+  /* Deal-count override fields — visually split from the KPI targets above
+     them so a team lead doesn't read them as one more rate to hit. */
+  .kpi-grid-override { padding-top: 10px; border-top: 1px dashed var(--border); }
+  .kpi-field-override label { color: #ffd740; }
+  .kpi-field-override input { border-color: rgba(255,215,64,0.3); }
+  .kpi-field-override input:focus { border-color: #ffd740; }
+  .override-hint { font-size: 11.5px; color: var(--muted); margin: 6px 0 10px; line-height: 1.5; }
+  .override-hint b { color: #ffd740; font-weight: 800; }
+
+  .member-actions { display: flex; align-items: center; gap: 10px; }
+  .btn-save {
+    background: var(--accent); color: #fff; border: none; padding: 7px 16px;
+    border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .btn-save:hover { box-shadow: 0 0 14px rgba(255,77,58,0.5); }
+  .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+  .save-status { font-size: 12px; color: var(--neon-green); display: none; }
+  .save-status.show { display: inline; }
+  .save-status.error { color: #ff4d6a; }
+
+  .empty { color: var(--muted); font-size: 14px; padding: 40px 0; text-align: center; }
+
+  @media (max-width: 768px) {
+    header { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+    .nav-links { flex-wrap: wrap; margin-right: 0; }
+  }
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/config.js"></script>
+
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">Elevate<span>Me</span></div>
+    <div class="auth-sub">Sign in to manage targets</div>
+    <button class="auth-google-btn" id="btn-google-signin">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+      Sign in with Google
+    </button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<style>
+  /* ── Unified targets + weightage page ────────────────────────────────────── */
+  .container { max-width: 1240px; margin: 0 auto; padding: 24px; }
+  .page-header h1 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+  .page-header p  { font-size: 13px; color: var(--muted); max-width: 880px; line-height: 1.6; }
+  .page-header p b { color: var(--text); }
+
+  .toolbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin: 20px 0 16px; padding: 14px 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  }
+  .toolbar label { font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .toolbar input[type=month] {
+    background: #0a0e1a; border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 13px;
+  }
+  .tabs { display: flex; gap: 6px; }
+  .tab {
+    padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 800;
+    background: none; border: 1px solid var(--border); color: var(--muted); cursor: pointer;
+    font-family: inherit; transition: all 0.15s;
+  }
+  .tab:hover { border-color: var(--accent); color: var(--accent); }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .notice {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 12px 14px; border-radius: 10px; font-size: 12.5px; line-height: 1.55;
+    border: 1px solid; margin-bottom: 12px;
+  }
+  .notice-warn { background: rgba(255,171,0,0.07); border-color: rgba(255,171,0,0.32); color: #ffcf70; }
+  .notice-info { background: rgba(120,160,255,0.06); border-color: rgba(120,160,255,0.28); color: #a8c4ff; }
+  .notice b { color: #fff; }
+  .notice-ico { font-size: 15px; line-height: 1.3; flex-shrink: 0; }
+
+  .team-block { margin-bottom: 26px; }
+  .team-head {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 800; margin-bottom: 10px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .team-head .count { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: auto; }
+
+  .person {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 10px; overflow: hidden;
+  }
+  .person.dirty { border-color: rgba(255,171,0,0.5); }
+  .person-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; user-select: none; }
+  .person-head:hover { background: rgba(255,255,255,0.02); }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 13px; background: #1a1f30;
+    border: 2px solid var(--border); color: var(--muted);
+  }
+  .person-name { font-size: 14px; font-weight: 800; }
+  .person-meta { font-size: 11.5px; color: var(--muted); }
+  .person-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+  .wsum {
+    font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 11px;
+    border: 1px solid; font-variant-numeric: tabular-nums;
+  }
+  .wsum.ok  { color: var(--neon-green); border-color: rgba(0,230,118,0.4); background: rgba(0,230,118,0.08); }
+  .wsum.bad { color: #ffab00; border-color: rgba(255,171,0,0.45); background: rgba(255,171,0,0.09); }
+  .caret { font-size: 9px; color: var(--muted); transition: transform 0.2s; }
+  .person.open .caret { transform: rotate(180deg); }
+
+  .person-body { display: none; padding: 4px 16px 16px; border-top: 1px solid var(--border); }
+  .person.open .person-body { display: block; }
+
+  .kpi-grid { width: 100%; border-collapse: collapse; }
+  .kpi-grid th {
+    text-align: left; font-size: 10.5px; font-weight: 800; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 8px 8px;
+  }
+  .kpi-grid th.num, .kpi-grid td.num { text-align: right; }
+  .kpi-grid td { padding: 5px 8px; font-size: 13px; border-top: 1px solid rgba(255,255,255,0.04); }
+  .kpi-grid tbody tr:first-child td { border-top: none; }
+  .kpi-label { font-weight: 600; }
+  .kpi-grid input {
+    background: #0a0e1a; border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 6px 8px; width: 96px; text-align: right;
+    font-family: inherit; font-size: 13px; font-variant-numeric: tabular-nums;
+  }
+  .kpi-grid input:focus { outline: none; border-color: var(--accent); }
+  .kpi-grid input.w { width: 70px; }
+  .kpi-grid input.changed { border-color: #ffab00; background: rgba(255,171,0,0.07); }
+  .derived { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+  .derived b { color: var(--text); font-weight: 700; }
+
+  .subhead {
+    font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 18px 0 2px; padding-top: 12px;
+    border-top: 1px dashed var(--border);
+  }
+  .subhead em { color: #8ab4ff; font-weight: 700; text-transform: none; letter-spacing: 0; font-style: normal; }
+
+  .person-actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+  .btn { border: none; border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 800; cursor: pointer; font-family: inherit; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost { background: none; border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .save-status { font-size: 12px; color: var(--neon-green); font-weight: 700; }
+
+  #impact {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 500;
+    background: #0b0f1c; border-top: 1px solid var(--border);
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.55);
+    max-height: 44vh; display: none; flex-direction: column;
+  }
+  #impact.show { display: flex; }
+  .impact-head { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .impact-title { font-size: 13px; font-weight: 800; }
+  .impact-title span { color: #ffab00; }
+  .impact-body { overflow-y: auto; padding: 6px 20px 16px; }
+  .impact-row {
+    display: grid; grid-template-columns: 1.5fr 1.1fr 1.5fr 1.1fr; gap: 14px;
+    padding: 8px 0; font-size: 12.5px; border-top: 1px solid rgba(255,255,255,0.05);
+    align-items: baseline;
+  }
+  .impact-row:first-child { border-top: none; }
+  .impact-who { font-weight: 700; }
+  .impact-who small { color: var(--muted); font-weight: 400; }
+  .impact-delta { font-variant-numeric: tabular-nums; }
+  .impact-delta .from { color: var(--muted); text-decoration: line-through; }
+  .impact-delta .to { color: #ffcf70; font-weight: 800; }
+  .impact-effect { color: var(--muted); }
+  .impact-effect b { color: var(--text); font-weight: 600; }
+  .impact-scope { font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 10px; border: 1px solid; justify-self: start; white-space: nowrap; }
+  .scope-daily   { color: #7ee2a8; border-color: rgba(0,230,118,0.35); background: rgba(0,230,118,0.07); }
+  .scope-monthly { color: #8ab4ff; border-color: rgba(120,160,255,0.35); background: rgba(120,160,255,0.07); }
+  .scope-both    { color: #ffcf70; border-color: rgba(255,171,0,0.35); background: rgba(255,171,0,0.08); }
+  .impact-pad { height: 0; }
+  body.has-impact .impact-pad { height: 44vh; }
+  .empty { color: var(--muted); font-size: 13px; padding: 30px 0; text-align: center; }
+</style>
+
+<header>
+  <div class="logo">
+    <img src="/e92c4bab-2eb7-4e8f-bc76-e00992442f1f.png" alt="ElevateMe" class="logo-img">
+    <span class="logo-sub">Manage Targets &amp; Weightage</span>
+  </div>
+  <div style="display:flex;align-items:center">
+    <div class="nav-links" id="nav-links" style="display:none"></div>
+    <div class="header-right" id="user-bar" style="display:none">
+      <img id="user-avatar" src="" style="display:none">
+      <strong id="user-name"></strong>
+      <button id="btn-signout">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<div class="container" id="main-content" style="display:none">
+  <div class="page-header">
+    <h1>Targets &amp; Weightage</h1>
+    <p>
+      Set each person's <b>monthly KPI target</b> and their <b>score weightage</b>, one month at a time.
+      The daily target is derived from the monthly figure, so there is only one number per KPI to maintain.
+      Builders, Closers and BD are all managed here.
+    </p>
+  </div>
+
+  <div class="toolbar">
+    <label for="inp-month">Month</label>
+    <input type="month" id="inp-month">
+    <div class="tabs" id="role-tabs">
+      <button class="tab active" data-role="Builder">Builders</button>
+      <button class="tab" data-role="Closer">Closers</button>
+      <button class="tab" data-role="BD">BD</button>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+      <button class="btn btn-ghost" id="btn-expand">Expand all</button>
+      <span class="save-status" id="status-all"></span>
+    </div>
+  </div>
+
+  <div id="notices"></div>
+  <div id="teams"></div>
+  <div class="impact-pad"></div>
+</div>
+
+<div id="impact">
+  <div class="impact-head">
+    <div class="impact-title">Pending changes <span id="impact-count"></span></div>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn btn-ghost" id="btn-discard">Discard</button>
+      <button class="btn btn-primary" id="btn-save-impact">Save all</button>
+    </div>
+  </div>
+  <div class="impact-body" id="impact-body"></div>
+</div>
+
+<script>
+// SUPABASE_URL, SUPABASE_ANON, ALLOWED_EMAILS, SALES_TEAM_MEMBERS,
+// BD_TEAM_MEMBERS, bdPersonKey, APP_USERS_READY, isPageAllowed and buildNav()
+// all come from /config.js.
+
+// ── KPI definitions ──────────────────────────────────────────────────────────
+// dailyTarget/weight are the built-in defaults, shown whenever a person has no
+// saved override. They mirror the constants the dashboard scores with, so an
+// untouched person here scores exactly as they do today.
+const SALES_KPIS = {
+  Builder: [
+    { key: "calls",         label: "Calls",           dailyTarget: 150, weight: 20 },
+    { key: "minutes",       label: "Minutes",         dailyTarget: 180, weight: 20 },
+    { key: "leads",         label: "Q. Leads",        dailyTarget: 4,   weight: 10 },
+    { key: "discoveries",   label: "Discoveries",     dailyTarget: 2,   weight: 15 },
+    { key: "presBooked",    label: "Pres. Booked",    dailyTarget: 2,   weight: 10 },
+    { key: "presCompleted", label: "Pres. Completed", dailyTarget: 2,   weight: 25 },
+  ],
+  Closer: [
+    { key: "calls",         label: "Calls",         dailyTarget: 60,  weight: 40 },
+    { key: "minutes",       label: "Minutes",       dailyTarget: 120, weight: 20 },
+    { key: "presentations", label: "Presentations", dailyTarget: 2,   weight: 40 },
+  ],
+};
+
+// BD KPI sets differ per team, so they are defined per team rather than per
+// role. Kept in the same shape and order as bde-scorecard.html's TEAMS.
+const BD_TEAMS = [
+  { name: "LinkedIn Team", members: ["Ronak Khant", "Jiya Chandrawanshi", "Bhoomi Barot", "Heer Nakum"],
+    kpis: [
+      { key: "ICP Moderate", label: "ICP Moderate", dailyTarget: 4,  weight: 70 },
+      { key: "ICP Cold",     label: "ICP Cold",     dailyTarget: 15, weight: 30 },
+    ] },
+  { name: "Portal Team", members: ["Ajay Darbar", "Sunil Patel"],
+    kpis: [
+      { key: "ICP Cold + Parser", label: "ICP Cold + Parser", dailyTarget: 120, weight: 100 },
+    ] },
+  { name: "Referral Team", members: ["Meet Patel"],
+    kpis: [
+      { key: "ICP Moderate", label: "ICP Moderate (excl. Ref)", dailyTarget: 2,  weight: 30 },
+      { key: "ICP Cold",     label: "ICP Cold (excl. Ref)",     dailyTarget: 10, weight: 20 },
+      { key: "Reference",    label: "Reference",                dailyTarget: 1,  weight: 50 },
+    ] },
+];
+
+// Gold/Green deal counts are raw thresholds, not rates — they are never divided
+// by working days. They apply only to reports longer than a week; daily views
+// always use the fixed 2/1 rule, which is why they are labelled as such below.
+const CLOSER_DEAL_DEFAULTS = { goldDeals: 2, greenDeals: 1 };
+const DEAL_LABELS = { goldDeals: "Gold — min deals", greenDeals: "Green — min deals" };
+
+// Weightage is stored in the same kpi_target_overrides table under a prefixed
+// label, so no schema change is needed. Consumers look rows up by exact label,
+// so a "w:calls" row can never be mistaken for a "calls" target.
+const W_PREFIX = "w:";
+const WORKING_DAYS_PER_MONTH = 22;
+// Ranges of 7 days or less score against the daily rate; longer ranges use the
+// monthly figure. Mirrors the rule already applied to the deal thresholds.
+const DAILY_RANGE_MAX_DAYS = 7;
+
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+let CURRENT_EMAIL = "";
+let TARGET_ROWS = [];          // { person_key, kpi_label, month, monthly_target }
+let SELECTED_MONTH = "";
+let SELECTED_ROLE = "Builder";
+// Which tabs this user may edit. buildNav() has always shown Sales Targets only
+// to admins/Sales TLs and BD Targets only to admins/BD TLs; merging the two
+// pages must not quietly widen that, so the same rule is enforced here.
+let ALLOWED_ROLES = [];
+let DIRTY = new Map();         // "personKey||label" -> { personKey, display, label, kpiLabel, kind, from, to }
+let OPEN = new Set();          // person keys whose card is expanded
+
+const cssId = s => String(s).replace(/[^a-zA-Z0-9]/g, "_");
+const initials = n => n.split(" ").filter(Boolean).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function currentMonthStr(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function prevMonthStr(ym) {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 2, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+// Weekdays in the month — what the dashboard actually multiplies the daily rate
+// by for a full-month report. Compared against the fixed /22 divisor below.
+function weekdaysIn(ym) {
+  const [y, m] = ym.split("-").map(Number);
+  let n = 0;
+  const d = new Date(Date.UTC(y, m - 1, 1));
+  while (d.getUTCMonth() === m - 1) {
+    const w = d.getUTCDay();
+    if (w !== 0 && w !== 6) n++;
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return n;
+}
+
+// ── Data ─────────────────────────────────────────────────────────────────────
+async function loadRows() {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,month,monthly_target`, {
+    headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
+  });
+  if (!r.ok) throw new Error(`Could not load saved targets (${r.status})`);
+  TARGET_ROWS = await r.json();
+}
+
+// Exact month first, then a legacy row saved before targets were per-month.
+// Every other page resolves overrides this way; keeping it identical is what
+// stops the same person scoring differently on two pages.
+function resolveOverride(personKey, kpiLabel, month) {
+  const exact = TARGET_ROWS.find(r => r.person_key === personKey && r.kpi_label === kpiLabel && r.month === month);
+  if (exact) return exact.monthly_target;
+  const legacy = TARGET_ROWS.find(r => r.person_key === personKey && r.kpi_label === kpiLabel && !r.month);
+  return legacy ? legacy.monthly_target : null;
+}
+
+// The roster for the active tab, grouped into blocks for rendering.
+function activeBlocks() {
+  if (SELECTED_ROLE === "BD") {
+    return BD_TEAMS.map(t => ({
+      name: t.name,
+      kpis: t.kpis,
+      people: t.members.map(m => ({ personKey: bdPersonKey(m), display: m, meta: t.name })),
+    }));
+  }
+  const kpis = SALES_KPIS[SELECTED_ROLE];
+  const members = SALES_TEAM_MEMBERS.filter(m => m.role === SELECTED_ROLE);
+  const teams = [...new Set(members.map(m => m.team))];
+  return teams.map(team => ({
+    name: `Team ${team}`,
+    kpis,
+    people: members.filter(m => m.team === team).map(m => ({ personKey: m.name, display: m.display || m.name, meta: `Team ${team}` })),
+  }));
+}
+
+// Saved-or-default monthly target for a KPI, and the daily rate it implies.
+function monthlyFor(personKey, kpi) {
+  const saved = resolveOverride(personKey, kpi.key, SELECTED_MONTH);
+  return saved != null ? saved : Math.round(kpi.dailyTarget * WORKING_DAYS_PER_MONTH);
+}
+function weightFor(personKey, kpi) {
+  const saved = resolveOverride(personKey, W_PREFIX + kpi.key, SELECTED_MONTH);
+  return saved != null ? saved : kpi.weight;
+}
+function dealFor(personKey, k) {
+  const saved = resolveOverride(personKey, k, SELECTED_MONTH);
+  return saved != null ? saved : CLOSER_DEAL_DEFAULTS[k];
+}
+const dailyFrom = monthly => Math.round((Number(monthly) || 0) / WORKING_DAYS_PER_MONTH);
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function renderNotices() {
+  const wd = weekdaysIn(SELECTED_MONTH);
+  const out = [];
+  if (wd !== WORKING_DAYS_PER_MONTH) {
+    const sample = 5500;
+    const shown = dailyFrom(sample) * wd;
+    const diff = shown - sample;
+    out.push(`<div class="notice notice-warn"><span class="notice-ico">&#9888;</span><div>
+      <b>${SELECTED_MONTH} has ${wd} working days, not ${WORKING_DAYS_PER_MONTH}.</b>
+      Daily rates are derived by dividing by a fixed ${WORKING_DAYS_PER_MONTH}, but a full-month report adds up
+      the ${wd} actual weekdays &mdash; so a monthly target lands
+      ${diff > 0 ? "above" : "below"} what you type.
+      Example: set <b>${sample.toLocaleString()}</b> &rarr; daily <b>${dailyFrom(sample)}</b> &rarr; full month shows
+      <b>${shown.toLocaleString()}</b> (${diff > 0 ? "+" : ""}${diff.toLocaleString()}).
+      Nothing is broken and no scores changed &mdash; flagging it so the number you set is the number you expect.
+    </div></div>`);
+  }
+  out.push(`<div class="notice notice-info"><span class="notice-ico">&#9432;</span><div>
+    <b>Daily vs monthly.</b> KPI targets scale with the range you view &mdash; a 1-day report scores against
+    the daily rate, a full month against the monthly figure, so the two never fight.
+    The only setting that is monthly-<em>only</em> is a closer's Gold/Green deal count: reports of
+    ${DAILY_RANGE_MAX_DAYS} days or less always use the fixed ${CLOSER_DEAL_DEFAULTS.goldDeals}/${CLOSER_DEAL_DEFAULTS.greenDeals} rule.
+  </div></div>`);
+  document.getElementById("notices").innerHTML = out.join("");
+}
+
+function kpiRow(personKey, kpi) {
+  const id = `${cssId(personKey)}-${cssId(kpi.key)}`;
+  const monthly = monthlyFor(personKey, kpi);
+  const weight = weightFor(personKey, kpi);
+  return `<tr>
+    <td class="kpi-label">${esc(kpi.label)}</td>
+    <td class="num"><input type="number" min="0" step="1" id="t-${id}"
+        data-person="${esc(personKey)}" data-kpi="${esc(kpi.key)}" data-kind="target" value="${monthly}"></td>
+    <td class="num derived">&rarr; <b id="d-${id}">${dailyFrom(monthly)}</b>/day</td>
+    <td class="num"><input class="w" type="number" min="0" max="100" step="1" id="w-${id}"
+        data-person="${esc(personKey)}" data-kpi="${esc(kpi.key)}" data-kind="weight" value="${weight}">%</td>
+  </tr>`;
+}
+
+function dealRow(personKey, k) {
+  const id = `${cssId(personKey)}-${cssId(k)}`;
+  return `<tr>
+    <td class="kpi-label">${esc(DEAL_LABELS[k])}</td>
+    <td class="num"><input type="number" min="0" step="1" id="t-${id}"
+        data-person="${esc(personKey)}" data-kpi="${esc(k)}" data-kind="deal" value="${dealFor(personKey, k)}"></td>
+    <td class="num derived">deals in the period</td>
+    <td></td>
+  </tr>`;
+}
+
+function personCard(p, kpis) {
+  const pid = cssId(p.personKey);
+  const isCloser = SELECTED_ROLE === "Closer";
+  const sum = kpis.reduce((s, k) => s + Number(weightFor(p.personKey, k) || 0), 0);
+  return `<div class="person ${OPEN.has(p.personKey) ? "open" : ""}" id="p-${pid}">
+    <div class="person-head" data-toggle="${esc(p.personKey)}">
+      <div class="avatar">${esc(initials(p.display))}</div>
+      <div>
+        <div class="person-name">${esc(p.display)}</div>
+        <div class="person-meta">${esc(p.meta)}</div>
+      </div>
+      <div class="person-right">
+        <span class="wsum ${sum === 100 ? "ok" : "bad"}" id="ws-${pid}">${sum}%</span>
+        <span class="caret">&#9660;</span>
+      </div>
+    </div>
+    <div class="person-body">
+      <table class="kpi-grid">
+        <thead><tr>
+          <th>KPI</th><th class="num">Monthly target</th><th class="num">Daily rate</th><th class="num">Weight</th>
+        </tr></thead>
+        <tbody>${kpis.map(k => kpiRow(p.personKey, k)).join("")}</tbody>
+      </table>
+      ${isCloser ? `
+        <div class="subhead">Deal thresholds &mdash; <em>monthly reports only (&gt;${DAILY_RANGE_MAX_DAYS} days)</em></div>
+        <table class="kpi-grid"><tbody>
+          ${Object.keys(DEAL_LABELS).map(k => dealRow(p.personKey, k)).join("")}
+        </tbody></table>` : ""}
+      <div class="person-actions">
+        <button class="btn btn-primary" data-save="${esc(p.personKey)}">Save ${esc(p.display.split(" ")[0])}</button>
+        <button class="btn btn-ghost" data-reset="${esc(p.personKey)}">Reset to defaults</button>
+        <span class="save-status" id="st-${pid}"></span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function render() {
+  renderNotices();
+  const blocks = activeBlocks();
+  document.getElementById("teams").innerHTML = blocks.length
+    ? blocks.map(b => `<div class="team-block">
+        <div class="team-head">${esc(b.name)}<span class="count">${b.people.length} member${b.people.length === 1 ? "" : "s"}</span></div>
+        ${b.people.map(p => personCard(p, b.kpis)).join("")}
+      </div>`).join("")
+    : `<div class="empty">No members configured for this role.</div>`;
+  markDirtyInputs();
+  renderImpact();
+}
+
+// ── Change tracking ──────────────────────────────────────────────────────────
+function kpiMetaFor(personKey, kpiKey) {
+  for (const b of activeBlocks()) {
+    if (!b.people.some(p => p.personKey === personKey)) continue;
+    const k = b.kpis.find(x => x.key === kpiKey);
+    if (k) return { kpi: k, person: b.people.find(p => p.personKey === personKey) };
+  }
+  return null;
+}
+
+function onInput(el) {
+  const personKey = el.dataset.person;
+  const kpiKey = el.dataset.kpi;
+  const kind = el.dataset.kind;
+  const dirtyKey = `${personKey}||${kind}||${kpiKey}`;
+  const meta = kpiMetaFor(personKey, kpiKey);
+  const display = meta ? meta.person.display : personKey;
+
+  let saved, kpiLabel;
+  if (kind === "target")      { kpiLabel = kpiKey;              saved = monthlyFor(personKey, meta.kpi); }
+  else if (kind === "weight") { kpiLabel = W_PREFIX + kpiKey;   saved = weightFor(personKey, meta.kpi); }
+  else                        { kpiLabel = kpiKey;              saved = dealFor(personKey, kpiKey); }
+
+  const now = Number(el.value);
+  if (Number.isNaN(now) || now === Number(saved)) {
+    DIRTY.delete(dirtyKey);
+    el.classList.remove("changed");
+  } else {
+    DIRTY.set(dirtyKey, {
+      personKey, display, kind, kpiKey, kpiLabel,
+      kpiName: meta ? meta.kpi.label : (DEAL_LABELS[kpiKey] || kpiKey),
+      from: Number(saved), to: now,
+    });
+    el.classList.add("changed");
+  }
+
+  // Live-update the derived daily figure next to a target input
+  if (kind === "target") {
+    const d = document.getElementById(`d-${cssId(personKey)}-${cssId(kpiKey)}`);
+    if (d) d.textContent = dailyFrom(now);
+  }
+  updateWeightSum(personKey);
+  updatePersonDirty(personKey);
+  renderImpact();
+}
+
+function updateWeightSum(personKey) {
+  const meta = activeBlocks().find(b => b.people.some(p => p.personKey === personKey));
+  if (!meta) return;
+  let sum = 0;
+  meta.kpis.forEach(k => {
+    const el = document.getElementById(`w-${cssId(personKey)}-${cssId(k.key)}`);
+    sum += Number(el ? el.value : weightFor(personKey, k)) || 0;
+  });
+  const badge = document.getElementById(`ws-${cssId(personKey)}`);
+  if (badge) {
+    badge.textContent = `${sum}%`;
+    badge.className = `wsum ${sum === 100 ? "ok" : "bad"}`;
+    badge.title = sum === 100 ? "Weights add up to 100%" : `Weights add up to ${sum}% — scores will not be comparable across people until this is 100%`;
+  }
+}
+
+function updatePersonDirty(personKey) {
+  const card = document.getElementById(`p-${cssId(personKey)}`);
+  if (!card) return;
+  const has = [...DIRTY.values()].some(d => d.personKey === personKey);
+  card.classList.toggle("dirty", has);
+}
+
+function markDirtyInputs() {
+  DIRTY.forEach(d => {
+    const prefix = d.kind === "weight" ? "w" : "t";
+    const el = document.getElementById(`${prefix}-${cssId(d.personKey)}-${cssId(d.kpiKey)}`);
+    if (el) { el.value = d.to; el.classList.add("changed"); }
+  });
+  new Set([...DIRTY.values()].map(d => d.personKey)).forEach(pk => {
+    updateWeightSum(pk); updatePersonDirty(pk);
+  });
+}
+
+// What each pending change actually affects, spelled out rather than implied.
+function effectOf(d) {
+  if (d.kind === "weight") {
+    return {
+      scope: "both", scopeLabel: "Daily + monthly",
+      text: `<b>${esc(d.kpiName)}</b> counts for ${d.to}% of the score instead of ${d.from}%`,
+    };
+  }
+  if (d.kind === "deal") {
+    return {
+      scope: "monthly", scopeLabel: "Monthly only",
+      text: `Needs <b>${d.to}</b> deals instead of ${d.from} &mdash; daily reports keep the fixed ${CLOSER_DEAL_DEFAULTS.goldDeals}/${CLOSER_DEAL_DEFAULTS.greenDeals} rule`,
+    };
+  }
+  return {
+    scope: "both", scopeLabel: "Daily + monthly",
+    text: `<b>${esc(d.kpiName)}</b> daily rate ${dailyFrom(d.from)} &rarr; <b>${dailyFrom(d.to)}</b>/day`,
+  };
+}
+
+function renderImpact() {
+  const drawer = document.getElementById("impact");
+  const rows = [...DIRTY.values()];
+  if (!rows.length) {
+    drawer.classList.remove("show");
+    document.body.classList.remove("has-impact");
+    return;
+  }
+  drawer.classList.add("show");
+  document.body.classList.add("has-impact");
+  document.getElementById("impact-count").textContent =
+    `— ${rows.length} change${rows.length === 1 ? "" : "s"} across ${new Set(rows.map(r => r.personKey)).size} ${new Set(rows.map(r => r.personKey)).size === 1 ? "person" : "people"}`;
+
+  document.getElementById("impact-body").innerHTML = rows.map(d => {
+    const e = effectOf(d);
+    const unit = d.kind === "weight" ? "%" : "";
+    return `<div class="impact-row">
+      <div class="impact-who">${esc(d.display)} <small>&middot; ${esc(d.kpiName)}${d.kind === "weight" ? " weight" : ""}</small></div>
+      <div class="impact-delta"><span class="from">${d.from}${unit}</span> &rarr; <span class="to">${d.to}${unit}</span></div>
+      <div class="impact-effect">${e.text}</div>
+      <div class="impact-scope scope-${e.scope}">${e.scopeLabel}</div>
+    </div>`;
+  }).join("");
+}
+
+// ── Save ─────────────────────────────────────────────────────────────────────
+async function upsert(updates) {
+  const { data: { session } } = await _supabase.auth.getSession();
+  const token = session?.access_token || SUPABASE_ANON;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?on_conflict=person_key,kpi_label,month`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON, Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json", Prefer: "resolution=merge-duplicates",
+    },
+    body: JSON.stringify(updates),
+  });
+  if (!r.ok) throw new Error(`Save failed (${r.status}): ${await r.text()}`);
+  // Keep the in-memory copy in step with what was just written, so the derived
+  // figures and the dirty diff stay truthful without a full reload.
+  updates.forEach(u => {
+    const existing = TARGET_ROWS.find(x => x.person_key === u.person_key && x.kpi_label === u.kpi_label && x.month === u.month);
+    if (existing) existing.monthly_target = u.monthly_target;
+    else TARGET_ROWS.push({ person_key: u.person_key, kpi_label: u.kpi_label, month: u.month, monthly_target: u.monthly_target });
+  });
+}
+
+function payloadFrom(changes) {
+  return changes.map(d => ({
+    person_key: d.personKey, kpi_label: d.kpiLabel, month: SELECTED_MONTH,
+    monthly_target: d.to, updated_by: CURRENT_EMAIL, updated_at: new Date().toISOString(),
+  }));
+}
+
+async function savePerson(personKey) {
+  const changes = [...DIRTY.entries()].filter(([, d]) => d.personKey === personKey);
+  if (!changes.length) return;
+  const st = document.getElementById(`st-${cssId(personKey)}`);
+  try {
+    if (st) { st.style.color = ""; st.textContent = "Saving…"; }
+    await upsert(payloadFrom(changes.map(([, d]) => d)));
+    changes.forEach(([k]) => DIRTY.delete(k));
+    render();
+    const st2 = document.getElementById(`st-${cssId(personKey)}`);
+    if (st2) { st2.textContent = "Saved"; setTimeout(() => { st2.textContent = ""; }, 2500); }
+  } catch (e) {
+    if (st) { st.style.color = "#ff4d6a"; st.textContent = e.message; }
+  }
+}
+
+async function saveAll() {
+  if (!DIRTY.size) return;
+  const st = document.getElementById("status-all");
+  try {
+    st.style.color = ""; st.textContent = "Saving…";
+    await upsert(payloadFrom([...DIRTY.values()]));
+    DIRTY.clear();
+    render();
+    document.getElementById("status-all").textContent = "All changes saved";
+    setTimeout(() => { document.getElementById("status-all").textContent = ""; }, 2500);
+  } catch (e) {
+    st.style.color = "#ff4d6a"; st.textContent = e.message;
+  }
+}
+
+// Reset writes the built-in defaults explicitly rather than deleting rows, so
+// the saved value always matches what the page shows.
+function resetPerson(personKey) {
+  const block = activeBlocks().find(b => b.people.some(p => p.personKey === personKey));
+  if (!block) return;
+  block.kpis.forEach(k => {
+    const t = document.getElementById(`t-${cssId(personKey)}-${cssId(k.key)}`);
+    const w = document.getElementById(`w-${cssId(personKey)}-${cssId(k.key)}`);
+    if (t) { t.value = Math.round(k.dailyTarget * WORKING_DAYS_PER_MONTH); onInput(t); }
+    if (w) { w.value = k.weight; onInput(w); }
+  });
+  if (SELECTED_ROLE === "Closer") {
+    Object.keys(CLOSER_DEAL_DEFAULTS).forEach(k => {
+      const el = document.getElementById(`t-${cssId(personKey)}-${cssId(k)}`);
+      if (el) { el.value = CLOSER_DEAL_DEFAULTS[k]; onInput(el); }
+    });
+  }
+}
+
+// ── Events ───────────────────────────────────────────────────────────────────
+document.getElementById("teams").addEventListener("input", e => {
+  if (e.target.matches("input[data-kind]")) onInput(e.target);
+});
+document.getElementById("teams").addEventListener("click", e => {
+  const toggle = e.target.closest("[data-toggle]");
+  if (toggle) {
+    const key = toggle.dataset.toggle;
+    const card = document.getElementById(`p-${cssId(key)}`);
+    const nowOpen = !card.classList.contains("open");
+    card.classList.toggle("open", nowOpen);
+    if (nowOpen) OPEN.add(key); else OPEN.delete(key);
+    return;
+  }
+  const save = e.target.closest("[data-save]");
+  if (save) { savePerson(save.dataset.save); return; }
+  const reset = e.target.closest("[data-reset]");
+  if (reset) { resetPerson(reset.dataset.reset); }
+});
+
+document.getElementById("role-tabs").addEventListener("click", e => {
+  const tab = e.target.closest(".tab");
+  if (!tab) return;
+  if (!ALLOWED_ROLES.includes(tab.dataset.role)) return;
+  if (DIRTY.size && !confirm(`You have ${DIRTY.size} unsaved change(s). Switching tabs keeps them pending — continue?`)) return;
+  document.querySelectorAll("#role-tabs .tab").forEach(t => t.classList.toggle("active", t === tab));
+  SELECTED_ROLE = tab.dataset.role;
+  OPEN.clear();
+  render();
+});
+
+document.getElementById("inp-month").onchange = e => {
+  if (DIRTY.size && !confirm(`You have ${DIRTY.size} unsaved change(s) for ${SELECTED_MONTH}. Changing month discards them — continue?`)) {
+    e.target.value = SELECTED_MONTH; return;
+  }
+  DIRTY.clear();
+  SELECTED_MONTH = e.target.value || currentMonthStr();
+  render();
+};
+
+document.getElementById("btn-expand").onclick = () => {
+  const blocks = activeBlocks();
+  const all = blocks.flatMap(b => b.people.map(p => p.personKey));
+  const expand = OPEN.size < all.length;
+  OPEN = expand ? new Set(all) : new Set();
+  document.getElementById("btn-expand").textContent = expand ? "Collapse all" : "Expand all";
+  render();
+};
+
+document.getElementById("btn-save-impact").onclick = saveAll;
+document.getElementById("btn-discard").onclick = () => {
+  if (!DIRTY.size) return;
+  if (!confirm(`Discard ${DIRTY.size} unsaved change(s)?`)) return;
+  DIRTY.clear();
+  render();
+};
+
+window.addEventListener("beforeunload", e => {
+  if (DIRTY.size) { e.preventDefault(); e.returnValue = ""; }
+});
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+async function showApp(user) {
+  CURRENT_EMAIL = user.email || "";
+  document.getElementById("auth-overlay").style.display = "none";
+  document.getElementById("main-content").style.display = "block";
+  document.getElementById("user-bar").style.display = "flex";
+  document.getElementById("nav-links").style.display = "flex";
+  document.getElementById("user-name").textContent = user.user_metadata?.full_name || CURRENT_EMAIL;
+  const av = document.getElementById("user-avatar");
+  if (user.user_metadata?.avatar_url) { av.src = user.user_metadata.avatar_url; av.style.display = "block"; }
+  buildNav(CURRENT_EMAIL);
+
+  const isAdmin   = ADMIN_EMAILS.includes(CURRENT_EMAIL);
+  const isSalesTL = SALES_TL_EMAILS.includes(CURRENT_EMAIL);
+  const isBdTL    = BD_TL_EMAILS.includes(CURRENT_EMAIL);
+  ALLOWED_ROLES = [
+    ...(isAdmin || isSalesTL ? ["Builder", "Closer"] : []),
+    ...(isAdmin || isBdTL ? ["BD"] : []),
+  ];
+  document.querySelectorAll("#role-tabs .tab").forEach(tab => {
+    const allowed = ALLOWED_ROLES.includes(tab.dataset.role);
+    tab.style.display = allowed ? "" : "none";
+  });
+  if (!ALLOWED_ROLES.length) {
+    document.getElementById("teams").innerHTML =
+      `<div class="empty">You do not have permission to edit targets.</div>`;
+    document.getElementById("notices").innerHTML = "";
+    document.querySelector(".toolbar").style.display = "none";
+    return;
+  }
+  SELECTED_ROLE = ALLOWED_ROLES[0];
+  document.querySelectorAll("#role-tabs .tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.role === SELECTED_ROLE));
+
+  SELECTED_MONTH = currentMonthStr();
+  document.getElementById("inp-month").value = SELECTED_MONTH;
+  try {
+    await loadRows();
+  } catch (e) {
+    document.getElementById("teams").innerHTML = `<div class="empty" style="color:#ff4d6a">${esc(e.message)}</div>`;
+    return;
+  }
+  render();
+}
+
+_supabase.auth.getSession().then(async ({ data: { session } }) => {
+  await APP_USERS_READY;
+  if (session?.user) {
+    const email = session.user.email || "";
+    if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) showApp(session.user);
+    else { _supabase.auth.signOut(); document.getElementById("auth-error").textContent = "Access denied. Your account is not authorized."; }
+  }
+});
+_supabase.auth.onAuthStateChange(async (_e, session) => {
+  await APP_USERS_READY;
+  if (session?.user) {
+    const email = session.user.email || "";
+    if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) showApp(session.user);
+    else { _supabase.auth.signOut(); document.getElementById("auth-error").textContent = "Access denied. Your account is not authorized."; }
+  }
+});
+document.getElementById("btn-google-signin").onclick = async () => {
+  document.getElementById("auth-error").textContent = "";
+  const { error } = await _supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: window.location.origin + window.location.pathname },
+  });
+  if (error) document.getElementById("auth-error").textContent = error.message;
+};
+document.getElementById("btn-signout").onclick = async () => { await _supabase.auth.signOut(); location.reload(); };
+</script>
+</body>
+</html>

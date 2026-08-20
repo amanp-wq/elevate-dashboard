@@ -66,8 +66,7 @@ const ALL_PAGES = [
   { label: "BDE", href: "/bde.html" },
   { label: "BD Scorecard", href: "/bde-scorecard.html" },
   { label: "BD Attendance", href: "/attendance-bd.html" },
-  { label: "Manage Targets", href: "/manage-targets-sales.html" },
-  { label: "Manage Targets (BD)", href: "/manage-targets-bd.html" },
+  { label: "Manage Targets", href: "/manage-targets.html" },
   { label: "TV Board", href: "/tv-board.html" },
   { label: "TV Slides", href: "/manage-slides.html" },
 ];
@@ -133,8 +132,7 @@ function buildNav(email) {
       ...(isAdmin || isBdTL ? [{ label: "BD Attendance", href: "/attendance-bd.html" }] : []),
     ]},
     { group: "Targets", items: [
-      ...(isAdmin || isSalesTL ? [{ label: "Sales Targets", href: "/manage-targets-sales.html" }] : []),
-      ...(isAdmin || isBdTL ? [{ label: "BD Targets", href: "/manage-targets-bd.html" }] : []),
+      ...(isAdmin || isSalesTL || isBdTL ? [{ label: "Targets & Weightage", href: "/manage-targets.html" }] : []),
     ]},
     // "TV Slides" manages the promo slides on the *test* TV board, which is the
     // only one that shows them — the live TV board deliberately has no slide
