@@ -134,7 +134,7 @@ const TEAMS = [
   {
     name: "LinkedIn Team",
     role: "LinkedIn BDE",
-    members: ["Ronak Khant", "Jiya Chandrawanshi", "Bhoomi Barot", "Heer Nakum"],
+    members: bdMembersOf("LinkedIn Team"),
     kpis: [
       { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, dailyTarget: 4,  weight: 0.70 },
       { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     dailyTarget: 15, weight: 0.30 },
@@ -143,7 +143,7 @@ const TEAMS = [
   {
     name: "Portal Team",
     role: "Portal BDE",
-    members: ["Ajay Darbar", "Sunil Patel"],
+    members: bdMembersOf("Portal Team"),
     kpis: [
       { label: "ICP Cold + Parser", note: "Leads Generated (Cold + Parser)", get: b => ((b.types||{})["ICP Cold"]||0) + ((b.types||{})["ICP Parser"]||0), dailyTarget: 120, weight: 1.00 },
     ],
@@ -151,7 +151,7 @@ const TEAMS = [
   {
     name: "Referral Team",
     role: "Referral BDE",
-    members: ["Meet Patel"],
+    members: bdMembersOf("Referral Team"),
     // This team is scored on Reference separately, so its ICP rows read
     // `typesExRef` — the same tallies with referral-sourced leads removed.
     // Using `types` here counted one referral lead twice: once as ICP Moderate
@@ -164,16 +164,8 @@ const TEAMS = [
   },
 ];
 
-// Team Lead each BDE reports to (display only — does not affect scoring).
-const TEAM_LEADS = {
-  "Ronak Khant": "Dhanraj Solanki",
-  "Jiya Chandrawanshi": "Dhanraj Solanki",
-  "Bhoomi Barot": "Dhanraj Solanki",
-  "Sunil Patel": "Dhanraj Solanki",
-  "Meet Patel": "Dhanraj Solanki",
-  "Heer Nakum": "Prem Thakar",
-  "Ajay Darbar": "Prem Thakar",
-};
+// Reporting lead per BDE, from config.js. Drives the "By team lead" view.
+const TEAM_LEADS = BD_TEAM_LEADS;
 
 const ZONE = s => s>=110?"gold":s>=95?"green":s>=75?"yellow":s>=50?"orange":"red";
 const ZCOL = { gold:"var(--gold)", green:"var(--green)", yellow:"var(--yellow)", orange:"var(--orange)", red:"var(--red)" };
@@ -210,13 +202,10 @@ const PERSON_KEY_OVERRIDES = { "Meet Patel": "Meet Patel (BD)" };
 const pkey = m => PERSON_KEY_OVERRIDES[m] || m;
 
 // Which BD members each team lead may edit targets for; admins may edit all.
-const TL_MEMBERS = {
-  "dhanraj.s@elevateme.pro": ["Ronak Khant","Jiya Chandrawanshi","Bhoomi Barot","Sunil Patel","Meet Patel"],
-  "prem.t@elevateme.pro":    ["Heer Nakum","Ajay Darbar"],
-};
+// Derived from the roster, so a joiner or leaver needs no edit here.
 let CURRENT_EMAIL = "";
 function canEditTargets(member){
-  return ADMIN_EMAILS.includes(CURRENT_EMAIL) || (TL_MEMBERS[CURRENT_EMAIL]||[]).includes(member);
+  return ADMIN_EMAILS.includes(CURRENT_EMAIL) || bdMembersForLeadEmail(CURRENT_EMAIL).includes(member);
 }
 
 let TARGET_ROWS = []; // raw rows: { person_key, kpi_label, month, monthly_target }

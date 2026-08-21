@@ -445,16 +445,16 @@ const SALES_KPIS = {
 // BD KPI sets differ per team, so they are defined per team rather than per
 // role. Kept in the same shape and order as bde-scorecard.html's TEAMS.
 const BD_TEAMS = [
-  { name: "LinkedIn Team", members: ["Ronak Khant", "Jiya Chandrawanshi", "Bhoomi Barot", "Heer Nakum"],
+  { name: "LinkedIn Team", members: bdMembersOf("LinkedIn Team"),
     kpis: [
       { key: "ICP Moderate", label: "ICP Moderate", dailyTarget: 4,  weight: 70 },
       { key: "ICP Cold",     label: "ICP Cold",     dailyTarget: 15, weight: 30 },
     ] },
-  { name: "Portal Team", members: ["Ajay Darbar", "Sunil Patel"],
+  { name: "Portal Team", members: bdMembersOf("Portal Team"),
     kpis: [
       { key: "ICP Cold + Parser", label: "ICP Cold + Parser", dailyTarget: 120, weight: 100 },
     ] },
-  { name: "Referral Team", members: ["Meet Patel"],
+  { name: "Referral Team", members: bdMembersOf("Referral Team"),
     kpis: [
       { key: "ICP Moderate", label: "ICP Moderate (excl. Ref)", dailyTarget: 2,  weight: 30 },
       { key: "ICP Cold",     label: "ICP Cold (excl. Ref)",     dailyTarget: 10, weight: 20 },

@@ -250,12 +250,35 @@ const SALES_TL_TEAM = {
 // distinctly wherever it's stored so it never collides with the Closer's data.
 const BD_PERSON_KEY_OVERRIDES = { "Meet Patel": "Meet Patel (BD)" };
 const bdPersonKey = m => BD_PERSON_KEY_OVERRIDES[m] || m;
+// `team` is the lead this BDE reports to; `kpiTeam` is the KPI structure they
+// are scored against. The two cross over deliberately — Ajay Darbar reports to
+// Prem but is measured on the Portal KPIs — so both are recorded per person
+// rather than inferred from one another.
+//
+// `name` must match the BDE Name field in Zoho exactly, or the person renders
+// with zero activity everywhere. `display` is only for the UI.
 const BD_TEAM_MEMBERS = [
-  { name: "Ronak Khant",           team: "Dhanraj Solanki", role: "BD" },
-  { name: "Jiya Chandrawanshi",    team: "Dhanraj Solanki", role: "BD" },
-  { name: "Bhoomi Barot",          team: "Dhanraj Solanki", role: "BD" },
-  { name: "Sunil Patel",           team: "Dhanraj Solanki", role: "BD" },
-  { name: "Meet Patel (BD)", display: "Meet Patel", team: "Dhanraj Solanki", role: "BD" },
-  { name: "Heer Nakum",  team: "Prem Thakar", role: "BD" },
-  { name: "Ajay Darbar", team: "Prem Thakar", role: "BD" },
+  { name: "Ronak Khant",           team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
+  { name: "Jiya Chandrawanshi",    team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
+  { name: "Bhoomi Barot",          team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
+  { name: "Dhiraj Prajapati",      team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
+  { name: "Manish Sonagaraa",      team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
+  { name: "Sunil Patel",           team: "Dhanraj Solanki", kpiTeam: "Portal Team",   role: "BD" },
+  { name: "Meet Patel (BD)", display: "Meet Patel", team: "Dhanraj Solanki", kpiTeam: "Referral Team", role: "BD" },
+  { name: "Ujjaval Karangiya",     team: "Prem Thakar",     kpiTeam: "LinkedIn Team", role: "BD" },
+  { name: "Rakesh Prajapatia",     team: "Prem Thakar",     kpiTeam: "LinkedIn Team", role: "BD" },
+  { name: "Ajay Darbar",           team: "Prem Thakar",     kpiTeam: "Portal Team",   role: "BD" },
 ];
+
+// Derived so the BD pages stop keeping their own copies of the roster. All of
+// these key on the display name, which is what those pages show and what they
+// look overrides up by.
+const bdDisplay = m => m.display || m.name;
+const BD_TEAM_LEADS = Object.fromEntries(BD_TEAM_MEMBERS.map(m => [bdDisplay(m), m.team]));
+const bdMembersOf = kpiTeam => BD_TEAM_MEMBERS.filter(m => m.kpiTeam === kpiTeam).map(bdDisplay);
+// Which BDEs each lead may edit targets for; admins may edit everyone.
+const BD_TL_BY_EMAIL = { "dhanraj.s@elevateme.pro": "Dhanraj Solanki", "prem.t@elevateme.pro": "Prem Thakar" };
+const bdMembersForLeadEmail = email => {
+  const lead = BD_TL_BY_EMAIL[email];
+  return lead ? BD_TEAM_MEMBERS.filter(m => m.team === lead).map(bdDisplay) : [];
+};

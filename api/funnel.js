@@ -255,11 +255,14 @@ export default async function handler(req, res) {
     ];
 
     // BDE list — hardcoded from CRM data (BDE Name field in Leads module)
+    // Past BDEs are kept: this filters historical CRM data, so someone who has
+    // left the team still has leads worth filtering by.
     const bdes = [
       "Sunil Patel", "Ajay Darbar", "Prem Thakar", "Ronak Khant",
       "Jiya Chandrawanshi", "Dhanraj Solanki", "Bhoomi Barot", "Kinjal Menaria",
       "Shruti Mori", "Heer Nakum", "Meet Patel", "Shreya Lathiya",
-      "Supratim Dutta", "Soumya Singh", "Varun Singh", "Ved Sutariya"
+      "Supratim Dutta", "Soumya Singh", "Varun Singh", "Ved Sutariya",
+      "Ujjaval Karangiya", "Rakesh Prajapatia", "Dhiraj Prajapati", "Manish Sonagaraa"
     ].sort();
 
     const result = {
