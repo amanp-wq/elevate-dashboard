@@ -67,10 +67,8 @@
   .fn-toggle { cursor:pointer; user-select:none; }
   .fn-toggle:hover { color:var(--text); }
   .fn-arrow { display:inline-block; width:10px; }
-  .edit-target-btn { margin:8px 0; background:transparent; border:1px solid #ff4d3a; color:#ff4d3a; border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer; }
-  .edit-target-btn:hover { background:#ff4d3a; color:#fff; }
-  .edit-panel { margin:8px 0; padding:10px; border:1px solid var(--border); border-radius:8px; background:rgba(255,255,255,0.02); }
-  .edit-panel h5 { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+  /* The inline target editor these styled is gone — see the note by
+     canEditTargets. Targets are edited on /manage-targets.html. */
   .edit-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
   .edit-row label { font-size:12px; color:var(--text); }
   .edit-row input { width:80px; background:#111; border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 6px; font-size:12px; }
@@ -204,9 +202,8 @@ const pkey = m => PERSON_KEY_OVERRIDES[m] || m;
 // Which BD members each team lead may edit targets for; admins may edit all.
 // Derived from the roster, so a joiner or leaver needs no edit here.
 let CURRENT_EMAIL = "";
-function canEditTargets(member){
-  return ADMIN_EMAILS.includes(CURRENT_EMAIL) || bdMembersForLeadEmail(CURRENT_EMAIL).includes(member);
-}
+// canEditTargets() was removed: the inline target editor it guarded is gone,
+// superseded by /manage-targets.html, which does its own permission check.
 
 let TARGET_ROWS = []; // raw rows: { person_key, kpi_label, month, monthly_target }
 let _lastBdes = null, _lastRange = { start: "", end: "" };  // for view switching

@@ -438,16 +438,15 @@ const AUTH_URL = SUPABASE_URL, AUTH_ANON = SUPABASE_ANON;
 const _auth = supabase.createClient(AUTH_URL, AUTH_ANON);
 
 const TARGETS        = { calls:150, minutes:180, leads:4, discoveries:2, presBooked:2, presCompleted:2 };
-const WEIGHTS        = { calls:0.20, minutes:0.20, leads:0.10, discoveries:0.15, presBooked:0.10, presCompleted:0.25 };
 const TARGETS_CLOSER = { calls:60, minutes:120, presentations:2 };
-const WEIGHTS_CLOSER = { calls:0.40, minutes:0.20, presentations:0.40 };
+// Weights live in /scoring.js; the local copies had no caller left.
 
 // Match the main dashboard's runtime zone colours exactly (note red = #ff4d6a)
 const ZONE_COLOR = { gold:"#ffd740", green:"#00e676", yellow:"#ffab00", orange:"#ff6d00", red:"#ff4d6a" };
 const CARD_LABEL = { gold:"Golden Card", green:"Green Card", yellow:"Yellow Card", orange:"Orange Card", red:"Red Card" };
 
 const zone = Scoring.zone;
-const cap  = (v,t) => Math.min(150, t>0 ? (v/t)*100 : 0);   // still used by the KPI cells below
+// cap() was removed with the local scoring: nothing on this page called it.
 
 // Scoring comes from /scoring.js. This page used to require 4 deals for Gold
 // and 2 for Green while every other page used 2/1, so the same closer scored

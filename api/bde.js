@@ -223,7 +223,6 @@ export default async function handler(req, res) {
     // (Lead_Generated_Date >= startDate); otherwise it's carried-over "old" data.
     function genDate(r){ const v = r.Lead_Generated_Date; if(!v) return null; const m = String(v).match(/^\d{4}-\d{2}-\d{2}/); return m ? m[0] : null; }
     function cohort(r){ const g = genDate(r); return (g && g >= startDate) ? "cur" : "old"; }
-    function inc(bde, field) { const k=key(bde); if (k && map[k]) map[k][field]++; }
     // increment a funnel stage on both the flat total and the cur/old cohort
     function incStage(bde, field, r) { const k=key(bde); if (!k || !map[k]) return; map[k][field]++; map[k][cohort(r)][field]++; }
     function incSub(bde, field, fkey) {

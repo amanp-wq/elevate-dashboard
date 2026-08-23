@@ -232,10 +232,6 @@ async function coqlCallsWindow(token, startDT, endDT) {
   return { rows: out, truncated };
 }
 
-// Counts how often a window had to be split, so a future volume increase shows
-// up in the logs instead of quietly shaving calls off the total again.
-let _callWindowSplits = 0;
-export const callFetchStats = () => ({ splits: _callWindowSplits });
 
 async function fetchCallsForRange(token, startDate, endDate) {
   const dates = [];
@@ -264,7 +260,6 @@ async function fetchCallsForRange(token, startDate, endDate) {
         `Calls window ${new Date(fromMs).toISOString()}..${new Date(toMs).toISOString()} `
         + `exceeds COQL's ${COQL_OFFSET_CEILING}-record limit and cannot be split further`);
     }
-    _callWindowSplits++;
     const mid = fromMs + Math.floor((toMs - fromMs) / 2);
     const [a, b] = await Promise.all([
       readSpan(fromMs, mid, depth + 1),

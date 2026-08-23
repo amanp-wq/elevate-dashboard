@@ -300,10 +300,10 @@ const DISPLAY = "10:30 AM – 7:30 PM EST";
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 const TARGETS        = { calls:150, minutes:180, leads:4, discoveries:2, presBooked:2, presCompleted:2 };
-const WEIGHTS        = { calls:0.20, minutes:0.20, leads:0.10, discoveries:0.15, presBooked:0.10, presCompleted:0.25 };
 const TARGETS_CLOSER = { calls:60, minutes:120, presentations:2 };
-const WEIGHTS_CLOSER = { calls:0.40, minutes:0.20, presentations:0.40 };
-const ZONE_NEON      = { gold:"#ffd740", green:"#00e676", yellow:"#ffab00", orange:"#ff6d00", red:"#ff4d6a" };
+// Weights live in /scoring.js — the local copies here had no caller left once
+// scoring moved there, and a stale second copy is how the pages drifted apart
+// in the first place.
 const CARD_LABELS    = { gold:"Golden Card", green:"Green Card", yellow:"Yellow Card", orange:"Orange Card", red:"Red Card" };
 
 const zone = Scoring.zone;
@@ -385,7 +385,6 @@ function renderBuilders(builders, T, effectiveDays, leaveMap){
   document.getElementById("builder-tiles").innerHTML = builders.map(b=>{
     const onLeave=(leaveMap[b.name]||0)>=effectiveDays;
     const sc=b.composite; const z=b.zone;
-    const col=onLeave?"#4a4a5a":(ZONE_NEON[z]||"#aaa");
     const star=z==="gold"?'<span style="font-size:14px">★</span>':'';
     return `<div class="tile ${onLeave?"zone-leave":"zone-"+z}">
       <div class="tile-header">

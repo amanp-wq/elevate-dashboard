@@ -112,9 +112,8 @@ const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Scoring — identical formulas to public/index.html / public/config.js ────
 const B_T = { calls:150, minutes:180, leads:4, discoveries:2, presBooked:2, presCompleted:2 };
-const B_W = { calls:0.20, minutes:0.20, leads:0.10, discoveries:0.15, presBooked:0.10, presCompleted:0.25 };
 const C_T = { calls:60, minutes:120, presentations:2 };
-const C_W = { calls:0.40, minutes:0.20, presentations:0.40 };
+// Weights live in /scoring.js; the local copies had no caller left.
 const cap = (v, t) => Math.min(150, t > 0 ? (v / t) * 100 : 0);
 
 // Scoring comes from /scoring.js. This copy hardcoded 2/1 deal thresholds and

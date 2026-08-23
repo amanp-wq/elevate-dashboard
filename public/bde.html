@@ -240,8 +240,6 @@ function setError(msg)  { document.getElementById("error-msg").textContent = msg
 const LINKEDIN_TEAM         = ["jia","runa","kmet","bumi"];
 const LI_DAILY_TARGET       = 15;   // LinkedIn ICP leads/day
 const LI_PRES_DAILY_TARGET  = 2;    // Presentation completed/day
-const LI_WORKING_DAYS       = 22;
-const LI_MONTHLY_TARGET     = LI_DAILY_TARGET * LI_WORKING_DAYS; // 330
 const LI_DAILY_RATE         = LI_DAILY_TARGET;
 
 function isLinkedInMember(name) {
@@ -328,8 +326,6 @@ function renderBDE(bdes, startDate, endDate) {
     document.getElementById("bde-grid").innerHTML = `<div class="empty-state">No BDE data found for this date range.</div>`;
     return;
   }
-
-  const maxGen = Math.max(...bdes.map(b=>b.generated), 1);
 
   document.getElementById("bde-grid").innerHTML = bdes.map(b => {
     const convRate = pct(b.qualified, b.generated);
