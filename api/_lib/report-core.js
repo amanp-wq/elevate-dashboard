@@ -32,6 +32,32 @@ const COQL_OFFSET_CEILING = 2000;
 // Only calls that count toward `calls` get bucketed, so the four bands always
 // add back up to the figure shown on the card.
 export function emptyBands() { return { red: 0, yellow: 0, green: 0, gold: 0 }; }
+
+// ── Off-hours calls ─────────────────────────────────────────────────────────
+// Working hours are 10:30 AM - 7:30 PM ET, matching the window target
+// proration uses. A call outside them still counts toward the card figure and
+// its duration band; these counters only record *when* it happened, so an
+// unusual pattern is visible instead of averaging away into a day total.
+//
+// The formatter is built once: constructing Intl.DateTimeFormat per call is
+// what makes this expensive, and a busy day carries thousands of calls.
+const WORK_START_H = 10.5, WORK_END_H = 19.5;
+const _etParts = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York", hour12: false,
+  weekday: "short", hour: "2-digit", minute: "2-digit",
+});
+export function offHoursOf(callStartTime) {
+  const d = new Date(callStartTime);
+  if (isNaN(d)) return null;                       // unparseable: do not guess
+  const p = _etParts.formatToParts(d).reduce((a, x) => { a[x.type] = x.value; return a; }, {});
+  // hour12:false yields "24" for midnight in some ICU builds.
+  const h = (+p.hour % 24) + (+p.minute) / 60;
+  if (p.weekday === "Sat" || p.weekday === "Sun") return "weekend";
+  if (h < WORK_START_H) return "early";
+  if (h >= WORK_END_H)  return "late";
+  return null;
+}
+export function emptyOffHours() { return { early: 0, late: 0, weekend: 0 }; }
 function bandOf(seconds) {
   if (seconds <= 40)  return "red";
   if (seconds <= 120) return "yellow";
@@ -276,6 +302,9 @@ function applyCall(person, c) {
   person.calls += 1;
   person.outbound += 1;
   person.callBands[bandOf(secs)] += 1;
+  // Counted alongside the band, not instead of it — the call is still real.
+  const off = offHoursOf(c.Call_Start_Time);
+  if (off && person.offHours) person.offHours[off] += 1;
 }
 
 const roundBuilder = b => ({ ...b, minutes: Math.round(b.minutes) });
@@ -313,7 +342,7 @@ export async function buildReport({ token, allUsers, role, startDate, endDate, s
       const tl = tlFromRole(u.role.name);
       const isC = u.role.name.includes("Closer");
       const base = { name: u.full_name, id: u.id, tlName: tl, _active: isActive(u),
-        calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0, callBands: emptyBands() };
+        calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0, callBands: emptyBands(), offHours: emptyOffHours() };
       if (isC) closerMap[u.id]  = { ...base, presentations: 0, dealsClosed: 0, newUpfront: 0, futureUpfront: 0 };
       else     builderMap[u.id] = { ...base, leads: 0, discoveries: 0, presBooked: 0, presCompleted: 0 };
     });
@@ -374,7 +403,7 @@ export async function buildReport({ token, allUsers, role, startDate, endDate, s
     const map = {};
     users.forEach(u => {
       map[u.id] = { name: u.full_name, id: u.id, teamLead: userTLMap[u.id] || "", _active: isActive(u),
-        calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0, callBands: emptyBands(),
+        calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0, callBands: emptyBands(), offHours: emptyOffHours(),
         presentations: 0, dealsClosed: 0, newUpfront: 0, futureUpfront: 0 };
     });
 
@@ -411,7 +440,7 @@ export async function buildReport({ token, allUsers, role, startDate, endDate, s
   const map = {};
   users.forEach(u => {
     map[u.id] = { name: u.full_name, id: u.id, teamLead: userTLMap[u.id] || "", _active: isActive(u),
-      calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0, callBands: emptyBands(),
+      calls: 0, inbound: 0, outbound: 0, missed: 0, minutes: 0, callBands: emptyBands(), offHours: emptyOffHours(),
       leads: 0, discoveries: 0, presBooked: 0, presCompleted: 0 };
   });
 

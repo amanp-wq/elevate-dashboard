@@ -100,7 +100,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "startDate must be on or before endDate" });
   }
 
-  // v2: the payload gained per-person `callBands`. Bumping the key retires v1
+  // v3: the payload gained per-person `offHours`. Each bump retires the older
   // rows instead of serving a cached payload the hover card can't read.
   //
   // `slot` is deliberately NOT in the key. It never affects the numbers — it is
@@ -108,7 +108,7 @@ export default async function handler(req, res) {
   // cache, and it would silently kill the pre-warm again: every page sends
   // slot=7pm while the cron writes slot="day", so the keys would never meet.
   // Instead the cached payload's stale slot is overwritten on the way out.
-  const cacheKey = `${role}|v2|${startDate}|${endDate}`;
+  const cacheKey = `${role}|v3|${startDate}|${endDate}`;
   const t0 = Date.now();
 
   try {

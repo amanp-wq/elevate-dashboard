@@ -21,7 +21,7 @@ const ROLES = ["Builder", "Closer", "Team Leader"];
 
 // Must match api/report.js's key exactly, or the pre-warm writes rows nothing
 // ever reads. `slot` is intentionally absent from both — see the note there.
-const cacheKeyFor = (role, date) => `${role}|v2|${date}|${date}`;
+const cacheKeyFor = (role, date) => `${role}|v3|${date}|${date}`;
 
 function getTodayEST() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });

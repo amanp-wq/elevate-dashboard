@@ -150,6 +150,13 @@
   }
   #call-pop .cp-total b { color: #e8eaf6; }
   #call-pop .cp-empty { color: #6b7499; }
+  /* Off-hours line: amber because it is a flag to look at, not an error. */
+  #call-pop .cp-off {
+    margin-top: 7px; padding-top: 7px; border-top: 1px dashed #2a3350;
+    color: #ffcf70; font-size: 11.5px; line-height: 1.5;
+  }
+  #call-pop .cp-off b { color: #fff; font-variant-numeric: tabular-nums; }
+  #call-pop .cp-off-none { color: #4a5678; }
 
   /* Neon zone cards */
   .zone-gold {
@@ -585,9 +592,10 @@ const CALL_BANDS = [
 // Marks up one KPI cell on a tile; the calls cell carries its bands for the
 // popup. Named for the tile deliberately — `kpiCell` further down builds the
 // breakdown table's cell, and a collision there silently broke every tile.
-function tileKpiCell(label, value, bands, total) {
+function tileKpiCell(label, value, bands, total, offHours) {
   if (label !== "calls" || !bands) return `<div><div class="val">${value}</div><div class="lbl">${label}</div></div>`;
-  return `<div class="kpi-hoverable" data-bands='${JSON.stringify(bands)}' data-total="${total}">`
+  const off = offHours ? ` data-off='${JSON.stringify(offHours)}'` : "";
+  return `<div class="kpi-hoverable" data-bands='${JSON.stringify(bands)}' data-total="${total}"${off}>`
        + `<div class="val">${value}</div><div class="lbl">${label}</div></div>`;
 }
 
@@ -599,7 +607,14 @@ function sumBands(people) {
   return t;
 }
 
-function callPopHtml(bands, total) {
+// Same idea for the off-hours counts, so the totals row can show them too.
+function sumOffHours(people) {
+  const t = { early: 0, late: 0, weekend: 0 };
+  people.forEach(p => { const o = p.offHours; if (o) for (const k in t) t[k] += o[k] || 0; });
+  return t;
+}
+
+function callPopHtml(bands, total, offHours) {
   const sum = CALL_BANDS.reduce((s, b) => s + (bands[b.key] || 0), 0);
   if (!sum) return `<div class="cp-title">Call quality</div><div class="cp-empty">No calls in this period.</div>`;
   const rows = CALL_BANDS.map(b => {
@@ -616,8 +631,22 @@ function callPopHtml(bands, total) {
   // should match, and it's worth saying so rather than hiding a discrepancy.
   const mismatch = Number(total) !== sum
     ? `<div class="cp-total" style="color:#ffab00">Bands cover ${sum} of ${total} calls</div>` : "";
+
+  // Calls placed outside 10:30 AM – 7:30 PM ET. These are already inside the
+  // bands above and the card figure — this only says when they happened, so a
+  // pattern of late-night dialling is visible instead of averaging away.
+  const o = offHours || {};
+  const offBits = [
+    o.late    ? `<b>${o.late}</b> after 7:30 PM`   : "",
+    o.early   ? `<b>${o.early}</b> before 10:30 AM` : "",
+    o.weekend ? `<b>${o.weekend}</b> at the weekend` : "",
+  ].filter(Boolean);
+  const offLine = offBits.length
+    ? `<div class="cp-off">Outside working hours: ${offBits.join(" · ")}</div>`
+    : `<div class="cp-off cp-off-none">All within working hours</div>`;
+
   return `<div class="cp-title">Call quality · by duration</div>${rows}
-    <div class="cp-total"><span>Total calls</span><b>${sum}</b></div>${mismatch}`;
+    <div class="cp-total"><span>Total calls</span><b>${sum}</b></div>${mismatch}${offLine}`;
 }
 
 (function wireCallPop() {
@@ -638,10 +667,13 @@ function callPopHtml(bands, total) {
   }
 
   function show(el) {
-    let bands;
-    try { bands = JSON.parse(el.dataset.bands || "{}"); } catch { return; }
+    let bands, offHours;
+    try {
+      bands = JSON.parse(el.dataset.bands || "{}");
+      offHours = JSON.parse(el.dataset.off || "null");
+    } catch { return; }
     current = el;
-    pop.innerHTML = callPopHtml(bands, el.dataset.total);
+    pop.innerHTML = callPopHtml(bands, el.dataset.total, offHours);
     pop.classList.add("show");
     place(el);
   }
@@ -1159,6 +1191,7 @@ document.getElementById("btn-gen").onclick = async function(){
       closers.forEach(c => { tot.calls+=c.calls; tot.inbound+=c.inbound; tot.outbound+=c.outbound; tot.missed+=c.missed; tot.minutes+=c.minutes; tot.presentations+=c.presentations; tot.dealsClosed+=c.dealsClosed; tot.newUpfront+=c.newUpfront; tot.futureUpfront+=c.futureUpfront; tot.revenue+=c.revenue; });
       const n = closers.length;
       const totBands = sumBands(closers);
+      const totOff = sumOffHours(closers);
       document.getElementById("totals-grid").innerHTML = [
         ["calls","Calls",(n*TC.calls).toFixed(0)],
         ["minutes","Minutes",(n*TC.minutes).toFixed(0)],
@@ -1167,7 +1200,7 @@ document.getElementById("btn-gen").onclick = async function(){
         ["newUpfront","New Upfront","—"],
         ["futureUpfront","Future Upfront","—"],
         ["revenue","Revenue (Total)","—"],
-      ].map(([k,lbl,tg]) => `<div class="total-item${k==="calls"?" kpi-hoverable":""}"${k==="calls"?` data-bands='${JSON.stringify(totBands)}' data-total="${tot.calls}"`:""}><div class="total-val">${k==="newUpfront"||k==="futureUpfront"||k==="revenue"?"$"+tot[k].toLocaleString():tot[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${tot.inbound} in</span> <span class="bd-out">↗${tot.outbound} out</span> <span class="bd-miss">✕${tot.missed} miss</span></div>`:""}</div>`).join("");
+      ].map(([k,lbl,tg]) => `<div class="total-item${k==="calls"?" kpi-hoverable":""}"${k==="calls"?` data-bands='${JSON.stringify(totBands)}' data-total="${tot.calls}" data-off='${JSON.stringify(totOff)}'`:""}><div class="total-val">${k==="newUpfront"||k==="futureUpfront"||k==="revenue"?"$"+tot[k].toLocaleString():tot[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${tot.inbound} in</span> <span class="bd-out">↗${tot.outbound} out</span> <span class="bd-miss">✕${tot.missed} miss</span></div>`:""}</div>`).join("");
 
       document.getElementById("tiles").innerHTML = closers.map(c => {
         const onLeave = (leaveMap[c.name] || 0) >= effectiveDays;
@@ -1186,7 +1219,7 @@ document.getElementById("btn-gen").onclick = async function(){
           </div>
           ${onLeave ? "" : `
           <div class="tile-kpis" style="grid-template-columns:repeat(4,1fr)">
-            ${[["calls",c.calls],["mins",c.minutes],["pres",c.presentations],["deals",c.dealsClosed]].map(([l,v])=>tileKpiCell(l,v,c.callBands,c.calls)).join("")}
+            ${[["calls",c.calls],["mins",c.minutes],["pres",c.presentations],["deals",c.dealsClosed]].map(([l,v])=>tileKpiCell(l,v,c.callBands,c.calls,c.offHours)).join("")}
           </div>
           <div class="tile-call-breakdown">
             <span class="bd-in">↙${c.inbound} in</span>
@@ -1217,6 +1250,7 @@ document.getElementById("btn-gen").onclick = async function(){
       builders.forEach(b => { totals.calls+=b.calls; totals.inbound+=b.inbound; totals.outbound+=b.outbound; totals.missed+=b.missed; totals.minutes+=b.minutes; totals.leads+=b.leads; totals.discoveries+=b.discoveries; totals.presBooked+=b.presBooked; totals.presCompleted+=b.presCompleted; });
       const tgt = v => (builders.length * v).toFixed(0);
       const totalsBands = sumBands(builders);
+      const totalsOff = sumOffHours(builders);
       document.getElementById("totals-grid").innerHTML = [
         ["calls","Calls",tgt(T.calls)],
         ["minutes","Minutes",tgt(T.minutes)],
@@ -1224,7 +1258,7 @@ document.getElementById("btn-gen").onclick = async function(){
         ["discoveries","Discoveries",tgt(T.discoveries)],
         ["presBooked","Pres. Booked",tgt(T.presBooked)],
         ["presCompleted","Pres. Completed",tgt(T.presCompleted)]
-      ].map(([k,lbl,tg]) => `<div class="total-item${k==="calls"?" kpi-hoverable":""}"${k==="calls"?` data-bands='${JSON.stringify(totalsBands)}' data-total="${totals.calls}"`:""}><div class="total-val">${totals[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${totals.inbound} in</span> <span class="bd-out">↗${totals.outbound} out</span> <span class="bd-miss">✕${totals.missed} miss</span></div>`:""}</div>`).join("");
+      ].map(([k,lbl,tg]) => `<div class="total-item${k==="calls"?" kpi-hoverable":""}"${k==="calls"?` data-bands='${JSON.stringify(totalsBands)}' data-total="${totals.calls}" data-off='${JSON.stringify(totalsOff)}'`:""}><div class="total-val">${totals[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${totals.inbound} in</span> <span class="bd-out">↗${totals.outbound} out</span> <span class="bd-miss">✕${totals.missed} miss</span></div>`:""}</div>`).join("");
 
       document.getElementById("tiles").innerHTML = builders.map(b => {
         const onLeave = (leaveMap[b.name] || 0) >= effectiveDays;
@@ -1243,7 +1277,7 @@ document.getElementById("btn-gen").onclick = async function(){
           </div>
           ${onLeave ? "" : `
           <div class="tile-kpis">
-            ${[["calls",b.calls],["mins",b.minutes],["leads",b.leads],["disco",b.discoveries],["pres.b",b.presBooked],["pres.c",b.presCompleted]].map(([l,v])=>tileKpiCell(l,v,b.callBands,b.calls)).join("")}
+            ${[["calls",b.calls],["mins",b.minutes],["leads",b.leads],["disco",b.discoveries],["pres.b",b.presBooked],["pres.c",b.presCompleted]].map(([l,v])=>tileKpiCell(l,v,b.callBands,b.calls,b.offHours)).join("")}
           </div>
           <div class="tile-call-breakdown">
             <span class="bd-in">↙${b.inbound} in</span>
