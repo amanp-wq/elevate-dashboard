@@ -459,12 +459,7 @@ function scoreCloser(c, t, deals, w){ return Scoring.closer(c, t, deals, w); }
 // used, matching how index.html derives reportMonth.
 let TARGET_ROWS = [];
 async function loadTargetOverrides(){
-  try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,month,monthly_target`, {
-      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
-    });
-    TARGET_ROWS = r.ok ? await r.json() : [];
-  } catch { TARGET_ROWS = []; }
+  TARGET_ROWS = await fetchTargetOverrides(rangeMonth());
 }
 function rangeMonth(){
   const v = document.getElementById("inp-start").value;

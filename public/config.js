@@ -278,6 +278,25 @@ const BD_TEAM_LEADS = Object.fromEntries(BD_TEAM_MEMBERS.map(m => [bdDisplay(m),
 const bdMembersOf = kpiTeam => BD_TEAM_MEMBERS.filter(m => m.kpiTeam === kpiTeam).map(bdDisplay);
 // Which BDEs each lead may edit targets for; admins may edit everyone.
 const BD_TL_BY_EMAIL = { "dhanraj.s@elevateme.pro": "Dhanraj Solanki", "prem.t@elevateme.pro": "Prem Thakar" };
+
+// Fetches kpi_target_overrides for just the months given, plus the legacy
+// month-less rows. Six pages used to pull the entire table on every report,
+// and it grows every month; the TV board did it every 3 minutes all day.
+//
+// The `month.is.null` clause is required, not an optimisation: resolveOverride()
+// falls back to those rows, so filtering on month alone would silently stop
+// honouring any override saved before per-month targets existed.
+async function fetchTargetOverrides(months) {
+  const wanted = [...new Set((Array.isArray(months) ? months : [months]).filter(Boolean))];
+  const clauses = wanted.map(m => `month.eq.${m}`).concat("month.is.null");
+  const url = `${SUPABASE_URL}/rest/v1/kpi_target_overrides`
+    + `?select=person_key,kpi_label,month,monthly_target`
+    + `&or=(${clauses.join(",")})`;
+  try {
+    const r = await fetch(url, { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } });
+    return r.ok ? await r.json() : [];
+  } catch { return []; }
+}
 const bdMembersForLeadEmail = email => {
   const lead = BD_TL_BY_EMAIL[email];
   return lead ? BD_TEAM_MEMBERS.filter(m => m.team === lead).map(bdDisplay) : [];

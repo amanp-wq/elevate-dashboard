@@ -726,14 +726,8 @@ const WEIGHTS_CLOSER = { calls:0.40, minutes:0.20, presentations:0.40 };
 // ── Editable monthly targets (read-only here; edited on /manage-targets-sales.html) ──
 const WORKING_DAYS_PER_MONTH = 22; // basis for converting a stored "monthly target" into a daily rate
 let TARGET_ROWS = []; // raw rows: { person_key, kpi_label, month, monthly_target }
-async function loadTargetOverrides(){
-  try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,month,monthly_target`, {
-      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
-    });
-    if (!r.ok) return;
-    TARGET_ROWS = await r.json();
-  } catch { TARGET_ROWS = []; }
+async function loadTargetOverrides(month){
+  TARGET_ROWS = await fetchTargetOverrides(month);
 }
 // Month-specific value if saved for that exact month (YYYY-MM), else the old
 // no-month "default" row (pre-existing before per-month targets shipped),
@@ -1023,7 +1017,7 @@ document.getElementById("btn-gen").onclick = async function(){
       }).catch(() => {});
     });
     const leaveMap = await fetchLeaveMap(startDate, endDate);
-    await loadTargetOverrides();
+    await loadTargetOverrides(startDate.slice(0, 7));
     const { data: { session: reportSession } } = await _supabase.auth.getSession();
     const res = await fetch(`/api/report?startDate=${startDate}&endDate=${endDate}&slot=7pm&role=${encodeURIComponent(role)}`, {
       headers: { Authorization: `Bearer ${reportSession?.access_token || ""}` }

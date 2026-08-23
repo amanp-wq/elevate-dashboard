@@ -491,12 +491,7 @@ document.getElementById("btn-gen").onclick = async function(){
     // index.html. The target covers every working day in the period whether the
     // person was in or not.
     const reportMonth = startDate.slice(0, 7);
-    let _overrides = [];
-    try {
-      const or = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,month,monthly_target`,
-        { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } });
-      if (or.ok) _overrides = await or.json();
-    } catch {}
+    const _overrides = await fetchTargetOverrides(reportMonth);
     const _rangeDays = Scoring.rangeDays(startDate, endDate);
     const personT  = (name, baseT) => Scoring.personTargets(_overrides, name, baseT, reportMonth, effectiveDays);
     const personW  = (name, role)  => Scoring.personWeights(_overrides, name, role, reportMonth);

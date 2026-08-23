@@ -127,13 +127,17 @@ const zoneCloser = Scoring.zoneCloser;
 
 // Per-person overrides, loaded once and refreshed with the board's own cycle.
 let TARGET_ROWS = [];
-async function loadTargetOverrides(){
-  try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,month,monthly_target`, {
-      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
-    });
-    TARGET_ROWS = r.ok ? await r.json() : [];
-  } catch { TARGET_ROWS = []; }
+let _overridesFetchedAt = 0, _overridesMonth = "";
+const OVERRIDES_TTL_MS = 15 * 60 * 1000;
+// Targets change a few times a month, but this board reloads every 3
+// minutes for hours on end. Refetching them each cycle was the biggest
+// single source of egress from this page, so they are cached.
+async function loadTargetOverrides(month){
+  const fresh = Date.now() - _overridesFetchedAt < OVERRIDES_TTL_MS;
+  if (fresh && _overridesMonth === month && TARGET_ROWS.length) return;
+  TARGET_ROWS = await fetchTargetOverrides(month);
+  _overridesFetchedAt = Date.now();
+  _overridesMonth = month;
 }
 
 const TIER = {
@@ -371,10 +375,10 @@ function onResize() {
 // a few consecutive misses so it comes back with a fresh session.
 let _consecutiveLoadFailures = 0;
 async function loadData() {
-  // Refreshed each cycle: the board runs unattended for hours, so picking
-  // overrides up once at boot would leave it stale after any target change.
-  await loadTargetOverrides();
   const today = todayET();
+  // Cached for 15 minutes inside loadTargetOverrides, so an unattended board
+  // still picks up a target change without refetching every 3 minutes.
+  await loadTargetOverrides((STATE.isLive ? today : STATE.rangeStart).slice(0, 7));
   const startDate = STATE.isLive ? today : STATE.rangeStart;
   const endDate = STATE.isLive ? today : STATE.rangeEnd;
   try {

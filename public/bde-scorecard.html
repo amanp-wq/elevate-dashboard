@@ -211,14 +211,8 @@ function canEditTargets(member){
 let TARGET_ROWS = []; // raw rows: { person_key, kpi_label, month, monthly_target }
 let _lastBdes = null, _lastRange = { start: "", end: "" };  // for view switching
 let CURRENT_REPORT_MONTH = ""; // YYYY-MM of the report's start date, set by render()
-async function loadTargetOverrides(){
-  try {
-    const r = await fetch(`${AUTH_URL}/rest/v1/kpi_target_overrides?select=person_key,kpi_label,month,monthly_target`, {
-      headers: { apikey: AUTH_ANON, Authorization: `Bearer ${AUTH_ANON}` }
-    });
-    if (!r.ok) return;
-    TARGET_ROWS = await r.json();
-  } catch { TARGET_ROWS = []; }
+async function loadTargetOverrides(month){
+  TARGET_ROWS = await fetchTargetOverrides(month);
 }
 // Month-specific value if saved for that exact month, else the old
 // no-month "default" row (pre-existing before per-month targets shipped),
@@ -421,7 +415,7 @@ async function load(){
   btn.disabled = true; btn.textContent = "Loading...";
   document.getElementById("status").textContent = "Fetching BDE data from Zoho…";
   try {
-    await loadTargetOverrides();
+    await loadTargetOverrides(start.slice(0, 7));
     await loadLeaveMap(start, end);
     const { data: { session: bdeSession } } = await _auth.auth.getSession();
     const res = await fetch(`/api/bde?startDate=${start}&endDate=${end}`, {
