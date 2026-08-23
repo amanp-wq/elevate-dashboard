@@ -19,6 +19,11 @@
 
 const API_DOMAIN = "https://www.zohoapis.in";
 
+// COQL refuses an offset at or beyond 2000, so any single window holding more
+// than that cannot be read by paging alone — it has to be split into narrower
+// spans. Both fetchers below check against this.
+const COQL_OFFSET_CEILING = 2000;
+
 // ── Call-duration bands ──────────────────────────────────────────────────────
 // Feeds the hover breakdown on each card: of the calls behind the number on the
 // card, how many were quick hangups vs real conversations.
@@ -137,7 +142,15 @@ async function fetchByDateRange(token, module, select, startDate, endDate, dateF
       all = all.concat(data.data);
       if (!data.info?.more_records) break;
       offset += 200;
-      if (offset >= 2000) break;
+      // Per-day volume here (qualified leads, discoveries, presentations,
+      // closed deals) sits far below this, so hitting it means something has
+      // changed rather than a routine busy day. Better a visible error than a
+      // total that is quietly short.
+      if (offset >= COQL_OFFSET_CEILING) {
+        throw new Error(
+          `${module}.${dateField} on ${date} exceeds COQL's ${COQL_OFFSET_CEILING}-record `
+          + `limit; this fetch needs splitting by time like the Calls one`);
+      }
     }
     return all;
   }
@@ -173,6 +186,7 @@ const fmtCOQL = d => d.toISOString().replace(/\.\d{3}Z$/, "+00:00");
 async function coqlCallsWindow(token, startDT, endDT) {
   const out = [];
   let offset = 0;
+  let truncated = false;
   while (true) {
     const q = `select Owner, Call_Duration_in_seconds, Call_Start_Time, Call_Type, Call_Status `
             + `from Calls where Call_Start_Time between '${startDT}' and '${endDT}' limit ${offset}, 200`;
@@ -187,10 +201,15 @@ async function coqlCallsWindow(token, startDT, endDT) {
     out.push(...data.data);
     if (!data.info?.more_records) break;
     offset += 200;
-    if (offset >= 2000) break;
+    if (offset >= COQL_OFFSET_CEILING) { truncated = true; break; }
   }
-  return out;
+  return { rows: out, truncated };
 }
+
+// Counts how often a window had to be split, so a future volume increase shows
+// up in the logs instead of quietly shaving calls off the total again.
+let _callWindowSplits = 0;
+export const callFetchStats = () => ({ splits: _callWindowSplits });
 
 async function fetchCallsForRange(token, startDate, endDate) {
   const dates = [];
@@ -198,21 +217,43 @@ async function fetchCallsForRange(token, startDate, endDate) {
   const end = new Date(endDate + "T12:00:00Z");
   while (d <= end) { dates.push(d.toISOString().split("T")[0]); d.setUTCDate(d.getUTCDate() + 1); }
 
-  // Split each day into 4 × 6-hour windows so no single window exceeds the
-  // 2000-record COQL pagination cap. Work hours (10:30 AM – 7:30 PM ET)
-  // concentrate ~80% of calls in the noon–midnight half; with 2 windows that
-  // half was silently truncated at 2000 records, dropping ~400 calls per day.
-  async function oneDay(date) {
-    const dayStart = nyMidnightUTC(date);
-    const H6 = 6 * 60 * 60 * 1000;
-    const windows = [];
-    for (let i = 0; i < 4; i++) {
-      windows.push([
-        fmtCOQL(new Date(dayStart.getTime() + i * H6)),
-        fmtCOQL(new Date(dayStart.getTime() + (i + 1) * H6 - 1000)),
-      ]);
+  // A window that comes back at the offset ceiling is re-read as two halves.
+  // The query carries no owner filter, so a window holds every call in the org
+  // for that span, not just this role's -- org volume, not role volume, is what
+  // pushes a window over 2000, and it grows as the company does. Splitting on
+  // demand keeps the read complete without paying for narrow windows on quiet
+  // days.
+  //
+  // The floor is one minute: below that a split cannot help, because more than
+  // 2000 calls inside a single minute would be the same records regardless of
+  // how the span is cut. Reaching it means data really is being lost, so it
+  // throws rather than returning a short count that looks fine.
+  const MIN_SPAN_MS = 60 * 1000;
+  async function readSpan(fromMs, toMs, depth = 0) {
+    const { rows, truncated } = await coqlCallsWindow(
+      token, fmtCOQL(new Date(fromMs)), fmtCOQL(new Date(toMs)));
+    if (!truncated) return rows;
+    if (toMs - fromMs <= MIN_SPAN_MS || depth > 12) {
+      throw new Error(
+        `Calls window ${new Date(fromMs).toISOString()}..${new Date(toMs).toISOString()} `
+        + `exceeds COQL's ${COQL_OFFSET_CEILING}-record limit and cannot be split further`);
     }
-    const parts = await Promise.all(windows.map(([s, e]) => coqlCallsWindow(token, s, e)));
+    _callWindowSplits++;
+    const mid = fromMs + Math.floor((toMs - fromMs) / 2);
+    const [a, b] = await Promise.all([
+      readSpan(fromMs, mid, depth + 1),
+      readSpan(mid + 1000, toMs, depth + 1),   // +1s so the halves cannot overlap
+    ]);
+    return a.concat(b);
+  }
+
+  // Four 6-hour windows to start with: cheap on a normal day, and each one
+  // subdivides itself if the volume warrants.
+  async function oneDay(date) {
+    const dayStart = nyMidnightUTC(date).getTime();
+    const H6 = 6 * 60 * 60 * 1000;
+    const parts = await Promise.all([0, 1, 2, 3].map(i =>
+      readSpan(dayStart + i * H6, dayStart + (i + 1) * H6 - 1000)));
     return parts.flat();
   }
 
