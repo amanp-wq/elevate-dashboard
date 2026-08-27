@@ -381,9 +381,18 @@ const BD_TEAMS = [
       { key: "ICP Moderate", label: "ICP Moderate", dailyTarget: 4,  weight: 70 },
       { key: "ICP Cold",     label: "ICP Cold",     dailyTarget: 15, weight: 30 },
     ] },
+  // Portal is scored on funnel conversion, so these rows carry a weight but no
+  // target — the denominator is the previous stage, taken from the data. Rows
+  // with dailyTarget null render the target cells as not applicable.
   { name: "Portal Team", members: bdMembersOf("Portal Team"),
     kpis: [
-      { key: "ICP Cold + Parser", label: "ICP Cold + Parser", dailyTarget: 120, weight: 100 },
+      { key: "Touched",      label: "Touched (of Generated)",       dailyTarget: null, weight: 10 },
+      { key: "Connected",    label: "Connected (of Touched)",       dailyTarget: null, weight: 10 },
+      { key: "Qualified",    label: "Qualified (of Connected)",     dailyTarget: null, weight: 10 },
+      { key: "Discovery",    label: "Discovery (of Qualified)",     dailyTarget: null, weight: 10 },
+      { key: "Pres. Booked", label: "Pres. Booked (of Discovery)",  dailyTarget: null, weight: 15 },
+      { key: "Pres. Held",   label: "Pres. Held (of Pres. Booked)", dailyTarget: null, weight: 20 },
+      { key: "Enrolled",     label: "Enrolled (of Pres. Held)",     dailyTarget: null, weight: 25 },
     ] },
   { name: "Referral Team", members: bdMembersOf("Referral Team"),
     kpis: [
@@ -485,7 +494,12 @@ function activeBlocks() {
 }
 
 // Saved-or-default monthly target for a KPI, and the daily rate it implies.
+// A conversion KPI (dailyTarget null) has no target to set — its denominator is
+// the previous funnel stage, read from the data. Returns null so the row renders
+// the target cells as not applicable rather than as a zero someone might edit.
+const isConversionKpi = kpi => kpi.dailyTarget == null;
 function monthlyFor(personKey, kpi) {
+  if (isConversionKpi(kpi)) return null;
   const saved = resolveOverride(personKey, kpi.key, SELECTED_MONTH);
   return saved != null ? saved : Math.round(kpi.dailyTarget * WORKING_DAYS_PER_MONTH);
 }
@@ -528,8 +542,21 @@ function renderNotices() {
 
 function kpiRow(personKey, kpi) {
   const id = `${cssId(personKey)}-${cssId(kpi.key)}`;
-  const monthly = monthlyFor(personKey, kpi);
   const weight = weightFor(personKey, kpi);
+
+  // Conversion KPI: scored against the previous funnel stage, so there is no
+  // target to set. Only the weight is editable; the target cells say what the
+  // denominator is instead of showing an editable zero.
+  if (isConversionKpi(kpi)) {
+    return `<tr>
+      <td class="kpi-label">${esc(kpi.label)}</td>
+      <td class="num derived" colspan="2">scored on conversion &mdash; no target to set</td>
+      <td class="num"><input class="w" type="number" min="0" max="100" step="1" id="w-${id}"
+          data-person="${esc(personKey)}" data-kpi="${esc(kpi.key)}" data-kind="weight" value="${weight}">%</td>
+    </tr>`;
+  }
+
+  const monthly = monthlyFor(personKey, kpi);
   return `<tr>
     <td class="kpi-label">${esc(kpi.label)}</td>
     <td class="num"><input type="number" min="0" step="1" id="t-${id}"
@@ -705,18 +732,22 @@ function bulkApply() {
   const field = document.getElementById("bulk-field").value;
   const raw = Number(document.getElementById("bulk-value").value);
   if (!kpiKey || Number.isNaN(raw)) return;
-  let touched = 0;
+  let touched = 0, noTarget = 0;
   SELECTED.forEach(pk => {
     const prefix = field === "weight" ? "w" : field === "daily" ? "dr" : "t";
     const el = document.getElementById(`${prefix}-${cssId(pk)}-${cssId(kpiKey)}`);
-    if (!el) return;
+    // A conversion KPI has no target input, so a target/daily bulk set has
+    // nothing to write. Counted and reported rather than skipped in silence.
+    if (!el) { noTarget++; return; }
     el.value = raw;
     onInput(el);
     touched++;
   });
   const st = document.getElementById("status-all");
   st.style.color = "";
-  st.textContent = touched ? `Applied to ${touched}` : "Nothing to apply";
+  st.textContent = touched
+    ? `Applied to ${touched}` + (noTarget ? ` · ${noTarget} scored on conversion, no target to set` : "")
+    : (noTarget ? "These KPIs are scored on conversion — set the weight instead" : "Nothing to apply");
   setTimeout(() => { st.textContent = ""; }, 2500);
 }
 

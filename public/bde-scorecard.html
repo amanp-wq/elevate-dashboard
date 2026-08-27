@@ -142,8 +142,19 @@ const TEAMS = [
     name: "Portal Team",
     role: "Portal BDE",
     members: bdMembersOf("Portal Team"),
+    // Scored on funnel conversion, not lead volume: each stage against the one
+    // before it, which is the CONV% shown in the strip under the card. Weights
+    // climb toward the outcome end deliberately — an enrolment is worth more
+    // than a lead being worked. Generated is excluded; it is the denominator
+    // of the first stage, not a stage that can be converted into.
     kpis: [
-      { label: "ICP Cold + Parser", note: "Leads Generated (Cold + Parser)", get: b => ((b.types||{})["ICP Cold"]||0) + ((b.types||{})["ICP Parser"]||0), dailyTarget: 120, weight: 1.00 },
+      { label: "Touched",      note: "of Generated",     get: b => fnTotal(b,"touched"),    targetOf: b => fnTotal(b,"generated"),  weight: 0.10 },
+      { label: "Connected",    note: "of Touched",       get: b => fnTotal(b,"connected"),  targetOf: b => fnTotal(b,"touched"),    weight: 0.10 },
+      { label: "Qualified",    note: "of Connected",     get: b => fnTotal(b,"qualified"),  targetOf: b => fnTotal(b,"connected"),  weight: 0.10 },
+      { label: "Discovery",    note: "of Qualified",     get: b => fnTotal(b,"discovery"),  targetOf: b => fnTotal(b,"qualified"),  weight: 0.10 },
+      { label: "Pres. Booked", note: "of Discovery",     get: b => fnTotal(b,"presBooked"), targetOf: b => fnTotal(b,"discovery"),  weight: 0.15 },
+      { label: "Pres. Held",   note: "of Pres. Booked",  get: b => fnTotal(b,"presHeld"),   targetOf: b => fnTotal(b,"presBooked"), weight: 0.20 },
+      { label: "Enrolled",     note: "of Pres. Held",    get: b => fnTotal(b,"enrolled"),   targetOf: b => fnTotal(b,"presHeld"),   weight: 0.25 },
     ],
   },
   {
@@ -244,16 +255,32 @@ function kpiTeamOf(member){
   return TEAMS.find(t => t.members.includes(member)) || null;
 }
 
+// Stage-to-stage totals from the funnel cohort — the TOTAL column of the
+// strip under each card (this month plus carried over).
+const fnTotal = (b, stage) => ((b.cur || {})[stage] || 0) + ((b.old || {})[stage] || 0);
+
 function scoreMember(member, kpis, bmap, wDays){
   const b = bmap[member.toLowerCase()] || {};
   const key = pkey(member);
   let score = 0;
   const rows = kpis.map(k => {
     const actual = k.get(b);
-    const resolved = resolveOverride(key, k.label, CURRENT_REPORT_MONTH);
-    const dailyRate = resolved != null ? resolved / WORKING_DAYS_PER_MONTH : k.dailyTarget;
-    const target = Math.max(1, Math.round(dailyRate * wDays));
-    const pct = target>0 ? Math.min(150, actual/target*100) : 0;
+    let target, pct;
+    if (k.targetOf) {
+      // Conversion KPI: the denominator is the previous funnel stage, so it
+      // comes from this person's own data rather than a configured rate.
+      // Nothing to convert from means 0%, matching what the funnel strip shows.
+      target = k.targetOf(b);
+      // Capped at 100, not 150: above 100% means leads entered this stage
+      // from outside the previous one, which is a cohort artifact rather
+      // than performance, and would otherwise inflate the stage's weight.
+      pct = target > 0 ? Math.min(100, actual / target * 100) : 0;
+    } else {
+      const resolved = resolveOverride(key, k.label, CURRENT_REPORT_MONTH);
+      const dailyRate = resolved != null ? resolved / WORKING_DAYS_PER_MONTH : k.dailyTarget;
+      target = Math.max(1, Math.round(dailyRate * wDays));
+      pct = target > 0 ? Math.min(150, actual / target * 100) : 0;
+    }
     // Weightage is stored as a whole percentage under a "w:" prefixed label
     // by /manage-targets.html. Previously this always used the built-in
     // k.weight, so anything set there was silently ignored.
@@ -337,7 +364,7 @@ function render(bdes, start, end){
     const scores = team.members.map(m => scoreMember(m, team.kpis, bmap, wDays).score);
     const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
     const z = ZONE(avg); const col = ZCOL[z];
-    const kpiNote = team.kpis.map(k=>`${k.label} ${k.dailyTarget}/day (${Math.round(k.weight*100)}%)`).join(" · ");
+    const kpiNote = team.kpis.map(k=>`${k.label} ${k.targetOf ? k.note : k.dailyTarget + "/day"} (${Math.round(k.weight*100)}%)`).join(" · ");
     html += `<div class="team-block">
       <div class="team-head">
         <div class="team-name" style="color:${col}">${team.name}</div>
