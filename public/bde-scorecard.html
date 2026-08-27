@@ -152,13 +152,13 @@ const TEAMS = [
       // not scored — the card colour comes from the conversion stages below.
       { label: "ICP Cold",     note: "Leads Generated",  get: b => (b.types||{})["ICP Cold"]||0,     display: true },
       { label: "ICP Moderate", note: "Leads Generated",  get: b => (b.types||{})["ICP Moderate"]||0, display: true },
-      { label: "Touched",      note: "of Generated",     get: b => fnTotal(b,"touched"),    targetOf: b => fnTotal(b,"generated"),  weight: 0.10 },
-      { label: "Connected",    note: "of Touched",       get: b => fnTotal(b,"connected"),  targetOf: b => fnTotal(b,"touched"),    weight: 0.10 },
-      { label: "Qualified",    note: "of Connected",     get: b => fnTotal(b,"qualified"),  targetOf: b => fnTotal(b,"connected"),  weight: 0.10 },
-      { label: "Discovery",    note: "of Qualified",     get: b => fnTotal(b,"discovery"),  targetOf: b => fnTotal(b,"qualified"),  weight: 0.10 },
-      { label: "Pres. Booked", note: "of Discovery",     get: b => fnTotal(b,"presBooked"), targetOf: b => fnTotal(b,"discovery"),  weight: 0.15 },
-      { label: "Pres. Held",   note: "of Pres. Booked",  get: b => fnTotal(b,"presHeld"),   targetOf: b => fnTotal(b,"presBooked"), weight: 0.20 },
-      { label: "Enrolled",     note: "of Pres. Held",    get: b => fnTotal(b,"enrolled"),   targetOf: b => fnTotal(b,"presHeld"),   weight: 0.25 },
+      { label: "Touched",      note: "of Generated",     get: b => fnCohort(b,"touched"),    targetOf: b => fnCohort(b,"generated"),  weight: 0.10 },
+      { label: "Connected",    note: "of Touched",       get: b => fnCohort(b,"connected"),  targetOf: b => fnCohort(b,"touched"),    weight: 0.10 },
+      { label: "Qualified",    note: "of Connected",     get: b => fnCohort(b,"qualified"),  targetOf: b => fnCohort(b,"connected"),  weight: 0.10 },
+      { label: "Discovery",    note: "of Qualified",     get: b => fnCohort(b,"discovery"),  targetOf: b => fnCohort(b,"qualified"),  weight: 0.10 },
+      { label: "Pres. Booked", note: "of Discovery",     get: b => fnCohort(b,"presBooked"), targetOf: b => fnCohort(b,"discovery"),  weight: 0.15 },
+      { label: "Pres. Held",   note: "of Pres. Booked",  get: b => fnCohort(b,"presHeld"),   targetOf: b => fnCohort(b,"presBooked"), weight: 0.20 },
+      { label: "Enrolled",     note: "of Pres. Held",    get: b => fnCohort(b,"enrolled"),   targetOf: b => fnCohort(b,"presHeld"),   weight: 0.25 },
     ],
   },
   {
@@ -259,9 +259,16 @@ function kpiTeamOf(member){
   return TEAMS.find(t => t.members.includes(member)) || null;
 }
 
-// Stage-to-stage totals from the funnel cohort — the TOTAL column of the
-// strip under each card (this month plus carried over).
-const fnTotal = (b, stage) => ((b.cur || {})[stage] || 0) + ((b.old || {})[stage] || 0);
+// The lead-generated cohort: leads generated inside the selected period,
+// followed through the funnel. That is the THIS MO. column of the strip under
+// each card — deliberately NOT the TOTAL.
+//
+// Using TOTAL made the ratios meaningless, because Touched counts work on
+// carried-over leads while Generated only counts new ones: one BDE showed
+// Touched 142 of Generated 1, which capped out at 150% and said nothing about
+// how well he worked the leads he brought in. Every stage has to measure the
+// same population, and the cohort is that population.
+const fnCohort = (b, stage) => (b.cur || {})[stage] || 0;
 
 function scoreMember(member, kpis, bmap, wDays){
   const b = bmap[member.toLowerCase()] || {};
@@ -272,12 +279,11 @@ function scoreMember(member, kpis, bmap, wDays){
     // A display row is shown for context and nothing else: no target, no
     // percentage, and no contribution to the score. The card colour comes
     // from funnel conversion alone.
-    if (k.display) return { label: k.label, note: k.note, actual, target: null, pct: null, weight: 0 };
+    if (k.display) return { label: k.label, note: k.note, actual, target: null, pct: null, weight: 0, display: true };
     let target, pct;
     if (k.targetOf) {
       // Conversion KPI: the denominator is the previous funnel stage, so it
       // comes from this person's own data rather than a configured rate.
-      // Nothing to convert from means 0%, matching what the funnel strip shows.
       target = k.targetOf(b);
       // Capped at 150, the same ceiling every other KPI uses — so the figure
       // on this row is the same CONV% the funnel strip below the card shows.
@@ -287,7 +293,11 @@ function scoreMember(member, kpis, bmap, wDays){
       // Above 100% means leads entered this stage from outside the previous one
       // rather than converting through it, so the stage can pay out more than
       // its weight. That is a known property of a cohort funnel, not a bug.
-      pct = target > 0 ? Math.min(150, actual / target * 100) : 0;
+      //
+      // An empty previous stage leaves the conversion undefined rather than
+      // zero — null, so the row shows a dash instead of claiming 0% was
+      // achieved. Either way the stage earns nothing.
+      pct = target > 0 ? Math.min(150, actual / target * 100) : null;
     } else {
       const resolved = resolveOverride(key, k.label, CURRENT_REPORT_MONTH);
       const dailyRate = resolved != null ? resolved / WORKING_DAYS_PER_MONTH : k.dailyTarget;
@@ -299,8 +309,10 @@ function scoreMember(member, kpis, bmap, wDays){
     // k.weight, so anything set there was silently ignored.
     const wOverride = resolveOverride(key, "w:" + k.label, CURRENT_REPORT_MONTH);
     const weight = wOverride != null ? wOverride / 100 : k.weight;
-    score += pct * weight;
-    return { label:k.label, note:k.note, actual, target, pct:Math.round(pct), weight };
+    score += (pct || 0) * weight;   // an undefined conversion earns nothing
+    // Math.round(null) is 0, which would turn an undefined conversion back into
+    // a claimed 0%. Kept as null so the row can render a dash.
+    return { label:k.label, note:k.note, actual, target, pct: pct === null ? null : Math.round(pct), weight };
   });
   return { score: Math.round(score), rows };
 }
@@ -355,10 +367,19 @@ function tile(member, role, kpis, bmap, wDays){
     ${rows.map(r=>{
       // Display row: the count, and a note saying it is not scored. No
       // percentage or bar, because there is nothing it is measured against.
-      if (r.pct === null) return `<div class="kpi-row">
+      if (r.display) return `<div class="kpi-row">
         <div class="kpi-name">${r.label} <small>· ${r.note} · not scored</small></div>
         <div class="kpi-av">${r.actual}</div>
         <div class="kpi-pct" style="color:var(--muted)">—</div>
+        <div class="bar"></div>
+      </div>`;
+      // A scored stage with nothing in the stage before it: keep the weight on
+      // show, but a dash rather than a percentage, since there was nothing to
+      // convert from this period.
+      if (r.pct === null) return `<div class="kpi-row">
+        <div class="kpi-name">${r.label} <small>· ${r.note} · ${Math.round(r.weight*100)}%</small></div>
+        <div class="kpi-av">${r.actual}<span style="color:var(--muted);font-weight:400">/${r.target}</span></div>
+        <div class="kpi-pct" style="color:var(--muted)" title="No leads in the previous stage this period">—</div>
         <div class="bar"></div>
       </div>`;
       const rc = r.pct>=110?"var(--gold)":r.pct>=95?"var(--green)":r.pct>=75?"var(--yellow)":r.pct>=50?"var(--orange)":"var(--red)";

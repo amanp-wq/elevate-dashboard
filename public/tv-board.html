@@ -166,13 +166,13 @@ const BDE_TEAMS = [
     kpis: [
       { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     display: true },
       { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, display: true },
-      { label: "Touched",      note: "of Generated",    get: b => bdeFnTotal(b,"touched"),    targetOf: b => bdeFnTotal(b,"generated"),  weight: 0.10 },
-      { label: "Connected",    note: "of Touched",      get: b => bdeFnTotal(b,"connected"),  targetOf: b => bdeFnTotal(b,"touched"),    weight: 0.10 },
-      { label: "Qualified",    note: "of Connected",    get: b => bdeFnTotal(b,"qualified"),  targetOf: b => bdeFnTotal(b,"connected"),  weight: 0.10 },
-      { label: "Discovery",    note: "of Qualified",    get: b => bdeFnTotal(b,"discovery"),  targetOf: b => bdeFnTotal(b,"qualified"),  weight: 0.10 },
-      { label: "Pres. Booked", note: "of Discovery",    get: b => bdeFnTotal(b,"presBooked"), targetOf: b => bdeFnTotal(b,"discovery"),  weight: 0.15 },
-      { label: "Pres. Held",   note: "of Pres. Booked", get: b => bdeFnTotal(b,"presHeld"),   targetOf: b => bdeFnTotal(b,"presBooked"), weight: 0.20 },
-      { label: "Enrolled",     note: "of Pres. Held",   get: b => bdeFnTotal(b,"enrolled"),   targetOf: b => bdeFnTotal(b,"presHeld"),   weight: 0.25 },
+      { label: "Touched",      note: "of Generated",    get: b => bdeFnCohort(b,"touched"),    targetOf: b => bdeFnCohort(b,"generated"),  weight: 0.10 },
+      { label: "Connected",    note: "of Touched",      get: b => bdeFnCohort(b,"connected"),  targetOf: b => bdeFnCohort(b,"touched"),    weight: 0.10 },
+      { label: "Qualified",    note: "of Connected",    get: b => bdeFnCohort(b,"qualified"),  targetOf: b => bdeFnCohort(b,"connected"),  weight: 0.10 },
+      { label: "Discovery",    note: "of Qualified",    get: b => bdeFnCohort(b,"discovery"),  targetOf: b => bdeFnCohort(b,"qualified"),  weight: 0.10 },
+      { label: "Pres. Booked", note: "of Discovery",    get: b => bdeFnCohort(b,"presBooked"), targetOf: b => bdeFnCohort(b,"discovery"),  weight: 0.15 },
+      { label: "Pres. Held",   note: "of Pres. Booked", get: b => bdeFnCohort(b,"presHeld"),   targetOf: b => bdeFnCohort(b,"presBooked"), weight: 0.20 },
+      { label: "Enrolled",     note: "of Pres. Held",   get: b => bdeFnCohort(b,"enrolled"),   targetOf: b => bdeFnCohort(b,"presHeld"),   weight: 0.25 },
     ] },
   { name: "Referral Team", role: "Referral BDE",
     members: bdMembersOf("Referral Team"),
@@ -185,9 +185,9 @@ const BDE_TEAMS = [
 // Reporting lead per BDE, from config.js.
 const BDE_TEAM_LEADS = BD_TEAM_LEADS;
 // Summary funnel shown under each BDE card — current + carried-over totals.
-// Stage-to-stage totals for the conversion KPIs — the same TOTAL column
-// (this month + carried over) the BDE Scorecard reads.
-const bdeFnTotal = (b, stage) => ((b.cur || {})[stage] || 0) + ((b.old || {})[stage] || 0);
+// The lead-generated cohort — the THIS MO. column, matching the BDE Scorecard.
+// See the note there for why TOTAL is wrong for this.
+const bdeFnCohort = (b, stage) => (b.cur || {})[stage] || 0;
 const BDE_FUNNEL = [["Generated","generated"], ["Qualified","qualified"], ["Pres. Held","presHeld"], ["Enrolled","enrolled"]];
 
 const initials = n => n.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
@@ -248,15 +248,17 @@ function buildBdeTeams(bdes, wDays) {
         // Same 150 ceiling for both kinds, so a conversion row matches the
         // CONV% shown in the funnel — see the note in bde-scorecard.html.
         const cap = 150;
-        const pct = Math.min(cap, target > 0 ? (actual / target) * 100 : 0);
-        score += pct * k.weight;
+        // Undefined rather than zero when the previous stage is empty, so the
+        // board shows a dash instead of claiming 0% — see bde-scorecard.html.
+        const pct = target > 0 ? Math.min(cap, (actual / target) * 100) : null;
+        score += (pct || 0) * k.weight;   // an undefined conversion earns nothing
         return {
           label: k.label,
           note: `${k.note} · ${Math.round(k.weight * 100)}%`,
           actual, target,
-          pctLabel: Math.round(pct) + "%",
-          color: barColor(pct),
-          bar: Math.min(100, (pct / 150) * 100).toFixed(0),
+          pctLabel: pct === null ? "—" : Math.round(pct) + "%",
+          color: pct === null ? "#6b7499" : barColor(pct),
+          bar: pct === null ? "0" : Math.min(100, (pct / 150) * 100).toFixed(0),
         };
       });
       score = Math.round(score);
