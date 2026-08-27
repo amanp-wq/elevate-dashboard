@@ -194,8 +194,7 @@ async function authHeader() {
 }
 async function fetchRole(role, startDate, endDate) {
   const res = await fetch(`/api/report?startDate=${startDate}&endDate=${endDate}&slot=7pm&role=${role}`, { headers: await authHeader() });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `${role} fetch failed`);
+      const data = await readApiJson(res, `${role} report`);
   return data;
 }
 // BDE data is a separate endpoint. A failure here must not take the whole
@@ -204,8 +203,7 @@ async function fetchRole(role, startDate, endDate) {
 async function fetchBde(startDate, endDate) {
   try {
     const res = await fetch(`/api/bde?startDate=${startDate}&endDate=${endDate}`, { headers: await authHeader() });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "BDE fetch failed");
+      const data = await readApiJson(res, "BDE data");
     return data.bdes || [];
   } catch (e) {
     console.error("TV board: BDE fetch failed (other views unaffected):", e.message);

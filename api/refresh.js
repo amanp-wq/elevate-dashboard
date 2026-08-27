@@ -1,7 +1,12 @@
 import { requireUser } from "./_lib/auth.js";
 import { buildReport, fetchAllUsers } from "./_lib/report-core.js";
 
-export const config = { maxDuration: 60 };
+// 300s, not 60. Sixty was the Vercel Hobby ceiling; on Pro this can go to
+// five minutes, and these routes need it — a multi-day range fans out to
+// dozens of paged COQL queries and was being killed mid-flight. A timeout is
+// the one failure the handler cannot turn into a JSON error, so the page got a
+// plain-text platform page and reported "not valid JSON" instead of the cause.
+export const config = { maxDuration: 300 };
 
 const SUPABASE_URL  = process.env.SUPABASE_URL;
 const SUPABASE_KEY  = process.env.SUPABASE_ANON_KEY;

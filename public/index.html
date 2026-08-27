@@ -1054,8 +1054,7 @@ document.getElementById("btn-gen").onclick = async function(){
     const res = await fetch(`/api/report?startDate=${startDate}&endDate=${endDate}&slot=7pm&role=${encodeURIComponent(role)}`, {
       headers: { Authorization: `Bearer ${reportSession?.access_token || ""}` }
     });
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.error || "Server error");
+    const data = await readApiJson(res, "Report");
     const fromCache = res.headers.get("X-Cache") === "HIT";
     setStatus(fromCache ? "Loaded from cache ⚡" : "Fetched from Zoho CRM");
 
@@ -1378,7 +1377,11 @@ document.getElementById("btn-force-refresh").onclick = async function() {
     const res = await fetch("/api/refresh?force=true", {
       headers: { Authorization: `Bearer ${refreshSession?.access_token || ""}` }
     });
-    const data = await res.json();
+    // readApiJson throws on a non-2xx or a non-JSON body, so a timeout here
+    // reports itself instead of surfacing as a JSON parse error. refresh.js
+    // returns 207 when some roles landed and some did not — still 2xx, so it
+    // arrives here with data.ok false and the message below explains which.
+    const data = await readApiJson(res, "Refresh");
     if (data.ok) {
       setStatus("Cache refreshed ✓ — loading fresh data...");
       setTimeout(() => document.getElementById("btn-gen").click(), 800);

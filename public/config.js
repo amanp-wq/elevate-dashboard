@@ -284,6 +284,27 @@ const bdMembersOf = kpiTeam => BD_TEAM_MEMBERS.filter(m => m.kpiTeam === kpiTeam
 // The `month.is.null` clause is required, not an optimisation: resolveOverride()
 // falls back to those rows, so filtering on month alone would silently stop
 // honouring any override saved before per-month targets existed.
+// Reads a response that is meant to be JSON, and fails with something useful
+// when it is not. A serverless function killed mid-flight returns the
+// platform error page as plain text, so calling res.json() on it turned "this
+// took too long" into "Unexpected token 'A' ... is not valid JSON" and hid the
+// cause. Non-2xx is thrown here too, so callers stop repeating that check.
+async function readApiJson(res, what) {
+  const body = await res.text();
+  let data = null;
+  try { data = JSON.parse(body); } catch { /* not JSON — handled below */ }
+
+  if (data && typeof data === "object") {
+    if (!res.ok) throw new Error(data.error || `${what || "Request"} failed (${res.status})`);
+    return data;
+  }
+  // A 504, or Vercel's FUNCTION_INVOCATION_TIMEOUT page, both mean the same thing.
+  if (res.status === 504 || /timed?\s*out|FUNCTION_INVOCATION_TIMEOUT/i.test(body)) {
+    throw new Error(`${what || "The request"} took too long and was cut off — try a shorter date range.`);
+  }
+  throw new Error(`${what || "Request"} failed (${res.status}) — the server did not return JSON.`);
+}
+
 async function fetchTargetOverrides(months) {
   const wanted = [...new Set((Array.isArray(months) ? months : [months]).filter(Boolean))];
   const clauses = wanted.map(m => `month.eq.${m}`).concat("month.is.null");

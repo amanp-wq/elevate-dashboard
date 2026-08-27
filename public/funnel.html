@@ -441,8 +441,7 @@ document.getElementById("btn-gen").onclick = async function() {
     const res  = await fetch(`/api/funnel?${params}`, {
       headers: { Authorization: `Bearer ${funnelSession?.access_token || ""}` }
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Server error");
+    const data = await readApiJson(res, "Funnel data");
 
     const fromCache = res.headers.get("X-Cache") === "HIT";
     setStatus(fromCache ? "Loaded from cache ⚡" : "Fetched from Zoho CRM");

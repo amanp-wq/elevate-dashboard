@@ -418,8 +418,7 @@ async function load(){
     const res = await fetch(`/api/bde?startDate=${start}&endDate=${end}`, {
       headers: { Authorization: `Bearer ${bdeSession?.access_token || ""}` }
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Server error");
+    const data = await readApiJson(res, "BDE data");
     const cache = res.headers.get("X-Cache")==="HIT";
     document.getElementById("status").textContent =
       `${start} → ${end} · ${workingDays(start,end)} working days · ${cache?"cache ⚡":"live from Zoho"}`;

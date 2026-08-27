@@ -427,8 +427,7 @@ document.getElementById("btn-gen").onclick = async function() {
     const res = await fetch(`/api/bde?startDate=${startDate}&endDate=${endDate}`, {
       headers: { Authorization: `Bearer ${bdeSession?.access_token || ""}` }
     });
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.error||"Server error");
+    const data = await readApiJson(res, "BDE data");
     const fromCache = res.headers.get("X-Cache")==="HIT";
     setStatus(fromCache ? "Loaded from cache ⚡" : "Fetched from Zoho CRM");
     renderReferral(data.referral||null);
