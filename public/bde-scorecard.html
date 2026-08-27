@@ -148,6 +148,10 @@ const TEAMS = [
     // than a lead being worked. Generated is excluded; it is the denominator
     // of the first stage, not a stage that can be converted into.
     kpis: [
+      // Read-only context: how many leads were generated, by type. Deliberately
+      // not scored — the card colour comes from the conversion stages below.
+      { label: "ICP Cold",     note: "Leads Generated",  get: b => (b.types||{})["ICP Cold"]||0,     display: true },
+      { label: "ICP Moderate", note: "Leads Generated",  get: b => (b.types||{})["ICP Moderate"]||0, display: true },
       { label: "Touched",      note: "of Generated",     get: b => fnTotal(b,"touched"),    targetOf: b => fnTotal(b,"generated"),  weight: 0.10 },
       { label: "Connected",    note: "of Touched",       get: b => fnTotal(b,"connected"),  targetOf: b => fnTotal(b,"touched"),    weight: 0.10 },
       { label: "Qualified",    note: "of Connected",     get: b => fnTotal(b,"qualified"),  targetOf: b => fnTotal(b,"connected"),  weight: 0.10 },
@@ -265,6 +269,10 @@ function scoreMember(member, kpis, bmap, wDays){
   let score = 0;
   const rows = kpis.map(k => {
     const actual = k.get(b);
+    // A display row is shown for context and nothing else: no target, no
+    // percentage, and no contribution to the score. The card colour comes
+    // from funnel conversion alone.
+    if (k.display) return { label: k.label, note: k.note, actual, target: null, pct: null, weight: 0 };
     let target, pct;
     if (k.targetOf) {
       // Conversion KPI: the denominator is the previous funnel stage, so it
@@ -345,6 +353,14 @@ function tile(member, role, kpis, bmap, wDays){
       </div>
     </div>
     ${rows.map(r=>{
+      // Display row: the count, and a note saying it is not scored. No
+      // percentage or bar, because there is nothing it is measured against.
+      if (r.pct === null) return `<div class="kpi-row">
+        <div class="kpi-name">${r.label} <small>· ${r.note} · not scored</small></div>
+        <div class="kpi-av">${r.actual}</div>
+        <div class="kpi-pct" style="color:var(--muted)">—</div>
+        <div class="bar"></div>
+      </div>`;
       const rc = r.pct>=110?"var(--gold)":r.pct>=95?"var(--green)":r.pct>=75?"var(--yellow)":r.pct>=50?"var(--orange)":"var(--red)";
       return `<div class="kpi-row">
         <div class="kpi-name">${r.label} <small>· ${r.note} · ${Math.round(r.weight*100)}%</small></div>
@@ -369,7 +385,7 @@ function render(bdes, start, end){
     const scores = team.members.map(m => scoreMember(m, team.kpis, bmap, wDays).score);
     const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
     const z = ZONE(avg); const col = ZCOL[z];
-    const kpiNote = team.kpis.map(k=>`${k.label} ${k.targetOf ? k.note : k.dailyTarget + "/day"} (${Math.round(k.weight*100)}%)`).join(" · ");
+    const kpiNote = team.kpis.filter(k=>!k.display).map(k=>`${k.label} ${k.targetOf ? k.note : k.dailyTarget + "/day"} (${Math.round(k.weight*100)}%)`).join(" · ");
     html += `<div class="team-block">
       <div class="team-head">
         <div class="team-name" style="color:${col}">${team.name}</div>
