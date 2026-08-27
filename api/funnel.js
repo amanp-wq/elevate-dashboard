@@ -262,7 +262,7 @@ export default async function handler(req, res) {
       "Jiya Chandrawanshi", "Dhanraj Solanki", "Bhoomi Barot", "Kinjal Menaria",
       "Shruti Mori", "Heer Nakum", "Meet Patel", "Shreya Lathiya",
       "Supratim Dutta", "Soumya Singh", "Varun Singh", "Ved Sutariya",
-      "Ujjaval Karangiya", "Rakesh Prajapatia", "Dhiraj Prajapati", "Manish Sonagaraa"
+      "Ujjaval Karangiya", "Rakesh Prajapati", "Dhiraj Prajapati", "Manish Sonagara"
     ].sort();
 
     const result = {

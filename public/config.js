@@ -259,11 +259,11 @@ const BD_TEAM_MEMBERS = [
   { name: "Jiya Chandrawanshi",    team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
   { name: "Bhoomi Barot",          team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
   { name: "Dhiraj Prajapati",      team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
-  { name: "Manish Sonagaraa",      team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
+  { name: "Manish Sonagara",       team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
   { name: "Sunil Patel",           team: "Dhanraj Solanki", kpiTeam: "Portal Team",   role: "BD" },
   { name: "Meet Patel (BD)", display: "Meet Patel", team: "Dhanraj Solanki", kpiTeam: "Referral Team", role: "BD" },
   { name: "Ujjaval Karangiya",     team: "Prem Thakar",     kpiTeam: "LinkedIn Team", role: "BD" },
-  { name: "Rakesh Prajapatia",     team: "Prem Thakar",     kpiTeam: "LinkedIn Team", role: "BD" },
+  { name: "Rakesh Prajapati",      team: "Prem Thakar",     kpiTeam: "LinkedIn Team", role: "BD" },
   { name: "Ajay Darbar",           team: "Prem Thakar",     kpiTeam: "Portal Team",   role: "BD" },
 ];
 
