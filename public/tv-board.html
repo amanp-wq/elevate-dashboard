@@ -162,18 +162,15 @@ const BDE_TEAMS = [
     ] },
   { name: "Portal Team", role: "Portal BDE",
     members: bdMembersOf("Portal Team"),
-    // Must match bde-scorecard.html's Portal KPIs exactly.
+    // Must match bde-scorecard.html's Portal config exactly.
     kpis: [
       { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     display: true },
       { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, display: true },
-      { label: "Touched",      note: "of Generated",    get: b => bdeFnCohort(b,"touched"),    targetOf: b => bdeFnCohort(b,"generated"),  weight: 0.10 },
-      { label: "Connected",    note: "of Touched",      get: b => bdeFnCohort(b,"connected"),  targetOf: b => bdeFnCohort(b,"touched"),    weight: 0.10 },
-      { label: "Qualified",    note: "of Connected",    get: b => bdeFnCohort(b,"qualified"),  targetOf: b => bdeFnCohort(b,"connected"),  weight: 0.10 },
-      { label: "Discovery",    note: "of Qualified",    get: b => bdeFnCohort(b,"discovery"),  targetOf: b => bdeFnCohort(b,"qualified"),  weight: 0.10 },
-      { label: "Pres. Booked", note: "of Discovery",    get: b => bdeFnCohort(b,"presBooked"), targetOf: b => bdeFnCohort(b,"discovery"),  weight: 0.15 },
-      { label: "Pres. Held",   note: "of Pres. Booked", get: b => bdeFnCohort(b,"presHeld"),   targetOf: b => bdeFnCohort(b,"presBooked"), weight: 0.20 },
-      { label: "Enrolled",     note: "of Pres. Held",   get: b => bdeFnCohort(b,"enrolled"),   targetOf: b => bdeFnCohort(b,"presHeld"),   weight: 0.25 },
-    ] },
+    ],
+    funnelWeights: {
+      "Touched": 0.10, "Connected": 0.10, "Qualified": 0.10, "Discovery": 0.10,
+      "Pres. Booked": 0.15, "Pres. Held": 0.20, "Enrolled": 0.25,
+    } },
   { name: "Referral Team", role: "Referral BDE",
     members: bdMembersOf("Referral Team"),
     kpis: [
@@ -185,9 +182,27 @@ const BDE_TEAMS = [
 // Reporting lead per BDE, from config.js.
 const BDE_TEAM_LEADS = BD_TEAM_LEADS;
 // Summary funnel shown under each BDE card — current + carried-over totals.
-// The lead-generated cohort — the THIS MO. column, matching the BDE Scorecard.
-// See the note there for why TOTAL is wrong for this.
-const bdeFnCohort = (b, stage) => (b.cur || {})[stage] || 0;
+// Stage-to-stage conversion through the full funnel, computed exactly as
+// bde-scorecard.html does it so the board and the scorecard agree. Null where
+// the previous stage is empty: the conversion is undefined then, not zero.
+const BDE_FUNNEL_ORDER = ["generated","touched","connected","qualified","discovery","presBooked","presHeld","enrolled"];
+const BDE_STAGE_OF_LABEL = {
+  "Touched":"touched", "Connected":"connected", "Qualified":"qualified",
+  "Discovery":"discovery", "Pres. Booked":"presBooked", "Pres. Held":"presHeld",
+  "Enrolled":"enrolled",
+};
+const BDE_CONV_CAP = 150;
+function bdeFunnelConv(b) {
+  const cur = b.cur || {}, old = b.old || {};
+  const out = {};
+  let prev = null;
+  for (const stage of BDE_FUNNEL_ORDER) {
+    const total = (cur[stage] || 0) + (old[stage] || 0);
+    out[stage] = prev === null ? null : (prev > 0 ? total / prev * 100 : null);
+    prev = total;
+  }
+  return out;
+}
 const BDE_FUNNEL = [["Generated","generated"], ["Qualified","qualified"], ["Pres. Held","presHeld"], ["Enrolled","enrolled"]];
 
 const initials = n => n.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
@@ -234,6 +249,16 @@ function buildBdeTeams(bdes, wDays) {
     const members = team.members.map(name => {
       const b = byName[name.toLowerCase()] || {};
       let score = 0;
+      // A team with funnelWeights is scored from funnel conversion; its KPI rows
+      // are read-only context and carry no weight.
+      if (team.funnelWeights) {
+        const conv = bdeFunnelConv(b);
+        for (const [label, weight] of Object.entries(team.funnelWeights)) {
+          const raw = conv[BDE_STAGE_OF_LABEL[label]];
+          const pct = raw === null || raw === undefined ? null : Math.min(BDE_CONV_CAP, raw);
+          score += (pct || 0) * weight;
+        }
+      }
       const rows = team.kpis.map(k => {
         // Display row: shown for context, contributes nothing to the score.
         if (k.display) return {
@@ -251,7 +276,7 @@ function buildBdeTeams(bdes, wDays) {
         // Undefined rather than zero when the previous stage is empty, so the
         // board shows a dash instead of claiming 0% — see bde-scorecard.html.
         const pct = target > 0 ? Math.min(cap, (actual / target) * 100) : null;
-        score += (pct || 0) * k.weight;   // an undefined conversion earns nothing
+        if (!team.funnelWeights) score += (pct || 0) * k.weight;   // undefined earns nothing
         return {
           label: k.label,
           note: `${k.note} · ${Math.round(k.weight * 100)}%`,
@@ -273,7 +298,9 @@ function buildBdeTeams(bdes, wDays) {
     const avg = members.length ? Math.round(members.reduce((s, m) => s + m.score, 0) / members.length) : 0;
     return {
       name: team.name, score: avg, tier: zone(avg),
-      note: team.kpis.filter(k => !k.display).map(k => `${k.label} ${k.targetOf ? k.note : k.dailyTarget + "/day"} (${Math.round(k.weight*100)}%)`).join(" · "),
+      note: team.funnelWeights
+        ? "Funnel conversion · " + Object.entries(team.funnelWeights).map(([l,w])=>`${l} ${Math.round(w*100)}%`).join(" · ")
+        : team.kpis.filter(k => !k.display).map(k => `${k.label} ${k.targetOf ? k.note : k.dailyTarget + "/day"} (${Math.round(k.weight*100)}%)`).join(" · "),
       // Board columns this team occupies, which is also its own inner column
       // count — from the design. Today that is 2 + 1 + 1 = 4 columns total.
       span: members.length >= 4 ? 2 : 1,

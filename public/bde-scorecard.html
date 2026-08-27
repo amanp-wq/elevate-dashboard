@@ -147,19 +147,20 @@ const TEAMS = [
     // climb toward the outcome end deliberately — an enrolment is worth more
     // than a lead being worked. Generated is excluded; it is the denominator
     // of the first stage, not a stage that can be converted into.
+    // Two rows on the card, both read-only: how many leads came in, by type.
     kpis: [
-      // Read-only context: how many leads were generated, by type. Deliberately
-      // not scored — the card colour comes from the conversion stages below.
-      { label: "ICP Cold",     note: "Leads Generated",  get: b => (b.types||{})["ICP Cold"]||0,     display: true },
-      { label: "ICP Moderate", note: "Leads Generated",  get: b => (b.types||{})["ICP Moderate"]||0, display: true },
-      { label: "Touched",      note: "of Generated",     get: b => fnCohort(b,"touched"),    targetOf: b => fnCohort(b,"generated"),  weight: 0.10 },
-      { label: "Connected",    note: "of Touched",       get: b => fnCohort(b,"connected"),  targetOf: b => fnCohort(b,"touched"),    weight: 0.10 },
-      { label: "Qualified",    note: "of Connected",     get: b => fnCohort(b,"qualified"),  targetOf: b => fnCohort(b,"connected"),  weight: 0.10 },
-      { label: "Discovery",    note: "of Qualified",     get: b => fnCohort(b,"discovery"),  targetOf: b => fnCohort(b,"qualified"),  weight: 0.10 },
-      { label: "Pres. Booked", note: "of Discovery",     get: b => fnCohort(b,"presBooked"), targetOf: b => fnCohort(b,"discovery"),  weight: 0.15 },
-      { label: "Pres. Held",   note: "of Pres. Booked",  get: b => fnCohort(b,"presHeld"),   targetOf: b => fnCohort(b,"presBooked"), weight: 0.20 },
-      { label: "Enrolled",     note: "of Pres. Held",    get: b => fnCohort(b,"enrolled"),   targetOf: b => fnCohort(b,"presHeld"),   weight: 0.25 },
+      { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     display: true },
+      { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, display: true },
     ],
+    // The score comes from the funnel strip below the card — its CONV% column,
+    // weighted. Generated is the first denominator, not a scored stage.
+    // Keyed by the stage label, which is also what /manage-targets.html stores a
+    // per-person override against, so a team lead can retune these without a
+    // code change.
+    funnelWeights: {
+      "Touched": 0.10, "Connected": 0.10, "Qualified": 0.10, "Discovery": 0.10,
+      "Pres. Booked": 0.15, "Pres. Held": 0.20, "Enrolled": 0.25,
+    },
   },
   {
     name: "Referral Team",
@@ -259,18 +260,58 @@ function kpiTeamOf(member){
   return TEAMS.find(t => t.members.includes(member)) || null;
 }
 
-// The lead-generated cohort: leads generated inside the selected period,
-// followed through the funnel. That is the THIS MO. column of the strip under
-// each card — deliberately NOT the TOTAL.
+// Stage-to-stage conversion through the funnel, exactly as the strip under each
+// card computes and displays it: this stage's TOTAL over the previous stage's.
+// Both the strip and the score read this, so the percentage shown is the
+// percentage scored.
 //
-// Using TOTAL made the ratios meaningless, because Touched counts work on
-// carried-over leads while Generated only counts new ones: one BDE showed
-// Touched 142 of Generated 1, which capped out at 150% and said nothing about
-// how well he worked the leads he brought in. Every stage has to measure the
-// same population, and the cohort is that population.
-const fnCohort = (b, stage) => (b.cur || {})[stage] || 0;
+// Returns null where the previous stage is empty — the conversion is undefined
+// then, not zero, and a stage that could not be measured should not read as one
+// that was failed.
+function funnelConv(b) {
+  const cur = b.cur || {}, old = b.old || {};
+  const out = {};
+  let prev = null;
+  for (const [, stage] of FUNNEL_STAGES) {
+    const total = (cur[stage] || 0) + (old[stage] || 0);
+    out[stage] = prev === null ? null : (prev > 0 ? total / prev * 100 : null);
+    prev = total;
+  }
+  return out;
+}
 
-function scoreMember(member, kpis, bmap, wDays){
+// Capped at 150, the ceiling every other KPI uses, so one runaway stage cannot
+// carry a card on its own.
+const CONV_CAP = 150;
+
+// `funnelWeights` on a team means: score this person from the funnel strip's
+// conversion percentages, weighted. Their KPI rows are then read-only context.
+// Built on first use, not at load: FUNNEL_STAGES is declared further down the
+// file, and reading it here at module level threw a temporal-dead-zone error
+// that broke the whole page.
+let _stageOfLabel = null;
+function stageOfLabel(label) {
+  if (!_stageOfLabel) _stageOfLabel = Object.fromEntries(FUNNEL_STAGES.map(([lbl, k]) => [lbl, k]));
+  return _stageOfLabel[label];
+}
+
+function scoreFromFunnel(b, weights, personKey) {
+  const conv = funnelConv(b);
+  let score = 0;
+  const byLabel = {};
+  for (const [label, builtIn] of Object.entries(weights)) {
+    // Same "w:" override the KPI weights use, so the manage page reaches these too.
+    const override = personKey ? resolveOverride(personKey, "w:" + label, CURRENT_REPORT_MONTH) : null;
+    const weight = override != null ? override / 100 : builtIn;
+    const raw = conv[stageOfLabel(label)];
+    const pct = raw === null || raw === undefined ? null : Math.min(CONV_CAP, raw);
+    score += (pct || 0) * weight;
+    byLabel[label] = { weight, pct: pct === null ? null : Math.round(pct) };
+  }
+  return { score: Math.round(score), byLabel };
+}
+
+function scoreMember(member, kpis, bmap, wDays, funnelWeights){
   const b = bmap[member.toLowerCase()] || {};
   const key = pkey(member);
   let score = 0;
@@ -314,6 +355,12 @@ function scoreMember(member, kpis, bmap, wDays){
     // a claimed 0%. Kept as null so the row can render a dash.
     return { label:k.label, note:k.note, actual, target, pct: pct === null ? null : Math.round(pct), weight };
   });
+  // Scored from the funnel instead, when the team is configured that way. The
+  // rows above are still built and returned, but they carry no weight.
+  if (funnelWeights) {
+    const f = scoreFromFunnel(b, funnelWeights, key);
+    return { score: f.score, rows, funnelWeighting: f.byLabel };
+  }
   return { score: Math.round(score), rows };
 }
 
@@ -322,15 +369,19 @@ const FUNNEL_STAGES = [
   ["Qualified","qualified"], ["Discovery","discovery"],
   ["Pres. Booked","presBooked"], ["Pres. Held","presHeld"], ["Enrolled","enrolled"],
 ];
-function funnelSection(b, uid){
+// `weighting` is what scoreMember worked out for this person, so the strip can
+// show which stages carry weight and read back the same percentages the score
+// was built from — one conversion, displayed and scored.
+function funnelSection(b, uid, weighting){
   const cur = b.cur || {}, old = b.old || {};
-  let prevTotal = null;
+  const convOf = funnelConv(b);
   const rows = FUNNEL_STAGES.map(([lbl,k]) => {
     const c = cur[k]||0, o = old[k]||0, total = c + o;
-    const conv = prevTotal === null ? "—" : (prevTotal > 0 ? Math.round(total/prevTotal*100) + "%" : "0%");
-    prevTotal = total;
+    const w = weighting && weighting[lbl];
+    const raw = convOf[k];
+    const conv = raw === null || raw === undefined ? "—" : Math.round(raw) + "%";
     return `<div class="fn-row">
-      <div class="fn-lbl">${lbl}</div>
+      <div class="fn-lbl">${lbl}${w ? ` <span style="color:var(--muted);font-weight:400">· ${Math.round(w.weight*100)}%</span>` : ""}</div>
       <div class="fn-cur" style="color:var(--green)">${c}</div>
       <div class="fn-old">${o}</div>
       <div class="fn-tot">${total}</div>
@@ -348,8 +399,8 @@ function funnelSection(b, uid){
   </div>`;
 }
 
-function tile(member, role, kpis, bmap, wDays){
-  const { score, rows } = scoreMember(member, kpis, bmap, wDays);
+function tile(member, role, kpis, bmap, wDays, funnelWeights){
+  const { score, rows, funnelWeighting } = scoreMember(member, kpis, bmap, wDays, funnelWeights);
   const b = bmap[member.toLowerCase()] || {};
   const z = ZONE(score); const col = ZCOL[z];
   const initials = member.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
@@ -390,7 +441,7 @@ function tile(member, role, kpis, bmap, wDays){
         <div class="bar"><div style="width:${Math.min(100,r.pct)}%;background:${rc}"></div></div>
       </div>`;
     }).join("")}
-    ${funnelSection(b, "fn-" + member.replace(/[^a-z0-9]/gi,"") )}
+    ${funnelSection(b, "fn-" + member.replace(/[^a-z0-9]/gi,""), funnelWeighting)}
   </div>`;
 }
 
@@ -403,17 +454,19 @@ function render(bdes, start, end){
   if (view === "tl") return renderByTL(bmap, wDays);
   let html = "";
   TEAMS.forEach(team => {
-    const scores = team.members.map(m => scoreMember(m, team.kpis, bmap, wDays).score);
+    const scores = team.members.map(m => scoreMember(m, team.kpis, bmap, wDays, team.funnelWeights).score);
     const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
     const z = ZONE(avg); const col = ZCOL[z];
-    const kpiNote = team.kpis.filter(k=>!k.display).map(k=>`${k.label} ${k.targetOf ? k.note : k.dailyTarget + "/day"} (${Math.round(k.weight*100)}%)`).join(" · ");
+    const kpiNote = team.funnelWeights
+      ? "Scored on funnel conversion · " + Object.entries(team.funnelWeights).map(([l,w])=>`${l} ${Math.round(w*100)}%`).join(" · ")
+      : team.kpis.filter(k=>!k.display).map(k=>`${k.label} ${k.targetOf ? k.note : k.dailyTarget + "/day"} (${Math.round(k.weight*100)}%)`).join(" · ");
     html += `<div class="team-block">
       <div class="team-head">
         <div class="team-name" style="color:${col}">${team.name}</div>
         <div class="team-avg">Avg Score <b style="color:${col}">${avg}%</b></div>
         <div class="team-kpi-note">${kpiNote} · ${wDays} working days</div>
       </div>
-      <div class="cards">${team.members.map(m => tile(m, team.role, team.kpis, bmap, wDays)).join("")}</div>
+      <div class="cards">${team.members.map(m => tile(m, team.role, team.kpis, bmap, wDays, team.funnelWeights)).join("")}</div>
     </div>`;
   });
   document.getElementById("results").innerHTML = html;
