@@ -238,7 +238,9 @@ function buildBdeTeams(bdes, wDays) {
         // the same note in bde-scorecard.html, which must agree with this.
         const target = k.targetOf ? k.targetOf(b) : Math.max(1, Math.round(k.dailyTarget * wDays));
         const actual = k.get(b);
-        const cap = k.targetOf ? 100 : 150;
+        // Same 150 ceiling for both kinds, so a conversion row matches the
+        // CONV% shown in the funnel — see the note in bde-scorecard.html.
+        const cap = 150;
         const pct = Math.min(cap, target > 0 ? (actual / target) * 100 : 0);
         score += pct * k.weight;
         return {

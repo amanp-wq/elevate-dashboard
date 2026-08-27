@@ -271,10 +271,15 @@ function scoreMember(member, kpis, bmap, wDays){
       // comes from this person's own data rather than a configured rate.
       // Nothing to convert from means 0%, matching what the funnel strip shows.
       target = k.targetOf(b);
-      // Capped at 100, not 150: above 100% means leads entered this stage
-      // from outside the previous one, which is a cohort artifact rather
-      // than performance, and would otherwise inflate the stage's weight.
-      pct = target > 0 ? Math.min(100, actual / target * 100) : 0;
+      // Capped at 150, the same ceiling every other KPI uses — so the figure
+      // on this row is the same CONV% the funnel strip below the card shows.
+      // Capping at 100 instead made the card contradict itself: the row read
+      // 100% while the funnel read 129% for the same stage.
+      //
+      // Above 100% means leads entered this stage from outside the previous one
+      // rather than converting through it, so the stage can pay out more than
+      // its weight. That is a known property of a cohort funnel, not a bug.
+      pct = target > 0 ? Math.min(150, actual / target * 100) : 0;
     } else {
       const resolved = resolveOverride(key, k.label, CURRENT_REPORT_MONTH);
       const dailyRate = resolved != null ? resolved / WORKING_DAYS_PER_MONTH : k.dailyTarget;
