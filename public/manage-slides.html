@@ -312,6 +312,39 @@ document.getElementById("slide-list").addEventListener("click", async (e) => {
   }
 });
 
+const SLIDE_MAX_W   = 1920;   // TV boards are 1080p; anything wider is thrown away
+const SLIDE_QUALITY = 0.85;
+
+// Slides arrive as full-size PNG exports — the last one was 1.25 MB for an image
+// that is only ever shown on a 1080p screen. Re-encode once here, at upload,
+// rather than paying for the size on every board that loads it.
+//
+// Anything that could go wrong falls back to uploading the original file: a
+// slightly large slide is a cost, a missing one is a blank board.
+async function compressSlide(file) {
+  const asIs = { blob: file, name: file.name, type: file.type || "image/png" };
+  if (!/^image\/(png|jpeg)$/.test(file.type || "")) return asIs;
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, SLIDE_MAX_W / bmp.width);   // shrink only, never upscale
+    const canvas = document.createElement("canvas");
+    canvas.width  = Math.round(bmp.width  * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext("2d").drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    bmp.close();
+    const blob = await new Promise(r => canvas.toBlob(r, "image/webp", SLIDE_QUALITY));
+    // A browser with no WebP encoder silently hands back a PNG instead, and an
+    // already-optimised image can re-encode larger. Keep the original in both cases.
+    if (!blob || blob.type !== "image/webp" || blob.size >= file.size) return asIs;
+    return { blob, name: file.name.replace(/\.[^.]*$/, "") + ".webp", type: "image/webp", was: file.size };
+  } catch (e) {
+    console.warn("Slide compression failed, uploading the original:", e);
+    return asIs;
+  }
+}
+
+const fileSize = n => n >= 1048576 ? (n / 1048576).toFixed(2) + " MB" : Math.round(n / 1024) + " KB";
+
 document.getElementById("btn-upload").addEventListener("click", async () => {
   const fileInput = document.getElementById("new-file");
   const labelInput = document.getElementById("new-label");
@@ -322,27 +355,31 @@ document.getElementById("btn-upload").addEventListener("click", async () => {
   if (!file) { statusEl.className = "err"; statusEl.textContent = "Choose an image file first."; return; }
 
   btn.disabled = true;
-  statusEl.className = ""; statusEl.textContent = "Uploading…";
+  statusEl.className = ""; statusEl.textContent = "Compressing…";
   try {
+    const img = await compressSlide(file);
+    statusEl.textContent = "Uploading…";
+
     // Prefix with a timestamp so re-uploading a same-named file never
     // collides with (or silently replaces) an existing slide.
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const safeName = img.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `${Date.now()}-${safeName}`;
 
-    // Cache for a year. Supabase Storage defaults to no-cache, which meant the
-    // TV board re-fetched the full image every time the rotation came back round
-    // to it — a 1.25 MB slide at roughly one fetch a minute was the bulk of the
-    // project's Cached Egress. The path is timestamp-prefixed above, so every
-    // upload is a new immutable URL and a long max-age can never serve a stale
-    // slide: replacing one writes a different path.
+    // Cache for a year. Storage defaults to no-cache, which had the TV board
+    // re-fetching the whole image every time the rotation came back round to it —
+    // a 1.25 MB slide roughly once a minute, and the bulk of this project's Cached
+    // Egress. Confirmed honoured: every slide uploaded through this path serves
+    // with `public, max-age=31536000`, while the ones stored before it still say
+    // no-cache. Safe because the path is timestamp-prefixed above — replacing a
+    // slide writes a new immutable URL, so no board can be left holding a stale one.
     const upload = await fetch(`${SLIDES_URL}/storage/v1/object/tv-slides/${path}`, {
       method: "POST",
       headers: {
         ...SLIDES_HEADERS,
-        "Content-Type": file.type || "image/png",
+        "Content-Type": img.type,
         "cache-control": "max-age=31536000",
       },
-      body: file
+      body: img.blob
     });
     if (!upload.ok) throw new Error("Upload failed (" + upload.status + ")");
 
@@ -354,7 +391,10 @@ document.getElementById("btn-upload").addEventListener("click", async () => {
     });
     if (!insert.ok) throw new Error("Save failed (" + insert.status + ")");
 
-    statusEl.className = "ok"; statusEl.textContent = "Uploaded.";
+    statusEl.className = "ok";
+    statusEl.textContent = img.was
+      ? `Uploaded — compressed ${fileSize(img.was)} to ${fileSize(img.blob.size)}.`
+      : "Uploaded.";
     fileInput.value = ""; labelInput.value = "";
     await renderList();
   } catch (e) {
