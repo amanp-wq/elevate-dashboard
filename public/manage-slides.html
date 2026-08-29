@@ -329,9 +329,19 @@ document.getElementById("btn-upload").addEventListener("click", async () => {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `${Date.now()}-${safeName}`;
 
+    // Cache for a year. Supabase Storage defaults to no-cache, which meant the
+    // TV board re-fetched the full image every time the rotation came back round
+    // to it — a 1.25 MB slide at roughly one fetch a minute was the bulk of the
+    // project's Cached Egress. The path is timestamp-prefixed above, so every
+    // upload is a new immutable URL and a long max-age can never serve a stale
+    // slide: replacing one writes a different path.
     const upload = await fetch(`${SLIDES_URL}/storage/v1/object/tv-slides/${path}`, {
       method: "POST",
-      headers: { ...SLIDES_HEADERS, "Content-Type": file.type || "image/png" },
+      headers: {
+        ...SLIDES_HEADERS,
+        "Content-Type": file.type || "image/png",
+        "cache-control": "max-age=31536000",
+      },
       body: file
     });
     if (!upload.ok) throw new Error("Upload failed (" + upload.status + ")");
