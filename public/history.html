@@ -542,7 +542,7 @@ function aggregate(rows){
       calls:0, inbound:0, outbound:0, missed:0, minutes:0,
       leads:0, discoveries:0, presBooked:0, presCompleted:0,
       presentations:0, dealsClosed:0, newUpfront:0, futureUpfront:0,
-      days:0, leaveDays:0,
+      days:0, rowDays:0, leaveDays:0,
     };
     const m = map[id];
     // Rows arrive oldest-first, so keep overwriting: a person who changed role
@@ -556,7 +556,15 @@ function aggregate(rows){
     m.presBooked += row.pres_booked; m.presCompleted += row.pres_completed;
     m.presentations += row.presentations; m.dealsClosed += row.deals_closed;
     m.newUpfront += Number(row.new_upfront); m.futureUpfront += Number(row.future_upfront);
-    m.days += 1; if (_leaveSet.has(`${row.person_name}|${row.date}`)) m.leaveDays += 1;
+    // Weekend rows exist only for people who actually came in — deals do close on
+    // a Saturday. Their KPIs count above, but the day itself must not: targets are
+    // the daily rate × days, and nobody is targeted on a weekend, so counting it
+    // would raise someone's bar for having worked their day off.
+    m.rowDays += 1;
+    if (!Scoring.isWeekend(row.date)){
+      m.days += 1;
+      if (_leaveSet.has(`${row.person_name}|${row.date}`)) m.leaveDays += 1;
+    }
   });
   return Object.values(map);
 }
@@ -564,7 +572,10 @@ function aggregate(rows){
 function scoreFor(p){
   // Target = ALL working days in the period; leave is NOT deducted (leave is the
   // person's own choice, so they're still measured against the full month).
-  const workDays = Math.max(0.1, p.days);
+  // Weekdays, normally. A range that holds nothing but weekend rows — someone
+  // asking what happened last Saturday — falls back to the rows themselves, so
+  // those days are measured rather than scored against a target of nothing.
+  const workDays = Math.max(0.1, p.days || p.rowDays);
   const month = rangeMonth();
   const role = p.role === "Closer" ? "Closer" : "Builder";
   const base = role === "Closer" ? TARGETS_CLOSER : TARGETS;
@@ -581,7 +592,10 @@ function card(p){
   const s = onLeaveAll ? null : scoreFor(p);
   const z = onLeaveAll ? "leave" : zone(s);
   const color = onLeaveAll ? "var(--neon-leave)" : ZONE_COLOR[z];
-  const workDays = p.days - p.leaveDays;
+  // Same weekday-or-nothing count scoreFor uses, so a weekend-only worker reads
+  // "1/1 days present" rather than the "0/0" a bare weekday count would give.
+  const dayCount = p.days || p.rowDays;
+  const workDays = dayCount - p.leaveDays;
   const kpis = p.role === "Closer"
     ? [["calls",p.calls],["mins",p.minutes],["pres",p.presentations],["deals",p.dealsClosed],["$new",Math.round(p.newUpfront)],["$fut",Math.round(p.futureUpfront)]]
     : [["calls",p.calls],["mins",p.minutes],["leads",p.leads],["disco",p.discoveries],["pres.b",p.presBooked],["pres.c",p.presCompleted]];
@@ -609,7 +623,7 @@ function card(p){
     </div>
     ${avgRow}
     <div class="attend">
-      Attendance: <b style="color:var(--text)">${workDays}</b>/${p.days} days present
+      Attendance: <b style="color:var(--text)">${workDays}</b>/${dayCount} days present
       ${p.leaveDays>0 ? `· <span class="leave-tag">Leave: ${p.leaveDays}</span>` : ''}
     </div>
   </div>`;
