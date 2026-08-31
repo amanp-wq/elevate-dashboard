@@ -420,12 +420,13 @@ function showApp(user) {
 
 function denied(msg) {
   _supabase.auth.signOut();
+  showAuthOverlay();
   document.getElementById("auth-error").textContent = msg;
 }
 
 async function gate(session) {
   await APP_USERS_READY;
-  if (!session?.user) return;
+  if (!session?.user) { showAuthOverlay(); return; }   // signed out, or a token too stale to refresh
   const email = session.user.email || "";
   if (!ALLOWED_EMAILS.includes(email) || !isPageAllowed(email, window.location.pathname)) {
     denied("Access denied. Your account is not authorized.");

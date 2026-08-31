@@ -658,6 +658,8 @@ supabaseClient.auth.getSession().then(async ({ data: { session } }) => {
       document.getElementById("auth-overlay").style.display = "none";
       document.getElementById("access-denied").style.display = "flex";
     }
+  } else {
+    showAuthOverlay();   // signed out, or a token too stale to refresh
   }
 });
 
@@ -671,6 +673,8 @@ supabaseClient.auth.onAuthStateChange(async (_e, session) => {
       document.getElementById("auth-overlay").style.display = "none";
       document.getElementById("access-denied").style.display = "flex";
     }
+  } else {
+    showAuthOverlay();   // signed out, or a token too stale to refresh
   }
 });
 

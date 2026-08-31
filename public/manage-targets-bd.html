@@ -395,16 +395,16 @@ _supabase.auth.getSession().then(async ({ data: { session } }) => {
   if (session?.user) {
     const email = session.user.email || "";
     if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) showApp(session.user);
-    else { _supabase.auth.signOut(); document.getElementById("auth-error").textContent = "Access denied. Your account is not authorized."; }
-  }
+    else { _supabase.auth.signOut(); showAuthOverlay(); document.getElementById("auth-error").textContent = "Access denied. Your account is not authorized."; }
+  } else showAuthOverlay();   // signed out, or a token too stale to refresh
 });
 _supabase.auth.onAuthStateChange(async (_e, session) => {
   await APP_USERS_READY;
   if (session?.user) {
     const email = session.user.email || "";
     if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) showApp(session.user);
-    else { _supabase.auth.signOut(); document.getElementById("auth-error").textContent = "Access denied. Your account is not authorized."; }
-  }
+    else { _supabase.auth.signOut(); showAuthOverlay(); document.getElementById("auth-error").textContent = "Access denied. Your account is not authorized."; }
+  } else showAuthOverlay();   // signed out, or a token too stale to refresh
 });
 document.getElementById("btn-google-signin").onclick = async () => {
   document.getElementById("auth-error").textContent = "";

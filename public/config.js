@@ -41,20 +41,110 @@ function isPageAllowed(email, path) {
 // gate. The hardcoded arrays above remain the permanent baseline (core
 // admins/TLs); app_users is for everyone added afterward.
 let DB_USERS = [];
+
+// Captured before anything from app_users is merged in, so applyDbUsers can
+// REBUILD these arrays instead of only ever adding to them. Without a baseline to
+// reset to, a re-merge could never take an email back out — an account revoked in
+// the Admin Panel would keep whatever an earlier merge had granted it.
+const BASE_ALLOWED    = [...ALLOWED_EMAILS];
+const BASE_ADMINS     = [...ADMIN_EMAILS];
+const BASE_RESTRICTED = JSON.parse(JSON.stringify(RESTRICTED_PAGES));
+
+function applyDbUsers(users) {
+  DB_USERS = users;
+  ALLOWED_EMAILS.length = 0; ALLOWED_EMAILS.push(...BASE_ALLOWED);
+  ADMIN_EMAILS.length   = 0; ADMIN_EMAILS.push(...BASE_ADMINS);
+  Object.keys(RESTRICTED_PAGES).forEach(k => delete RESTRICTED_PAGES[k]);
+  Object.assign(RESTRICTED_PAGES, JSON.parse(JSON.stringify(BASE_RESTRICTED)));
+  users.forEach(u => {
+    if (!ALLOWED_EMAILS.includes(u.email)) ALLOWED_EMAILS.push(u.email);
+    if (u.is_admin && !ADMIN_EMAILS.includes(u.email)) ADMIN_EMAILS.push(u.email);
+    if (Array.isArray(u.pages) && u.pages.length) RESTRICTED_PAGES[u.email] = u.pages;
+  });
+}
+
+// Serving this list from the tab's own cache is what makes switching pages feel
+// instant. The fetch measured 290-840ms, and until it returned no page could
+// authorize anyone, so every switch sat on a blank screen for that long.
+//
+// A served cache is at most one page view old: it is applied immediately and a
+// fresh copy is fetched in the background for the NEXT load. An access change
+// therefore takes effect on the second page view after it is made. A cache older
+// than MAX_AGE is not trusted at all — that tab waits for the network, the way a
+// first load does.
+const APP_USERS_CACHE_KEY  = "appUsers:v1";
+const APP_USERS_MAX_AGE_MS = 10 * 60 * 1000;
+
+async function fetchDbUsers() {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/app_users?select=email,full_name,pages,is_admin`, {
+    headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
+  });
+  if (!r.ok) throw new Error("app_users " + r.status);
+  return r.json();
+}
+
 const APP_USERS_READY = (async () => {
+  let cached = null;
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/app_users?select=email,full_name,pages,is_admin`, {
-      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
-    });
-    if (!r.ok) return;
-    DB_USERS = await r.json();
-    DB_USERS.forEach(u => {
-      if (!ALLOWED_EMAILS.includes(u.email)) ALLOWED_EMAILS.push(u.email);
-      if (u.is_admin && !ADMIN_EMAILS.includes(u.email)) ADMIN_EMAILS.push(u.email);
-      if (Array.isArray(u.pages) && u.pages.length) RESTRICTED_PAGES[u.email] = u.pages;
-    });
-  } catch { /* leave hardcoded arrays as the fallback */ }
+    const raw = JSON.parse(sessionStorage.getItem(APP_USERS_CACHE_KEY) || "null");
+    if (raw && Array.isArray(raw.users) && Date.now() - raw.at < APP_USERS_MAX_AGE_MS) cached = raw.users;
+  } catch { /* unusable cache — fetch instead */ }
+
+  const fresh = fetchDbUsers().then(users => {
+    try { sessionStorage.setItem(APP_USERS_CACHE_KEY, JSON.stringify({ at: Date.now(), users })); } catch {}
+    return users;
+  });
+
+  if (cached) {
+    applyDbUsers(cached);
+    // Keep the cache warm for the next switch without holding this page up. The
+    // fresh list is deliberately NOT applied here: this page has already been
+    // authorized, and swapping the lists mid-render would rebuild the nav under
+    // whoever is reading it.
+    fresh.catch(() => {});
+    return;
+  }
+  try { applyDbUsers(await fresh); }
+  catch { /* leave the hardcoded arrays as the fallback */ }
 })();
+
+// ── Sign-in overlay ─────────────────────────────────────────────────────────
+// #auth-overlay used to be on screen from the moment the HTML parsed, so every
+// page switch flashed the Google sign-in card for as long as authorization took
+// — while the session sat in localStorage the entire time. It starts hidden now
+// and goes up only when it is actually needed.
+(function hideAuthOverlayUntilNeeded() {
+  const style = document.createElement("style");
+  style.id = "auth-overlay-styles";
+  style.textContent = "#auth-overlay{visibility:hidden}html.auth-visible #auth-overlay{visibility:visible}";
+  (document.head || document.documentElement).appendChild(style);
+})();
+
+function showAuthOverlay() {
+  document.documentElement.classList.add("auth-visible");
+}
+
+// Is there a stored Supabase session at all? Synchronous, so it can be answered
+// before the auth client has finished starting up. Not proof the session is
+// valid — only that signing in has happened on this browser.
+function hasStoredSession() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && /^sb-.*-auth-token$/.test(k) && localStorage.getItem(k)) return true;
+    }
+  } catch { /* storage blocked: no session can be stored either */ }
+  return false;
+}
+
+// Signed out: no page is going to authorize anyone, so put the card up now
+// rather than showing a blank screen. Every miss here errs towards showing
+// sign-in, which is exactly what these pages did before any of this existed.
+// A token that is present but no longer usable is the remaining case: the gate
+// gets a null session back and would leave the page blank. Each page's gate
+// calls showAuthOverlay() on that path and on denial, which is deterministic —
+// no timer guessing at whether a page got as far as rendering.
+if (!hasStoredSession()) showAuthOverlay();
 
 // Every page the admin can grant/restrict access to, via the Manage Users UI.
 const ALL_PAGES = [

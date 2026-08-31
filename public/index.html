@@ -1431,6 +1431,7 @@ function showApp(user) {
 }
 
 function showAuth(errorMsg) {
+  showAuthOverlay();
   authOverlay.style.display = "flex";
   userBar.style.display = "none";
   document.getElementById("nav-links").style.display = "none";
