@@ -166,10 +166,21 @@ const BDE_TEAMS = [
     kpis: [
       { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     display: true },
       { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, display: true },
+      { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   display: true },
     ],
     funnelWeights: {
       "Touched": 0.10, "Connected": 0.10, "Qualified": 0.10, "Discovery": 0.10,
       "Pres. Booked": 0.15, "Pres. Held": 0.20, "Enrolled": 0.25,
+    },
+    // Sunil works parser feeds rather than the cold-call funnel Ajay works, so
+    // he is scored on the leads he generates. See the fuller note in
+    // bde-scorecard.html, which this must agree with.
+    memberKpis: {
+      "Sunil Patel": [
+        { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   dailyTarget: 45, weight: 0.70 },
+        { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     dailyTarget: 15, weight: 0.25 },
+        { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, dailyTarget: 1,  weight: 0.05 },
+      ],
     } },
   { name: "Referral Team", role: "Referral BDE",
     members: bdMembersOf("Referral Team"),
@@ -249,17 +260,23 @@ function buildBdeTeams(bdes, wDays) {
     const members = team.members.map(name => {
       const b = byName[name.toLowerCase()] || {};
       let score = 0;
-      // A team with funnelWeights is scored from funnel conversion; its KPI rows
+      // A member the team names in memberKpis does a different job and is scored
+      // on their own rows, not on the team funnel — scoringFor() in
+      // bde-scorecard.html makes the same choice.
+      const ownKpis = (team.memberKpis || {})[name];
+      const kpis = ownKpis || team.kpis;
+      const funnelWeights = ownKpis ? null : team.funnelWeights;
+      // A funnel-scored member takes their score from conversion; their KPI rows
       // are read-only context and carry no weight.
-      if (team.funnelWeights) {
+      if (funnelWeights) {
         const conv = bdeFunnelConv(b);
-        for (const [label, weight] of Object.entries(team.funnelWeights)) {
+        for (const [label, weight] of Object.entries(funnelWeights)) {
           const raw = conv[BDE_STAGE_OF_LABEL[label]];
           const pct = raw === null || raw === undefined ? null : Math.min(BDE_CONV_CAP, raw);
           score += (pct || 0) * weight;
         }
       }
-      const rows = team.kpis.map(k => {
+      const rows = kpis.map(k => {
         // Display row: shown for context, contributes nothing to the score.
         if (k.display) return {
           label: k.label, note: `${k.note} · not scored`,
@@ -276,7 +293,7 @@ function buildBdeTeams(bdes, wDays) {
         // Undefined rather than zero when the previous stage is empty, so the
         // board shows a dash instead of claiming 0% — see bde-scorecard.html.
         const pct = target > 0 ? Math.min(cap, (actual / target) * 100) : null;
-        if (!team.funnelWeights) score += (pct || 0) * k.weight;   // undefined earns nothing
+        if (!funnelWeights) score += (pct || 0) * k.weight;   // undefined earns nothing
         return {
           label: k.label,
           note: `${k.note} · ${Math.round(k.weight * 100)}%`,
@@ -298,9 +315,15 @@ function buildBdeTeams(bdes, wDays) {
     const avg = members.length ? Math.round(members.reduce((s, m) => s + m.score, 0) / members.length) : 0;
     return {
       name: team.name, score: avg, tier: zone(avg),
-      note: team.funnelWeights
+      // Named after the team's default, plus anyone measured differently — the
+      // note would otherwise claim all of Portal is on conversion when one of
+      // them is not. Matches the footer on bde-scorecard.html.
+      note: ((base) => {
+        const exceptions = Object.keys(team.memberKpis || {});
+        return exceptions.length ? `${base} · ${exceptions.join(", ")} on lead generation` : base;
+      })(team.funnelWeights
         ? "Funnel conversion · " + Object.entries(team.funnelWeights).map(([l,w])=>`${l} ${Math.round(w*100)}%`).join(" · ")
-        : team.kpis.filter(k => !k.display).map(k => `${k.label} ${k.targetOf ? k.note : k.dailyTarget + "/day"} (${Math.round(k.weight*100)}%)`).join(" · "),
+        : team.kpis.filter(k => !k.display).map(k => `${k.label} ${k.targetOf ? k.note : k.dailyTarget + "/day"} (${Math.round(k.weight*100)}%)`).join(" · ")),
       // Board columns this team occupies, which is also its own inner column
       // count — from the design. Today that is 2 + 1 + 1 = 4 columns total.
       span: members.length >= 4 ? 2 : 1,

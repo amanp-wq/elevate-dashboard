@@ -147,10 +147,12 @@ const TEAMS = [
     // climb toward the outcome end deliberately — an enrolment is worth more
     // than a lead being worked. Generated is excluded; it is the denominator
     // of the first stage, not a stage that can be converted into.
-    // Two rows on the card, both read-only: how many leads came in, by type.
+    // Read-only rows: how many leads came in, by type. The card colour comes
+    // from the funnel below, not from these.
     kpis: [
       { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     display: true },
       { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, display: true },
+      { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   display: true },
     ],
     // The score comes from the funnel strip below the card — its CONV% column,
     // weighted. Generated is the first denominator, not a scored stage.
@@ -160,6 +162,25 @@ const TEAMS = [
     funnelWeights: {
       "Touched": 0.10, "Connected": 0.10, "Qualified": 0.10, "Discovery": 0.10,
       "Pres. Booked": 0.15, "Pres. Held": 0.20, "Enrolled": 0.25,
+    },
+    // Portal is not one job. Ajay works a cold-call funnel — the leads arrive in
+    // bulk and the question is how far he moves them, which is what conversion
+    // measures. Sunil works parser feeds, where the leads themselves ARE the
+    // output: 849 ICP Parser in August against Ajay's 59. Scoring him on
+    // conversion measured a job he is not doing, so he is scored on lead
+    // generation instead — the same target-and-weight shape the LinkedIn team
+    // uses. A member listed here is scored on their own rows, not the funnel.
+    //
+    // Targets start from his own August run rate over 19 working days (Parser
+    // ~45/day, Cold ~16/day, Moderate ~0.2/day) so the card reads near 100% on
+    // current output. They are per-person overridable from Targets & Weightage,
+    // which is where a lead should retune them rather than here.
+    memberKpis: {
+      "Sunil Patel": [
+        { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   dailyTarget: 45, weight: 0.70 },
+        { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     dailyTarget: 15, weight: 0.25 },
+        { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, dailyTarget: 1,  weight: 0.05 },
+      ],
     },
   },
   {
@@ -311,7 +332,23 @@ function scoreFromFunnel(b, weights, personKey) {
   return { score: Math.round(score), byLabel };
 }
 
-function scoreMember(member, kpis, bmap, wDays, funnelWeights){
+// What this person is measured on. Normally the team's own rows, but a team may
+// name a member who does a different job (see Portal's memberKpis) — that member
+// is scored on their own rows and not on the team's funnel.
+//
+// Every caller resolves through here, which is also what stopped the BD Team
+// Lead view scoring Portal at a flat 0%: it called scoreMember without the
+// team's funnelWeights, so Ajay was scored on rows that are all display-only,
+// and the zero was averaged into his lead's health score.
+function scoringFor(team, member){
+  const own = team.memberKpis && team.memberKpis[member];
+  return own
+    ? { kpis: own, funnelWeights: null }
+    : { kpis: team.kpis, funnelWeights: team.funnelWeights };
+}
+
+function scoreMember(member, team, bmap, wDays){
+  const { kpis, funnelWeights } = scoringFor(team, member);
   const b = bmap[member.toLowerCase()] || {};
   const key = pkey(member);
   let score = 0;
@@ -399,8 +436,9 @@ function funnelSection(b, uid, weighting){
   </div>`;
 }
 
-function tile(member, role, kpis, bmap, wDays, funnelWeights){
-  const { score, rows, funnelWeighting } = scoreMember(member, kpis, bmap, wDays, funnelWeights);
+function tile(member, team, bmap, wDays){
+  const role = team.role;
+  const { score, rows, funnelWeighting } = scoreMember(member, team, bmap, wDays);
   const b = bmap[member.toLowerCase()] || {};
   const z = ZONE(score); const col = ZCOL[z];
   const initials = member.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
@@ -454,19 +492,23 @@ function render(bdes, start, end){
   if (view === "tl") return renderByTL(bmap, wDays);
   let html = "";
   TEAMS.forEach(team => {
-    const scores = team.members.map(m => scoreMember(m, team.kpis, bmap, wDays, team.funnelWeights).score);
+    const scores = team.members.map(m => scoreMember(m, team, bmap, wDays).score);
     const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
     const z = ZONE(avg); const col = ZCOL[z];
+    const exceptions = Object.keys(team.memberKpis || {});
     const kpiNote = team.funnelWeights
       ? "Scored on funnel conversion · " + Object.entries(team.funnelWeights).map(([l,w])=>`${l} ${Math.round(w*100)}%`).join(" · ")
       : team.kpis.filter(k=>!k.display).map(k=>`${k.label} ${k.targetOf ? k.note : k.dailyTarget + "/day"} (${Math.round(k.weight*100)}%)`).join(" · ");
+    const noteWithExceptions = exceptions.length
+      ? `${kpiNote} · ${exceptions.join(", ")} on lead generation`
+      : kpiNote;
     html += `<div class="team-block">
       <div class="team-head">
         <div class="team-name" style="color:${col}">${team.name}</div>
         <div class="team-avg">Avg Score <b style="color:${col}">${avg}%</b></div>
-        <div class="team-kpi-note">${kpiNote} · ${wDays} working days</div>
+        <div class="team-kpi-note">${noteWithExceptions} · ${wDays} working days</div>
       </div>
-      <div class="cards">${team.members.map(m => tile(m, team.role, team.kpis, bmap, wDays, team.funnelWeights)).join("")}</div>
+      <div class="cards">${team.members.map(m => tile(m, team, bmap, wDays)).join("")}</div>
     </div>`;
   });
   document.getElementById("results").innerHTML = html;
@@ -499,7 +541,7 @@ function renderByTL(bmap, wDays){
     const scored = members.map(m => {
       const team = kpiTeamOf(m);
       const onLeave = (LEAVE_MAP[m] || 0) >= wDays && wDays > 0;
-      const s = team ? scoreMember(m, team.kpis, bmap, wDays).score : 0;
+      const s = team ? scoreMember(m, team, bmap, wDays).score : 0;
       return { name: m, team, onLeave, score: onLeave ? 0 : s };
     });
     const health = scored.length
@@ -518,7 +560,7 @@ function renderByTL(bmap, wDays){
         <div class="team-kpi-note">${scored.length} member${scored.length === 1 ? "" : "s"}${onLeaveCount ? ` · ${onLeaveCount} on leave (counted as 0)` : ""} · ${wDays} working days</div>
       </div>
       <div class="cards">${sorted.map(m => m.team
-        ? tile(m.name, m.team.role, m.team.kpis, bmap, wDays)
+        ? tile(m.name, m.team, bmap, wDays)
         : `<div class="card"><div class="card-top"><div class="card-id"><div><div class="card-name">${m.name}</div><div class="card-role">No KPI team configured</div></div></div></div></div>`
       ).join("")}</div>
     </div>`;

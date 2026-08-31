@@ -393,7 +393,18 @@ const BD_TEAMS = [
       { key: "Pres. Booked", label: "Pres. Booked (of Discovery)",  dailyTarget: null, weight: 15 },
       { key: "Pres. Held",   label: "Pres. Held (of Pres. Booked)", dailyTarget: null, weight: 20 },
       { key: "Enrolled",     label: "Enrolled (of Pres. Held)",     dailyTarget: null, weight: 25 },
-    ] },
+    ],
+    // Sunil works parser feeds instead of the cold-call funnel, so he is scored
+    // on the leads he generates and gets his own editable rows here. Must match
+    // memberKpis in bde-scorecard.html — the keys are what an override is stored
+    // against, so a mismatch would save a target nothing ever reads.
+    memberKpis: {
+      "Sunil Patel": [
+        { key: "ICP Parser",   label: "ICP Parser",   dailyTarget: 45, weight: 70 },
+        { key: "ICP Cold",     label: "ICP Cold",     dailyTarget: 15, weight: 25 },
+        { key: "ICP Moderate", label: "ICP Moderate", dailyTarget: 1,  weight: 5 },
+      ],
+    } },
   { name: "Referral Team", members: bdMembersOf("Referral Team"),
     kpis: [
       { key: "ICP Moderate", label: "ICP Moderate (excl. Ref)", dailyTarget: 2,  weight: 30 },
@@ -477,11 +488,28 @@ function resolveOverride(personKey, kpiLabel, month) {
 // The roster for the active tab, grouped into blocks for rendering.
 function activeBlocks() {
   if (SELECTED_ROLE === "BD") {
-    return BD_TEAMS.map(t => ({
-      name: t.name,
-      kpis: t.kpis,
-      people: t.members.map(m => ({ personKey: bdPersonKey(m), display: m, meta: t.name })),
-    }));
+    // A member the team names in memberKpis is measured on different rows, so
+    // they get their own group rather than being shown against KPIs that do not
+    // apply to them. One group per team otherwise, as before.
+    return BD_TEAMS.flatMap(t => {
+      const own = t.memberKpis || {};
+      const shared = t.members.filter(m => !own[m]);
+      const groups = [];
+      if (shared.length) groups.push({
+        name: t.name,
+        kpis: t.kpis,
+        people: shared.map(m => ({ personKey: bdPersonKey(m), display: m, meta: t.name })),
+      });
+      for (const [member, kpis] of Object.entries(own)) {
+        if (!t.members.includes(member)) continue;   // left the team; nothing to edit
+        groups.push({
+          name: `${t.name} — ${member}`,
+          kpis,
+          people: [{ personKey: bdPersonKey(member), display: member, meta: t.name }],
+        });
+      }
+      return groups;
+    });
   }
   const kpis = SALES_KPIS[SELECTED_ROLE];
   const members = SALES_TEAM_MEMBERS.filter(m => m.role === SELECTED_ROLE);
