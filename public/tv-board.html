@@ -483,13 +483,13 @@ async function loadData() {
     STATE.builders = (builderData.builders || []).map(b => {
       const onLeave = (leaveMap[b.name] || 0) >= frac;
       const s = onLeave ? 0 : scoreBuilder(b, T);
-      return { ...b, score: s, tier: onLeave ? "leave" : zone(s), role: "Builder", onLeave, team: teamOf(b.name) };
+      return { ...b, score: s, tier: onLeave ? "leave" : zone(s), role: "Builder", onLeave, team: teamOf(b) };
     }).sort((a,b) => (a.onLeave?1:0) - (b.onLeave?1:0) || b.score - a.score);
 
     STATE.closers = (closerData.closers || []).map(c => {
       const onLeave = (leaveMap[c.name] || 0) >= frac;
       const s = onLeave ? 0 : scoreCloser(c, TC);
-      return { ...c, score: s, tier: onLeave ? "leave" : zoneCloser(c, s), role: "Closer", onLeave, team: teamOf(c.name) };
+      return { ...c, score: s, tier: onLeave ? "leave" : zoneCloser(c, s), role: "Closer", onLeave, team: teamOf(c) };
     }).sort((a,b) => (a.onLeave?1:0) - (b.onLeave?1:0) || b.score - a.score);
 
     // BDE targets are daily rates, so scale them by the same day fraction the
@@ -506,11 +506,17 @@ async function loadData() {
   render();
 }
 
-// Team lookup via the shared roster in config.js (SALES_TEAM_MEMBERS), so team
-// grouping matches the rest of the app instead of relying on Zoho's raw
-// Team_Lead string formatting.
-function teamOf(name) {
-  const m = SALES_TEAM_MEMBERS.find(x => x.name === name);
+// The person's own teamLead, which the report already derived from their Zoho
+// role — the same source the main dashboard groups by, so the two agree.
+//
+// The config roster is a fallback only. It is hand-maintained and had drifted:
+// Varsha Mahto, Yash Parikh and Dev Sompura were all appearing under the wrong
+// lead on this board, and Mr Aadil Thim and Sarim Mohammed were missing from it
+// entirely because nobody had added them. Reading the payload means a transfer
+// or a joiner shows up here without anyone editing a list.
+function teamOf(person) {
+  if (person && person.teamLead) return person.teamLead;
+  const m = SALES_TEAM_MEMBERS.find(x => x.name === (person && person.name));
   return m ? m.team : "—";
 }
 
@@ -789,7 +795,15 @@ function render() {
       + "   ·   ENROLLED " + sumStage("Enrolled").toLocaleString() + "   ·   ";
   } else if (view === 2) {
     const all = [...builders, ...closers];
-    const teamNames = [...new Set(SALES_TEAM_MEMBERS.map(m => m.team))];
+    // Teams come from the people actually in the report, so a transfer or a new
+    // lead shows up without a config edit. The config order is applied first so
+    // the board's familiar left-to-right layout does not shuffle.
+    const configOrder = [...new Set(SALES_TEAM_MEMBERS.map(m => m.team))];
+    const present = new Set(all.map(m => m.team).filter(n => n && n !== "—"));
+    const teamNames = [
+      ...configOrder.filter(n => present.has(n)),
+      ...[...present].filter(n => !configOrder.includes(n)).sort(),
+    ];
     const teams = teamNames.map(name => {
       const members = all.filter(m => m.team === name);
       // On-leave members count as 0 toward the average, so health reflects
