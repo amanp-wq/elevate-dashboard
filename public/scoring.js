@@ -71,6 +71,18 @@ const Scoring = (() => {
     }));
   }
 
+  // Same as personTargets, but the caller names the ROLE rather than handing
+  // over a base object. That hand-over is what went wrong on two pages: both
+  // index.html and combined.html build `T = TARGETS x effectiveDays` for their
+  // display columns and then passed that same object back in here, so the period
+  // multiplier landed twice and every KPI without a per-person override got a
+  // target effectiveDays^2 too large. Naming the role removes the chance.
+  function personTargetsFor(rows, personKey, role, month, effectiveDays) {
+    const base = TARGETS[role];
+    if (!base) throw new Error(`Scoring.personTargetsFor: unknown role "${role}"`);
+    return personTargets(rows, personKey, base, month, effectiveDays);
+  }
+
   // Per-person weights, as fractions. Stored values are whole percentages, and
   // each KPI falls back to its role default independently, so a partially
   // configured person still scores.
@@ -178,7 +190,7 @@ const Scoring = (() => {
   return {
     TARGETS, WEIGHTS, WORKING_DAYS_PER_MONTH, DEAL_DEFAULTS, DAILY_RANGE_MAX_DAYS, W_PREFIX,
     WORK_START_H, WORK_END_H, WORK_HOURS,
-    resolveOverride, personTargets, personWeights, weightSum, dealThresholds,
+    resolveOverride, personTargets, personTargetsFor, personWeights, weightSum, dealThresholds,
     builder, closer, zone, zoneCloser,
     dayFraction, totalDayFraction, rangeDays, isWeekend, todayET,
   };

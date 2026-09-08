@@ -908,12 +908,12 @@ function renderTLView(teams, T, TC, leaveMap = {}, personTargets = null, effecti
 
     // Score each member against their leave-adjusted target (consistent with tiles)
     const scoredBuilders = team.builders.map(b => {
-      const tgt = personTargets ? personTargets(b.name, T) : T;
+      const tgt = personTargets ? personTargets(b.name, "Builder") : T;
       const s = scoreBuilder(b, tgt, personWeightsFn ? personWeightsFn(b.name, "Builder") : undefined);
       return { ...b, composite: s, zone: zone(s), type: "Builder" };
     });
     const scoredClosers = team.closers.map(c => {
-      const tgt = personTargets ? personTargets(c.name, TC) : TC;
+      const tgt = personTargets ? personTargets(c.name, "Closer") : TC;
       const deals = personDealThresholds ? personDealThresholds(c.name) : undefined;
       const s = scoreCloser(c, tgt, deals, personWeightsFn ? personWeightsFn(c.name, "Closer") : undefined);
       return { ...c, composite: s, zone: zoneCloser(c, s), type: "Closer" };
@@ -1114,7 +1114,30 @@ document.getElementById("btn-gen").onclick = async function(){
     // way; this used to pro-rate the target down, which meant the same person
     // and period scored differently on the two pages.
     const reportMonth = startDate.slice(0, 7);
-    function personTargets(name, baseDailyRates) {
+
+    // Takes a ROLE, not a target object.
+    //
+    // It used to take "base daily rates", and six of the eight call sites handed
+    // it T or TC instead — which are TARGETS already multiplied by
+    // effectiveDays, built above for the display columns. So the period
+    // multiplier was applied twice and every KPI *without* a per-person
+    // override got a target effectiveDays^2 too large.
+    //
+    // It hid for two reasons. A single-day range squares to itself, so the
+    // daily board was always right. And a KPI that DID have an override was
+    // computed from the override and ignored the base entirely, so anyone fully
+    // configured looked fine. On 31 Aug - 6 Sep that put Umair Mansuri's
+    // minutes target at 4,500 instead of 900 and his leads at 100 instead of
+    // 20, showing him at 58% in the breakdown table while the tiles — which
+    // passed the daily rates — showed 107% for the same person and period.
+    // Hemant Rathore, who has overrides on all six, read 105% in both.
+    //
+    // Resolving the base from the role here means no caller can pass the wrong
+    // object again.
+    const DAILY_RATES = { Builder: TARGETS, Closer: TARGETS_CLOSER };
+    function personTargets(name, role) {
+      const baseDailyRates = DAILY_RATES[role];
+      if (!baseDailyRates) throw new Error(`personTargets: unknown role "${role}"`);
       return Object.fromEntries(Object.entries(baseDailyRates).map(([k,v]) => {
         const resolved = resolveOverride(name, k, reportMonth);
         const dailyRate = resolved != null ? resolved / WORKING_DAYS_PER_MONTH : v;
@@ -1180,7 +1203,7 @@ document.getElementById("btn-gen").onclick = async function(){
     if (isCloser) {
       const closers = data.closers.map(c => {
         const deals = personDealThresholds(c.name);
-        const s = scoreCloser(c, personTargets(c.name, TARGETS_CLOSER), deals, personW(c.name, "Closer"));
+        const s = scoreCloser(c, personTargets(c.name, "Closer"), deals, personW(c.name, "Closer"));
         return { ...c, composite: s, zone: zoneCloser(c, s), dealGold: deals.gold, dealGreen: deals.green };
       });
       closers.sort((a,b) => b.composite - a.composite);
@@ -1241,7 +1264,7 @@ document.getElementById("btn-gen").onclick = async function(){
       }).join("");
 
     } else {
-      const builders = data.builders.map(b => { const s=scoreBuilder(b,personTargets(b.name,TARGETS),personW(b.name,"Builder")); return {...b, composite:s, zone:zone(s)}; });
+      const builders = data.builders.map(b => { const s=scoreBuilder(b,personTargets(b.name,"Builder"),personW(b.name,"Builder")); return {...b, composite:s, zone:zone(s)}; });
       builders.sort((a,b) => b.composite - a.composite);
       document.getElementById("meta-right").textContent = `${builders.length} Builder${builders.length!==1?"s":""}`;
 
@@ -1310,11 +1333,11 @@ document.getElementById("btn-gen").onclick = async function(){
       renderBreakdownTable(
         data.closers.map(c=>{
           const deals = personDealThresholds(c.name);
-          const s = scoreCloser(c, personTargets(c.name, TC), deals, personW(c.name, "Closer"));
+          const s = scoreCloser(c, personTargets(c.name, "Closer"), deals, personW(c.name, "Closer"));
           return { ...c, composite: s, zone: zoneCloser(c, s), dealGold: deals.gold, dealGreen: deals.green };
         }).sort((a,b)=>b.composite-a.composite),
         closerKpis, TC, WEIGHTS_CLOSER, true,
-        name => ({ targets: personTargets(name, TC), weights: personW(name, "Closer") })
+        name => ({ targets: personTargets(name, "Closer"), weights: personW(name, "Closer") })
       );
     } else {
       const builderKpis = [
@@ -1326,9 +1349,9 @@ document.getElementById("btn-gen").onclick = async function(){
         { label:"Pres. Completed",    field:"presCompleted",   target:T.presCompleted,  weight:WEIGHTS.presCompleted },
       ];
       renderBreakdownTable(
-        data.builders.map(b=>{ const s=scoreBuilder(b,personTargets(b.name,T),personW(b.name,"Builder")); return {...b, composite:s, zone:zone(s)}; }).sort((a,b)=>b.composite-a.composite),
+        data.builders.map(b=>{ const s=scoreBuilder(b,personTargets(b.name,"Builder"),personW(b.name,"Builder")); return {...b, composite:s, zone:zone(s)}; }).sort((a,b)=>b.composite-a.composite),
         builderKpis, T, WEIGHTS, false,
-        name => ({ targets: personTargets(name, T), weights: personW(name, "Builder") })
+        name => ({ targets: personTargets(name, "Builder"), weights: personW(name, "Builder") })
       );
     }
 

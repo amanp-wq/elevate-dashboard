@@ -492,17 +492,22 @@ document.getElementById("btn-gen").onclick = async function(){
     const reportMonth = startDate.slice(0, 7);
     const _overrides = await fetchTargetOverrides(reportMonth);
     const _rangeDays = Scoring.rangeDays(startDate, endDate);
-    const personT  = (name, baseT) => Scoring.personTargets(_overrides, name, baseT, reportMonth, effectiveDays);
+    // Takes a ROLE. It used to take a base-target object and both call sites
+    // passed T / TC, which are TARGETS already multiplied by effectiveDays for
+    // the display columns — so the multiplier was applied twice and any KPI
+    // without a per-person override got a target effectiveDays^2 too large.
+    // Same defect index.html carried; see the fuller note there.
+    const personT  = (name, role) => Scoring.personTargetsFor(_overrides, name, role, reportMonth, effectiveDays);
     const personW  = (name, role)  => Scoring.personWeights(_overrides, name, role, reportMonth);
     const personDealThresholds = name => Scoring.dealThresholds(_overrides, name, reportMonth, _rangeDays);
 
     // Score and sort
     const builders = (builderData.builders||[])
-      .map(b=>{ const s=scoreBuilder(b,personT(b.name,T),personW(b.name,"Builder")); return {...b, composite:s, zone:zone(s)}; })
+      .map(b=>{ const s=scoreBuilder(b,personT(b.name,"Builder"),personW(b.name,"Builder")); return {...b, composite:s, zone:zone(s)}; })
       .sort((a,b)=>b.composite-a.composite);
 
     const closers = (closerData.closers||[])
-      .map(c=>{ const s=scoreCloser(c,personT(c.name,TC),personDealThresholds(c.name),personW(c.name,"Closer")); return {...c, composite:s, zone:zoneCloser(c,s)}; })
+      .map(c=>{ const s=scoreCloser(c,personT(c.name,"Closer"),personDealThresholds(c.name),personW(c.name,"Closer")); return {...c, composite:s, zone:zoneCloser(c,s)}; })
       .sort((a,b)=>b.composite-a.composite);
 
     // Meta bar
