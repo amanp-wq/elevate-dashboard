@@ -1049,7 +1049,7 @@ document.getElementById("btn-gen").onclick = async function(){
       }).catch(() => {});
     });
     const leaveMap = await fetchLeaveMap(startDate, endDate);
-    await loadTargetOverrides(startDate.slice(0, 7));
+    await loadTargetOverrides(Scoring.dominantMonth(startDate, endDate));
     const { data: { session: reportSession } } = await _supabase.auth.getSession();
     const res = await fetch(`/api/report?startDate=${startDate}&endDate=${endDate}&slot=7pm&role=${encodeURIComponent(role)}`, {
       headers: { Authorization: `Bearer ${reportSession?.access_token || ""}` }
@@ -1113,7 +1113,7 @@ document.getElementById("btn-gen").onclick = async function(){
     // what they were asked to deliver. The History page has always worked this
     // way; this used to pro-rate the target down, which meant the same person
     // and period scored differently on the two pages.
-    const reportMonth = startDate.slice(0, 7);
+    const reportMonth = Scoring.dominantMonth(startDate, endDate);
 
     // Takes a ROLE, not a target object.
     //

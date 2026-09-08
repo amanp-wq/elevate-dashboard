@@ -489,7 +489,7 @@ document.getElementById("btn-gen").onclick = async function(){
     // Leave is deliberately NOT deducted from the target — see the same note in
     // index.html. The target covers every working day in the period whether the
     // person was in or not.
-    const reportMonth = startDate.slice(0, 7);
+    const reportMonth = Scoring.dominantMonth(startDate, endDate);
     const _overrides = await fetchTargetOverrides(reportMonth);
     const _rangeDays = Scoring.rangeDays(startDate, endDate);
     // Takes a ROLE. It used to take a base-target object and both call sites

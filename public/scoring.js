@@ -180,6 +180,35 @@ const Scoring = (() => {
     return total;
   }
 
+  // A report range can straddle a month boundary, but overrides are stored per
+  // month, so one month has to win. The month holding the most WORKING days
+  // takes it: a target is a daily rate times working days, so that is the month
+  // most of the target actually comes from.
+  //
+  // It used to be simply the month the range started in. For 31 Aug - 6 Sep that
+  // chose August off the back of one working day while the other four were
+  // September's — so targets set for September were not the ones being applied,
+  // which is exactly what it looked like from the outside.
+  //
+  // A tie goes to the earlier month, and a range with no working days at all
+  // (a weekend) falls back to calendar days so it still resolves to something.
+  function dominantMonth(startDate, endDate) {
+    const work = {}, all = {};
+    const d = new Date(startDate + "T12:00:00Z");
+    const end = new Date(endDate + "T12:00:00Z");
+    while (d <= end) {
+      const iso = d.toISOString().slice(0, 10);
+      const m = iso.slice(0, 7);
+      all[m] = (all[m] || 0) + 1;
+      if (!isWeekend(iso)) work[m] = (work[m] || 0) + 1;
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+    const counts = Object.keys(work).length ? work : all;
+    const winner = Object.keys(counts)
+      .sort((a, b) => counts[b] - counts[a] || a.localeCompare(b))[0];
+    return winner || String(startDate).slice(0, 7);
+  }
+
   // Inclusive day count, used to pick the daily-vs-monthly deal rule. Both ends
   // are anchored at noon UTC so a DST change cannot shift the count.
   function rangeDays(startDate, endDate) {
@@ -192,6 +221,6 @@ const Scoring = (() => {
     WORK_START_H, WORK_END_H, WORK_HOURS,
     resolveOverride, personTargets, personTargetsFor, personWeights, weightSum, dealThresholds,
     builder, closer, zone, zoneCloser,
-    dayFraction, totalDayFraction, rangeDays, isWeekend, todayET,
+    dayFraction, totalDayFraction, rangeDays, isWeekend, todayET, dominantMonth,
   };
 })();

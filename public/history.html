@@ -461,8 +461,13 @@ async function loadTargetOverrides(){
   TARGET_ROWS = await fetchTargetOverrides(rangeMonth());
 }
 function rangeMonth(){
-  const v = document.getElementById("inp-start").value;
-  return v ? v.slice(0, 7) : new Date().toISOString().slice(0, 7);
+  const a = document.getElementById("inp-start").value;
+  const b = document.getElementById("inp-end").value;
+  if (!a) return new Date().toISOString().slice(0, 7);
+  // Whichever month holds most of the range's working days — see the note on
+  // Scoring.dominantMonth. Taking the start month meant a range beginning on the
+  // last day of a month was scored against that month's targets.
+  return Scoring.dominantMonth(a, b || a);
 }
 function rangeLengthDays(){
   const a = document.getElementById("inp-start").value;
