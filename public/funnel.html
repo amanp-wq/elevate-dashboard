@@ -328,22 +328,27 @@ function stageColor(i, total) {
 // ── Render ───────────────────────────────────────────────────────────────────
 function render(data) {
   const { funnel } = data;
-  const assigned = funnel[0].count || 1;
+  // Stages above the funnel proper (New Leads Generated) are context, not steps:
+  // conversion is measured from the assigned stage, which is the one flagged.
+  const baseIdx  = Math.max(0, funnel.findIndex(s => s.pctBase));
+  const assigned = funnel[baseIdx].count || 1;
+  const widest   = Math.max(...funnel.map(s => s.count), 1);
 
   // Summary cards
   const cardsEl = document.getElementById("stage-cards");
   cardsEl.innerHTML = funnel.map((s, i) => {
     const pct = assigned > 0 ? Math.round((s.count / assigned) * 100) : 0;
-    const prev = i > 0 ? funnel[i-1].count : null;
+    const prev = i > baseIdx ? funnel[i-1].count : null;
     const drop = prev != null && prev > 0 ? Math.round(((prev - s.count) / prev) * 100) : null;
     return `
       <div class="stage-card ${i===0?'highlight':''}">
         <div class="icon">${s.icon}</div>
         <div class="name">${s.stage}</div>
         <div class="count">${s.count.toLocaleString()}</div>
-        <div class="split-line"><span class="cur">${(s.current||0).toLocaleString()}</span> this month · <span class="old">${(s.old||0).toLocaleString()}</span> old</div>
+        ${s.noSplit ? '' : `<div class="split-line"><span class="cur">${(s.current||0).toLocaleString()}</span> newly generated · <span class="old">${(s.old||0).toLocaleString()}</span> earlier months</div>`}
         <div class="conv">
-          ${i===0 ? '<span style="color:var(--accent)">Base stage</span>' :
+          ${s.context ? '<span style="color:var(--accent)">Generated in period</span>' :
+            i===baseIdx ? '<span style="color:var(--accent)">Base stage</span>' :
             `<span class="${pct>=50?'conv-green':'conv-red'}">${pct}%</span> of assigned`}
           ${drop != null ? `&nbsp;·&nbsp;<span class="${drop>50?'conv-red':drop>25?'':' conv-green'}">▼${drop}%</span>` : ''}
         </div>
@@ -353,8 +358,8 @@ function render(data) {
   // Funnel bars
   const barsEl = document.getElementById("funnel-bars");
   barsEl.innerHTML = funnel.map((s, i) => {
-    const widthPct = assigned > 0 ? Math.max(2, Math.round((s.count / assigned) * 100)) : 2;
-    const prev = i > 0 ? funnel[i-1].count : null;
+    const widthPct = Math.max(2, Math.round((s.count / widest) * 100));
+    const prev = i > baseIdx ? funnel[i-1].count : null;
     const drop = prev != null && prev > 0 ? Math.round(((prev - s.count) / prev) * 100) : null;
     const pctAssigned = assigned > 0 ? Math.round((s.count / assigned) * 100) : 0;
     const dropClass = drop == null ? '' : drop > 50 ? 'drop-bad' : drop > 25 ? 'drop-ok' : 'drop-good';
@@ -368,8 +373,8 @@ function render(data) {
           </div>
         </div>
         <div class="funnel-meta">
-          <div class="funnel-pct-assigned"><span>${pctAssigned}%</span> of assigned</div>
-          <div class="funnel-split"><span class="cur">${(s.current||0).toLocaleString()}</span> this month · <span class="old">${(s.old||0).toLocaleString()}</span> old</div>
+          <div class="funnel-pct-assigned">${s.context ? 'generated in period' : `<span>${pctAssigned}%</span> of assigned`}</div>
+          ${s.noSplit ? '' : `<div class="funnel-split"><span class="cur">${(s.current||0).toLocaleString()}</span> newly generated · <span class="old">${(s.old||0).toLocaleString()}</span> earlier months</div>`}
           ${drop != null ? `<div class="funnel-drop ${dropClass}">▼ ${drop}% drop from prev</div>` : ''}
         </div>
       </div>
@@ -378,8 +383,8 @@ function render(data) {
 
   // Conversion table
   const tbody = document.getElementById("conv-tbody");
-  tbody.innerHTML = funnel.slice(1).map((s, i) => {
-    const from = funnel[i];
+  tbody.innerHTML = funnel.slice(baseIdx + 1).map((s, i) => {
+    const from = funnel[baseIdx + i];
     const convRate = from.count > 0 ? (s.count / from.count * 100).toFixed(1) : "0.0";
     const pct = parseFloat(convRate);
     const color = pct >= 50 ? "var(--green)" : pct >= 25 ? "var(--gold)" : "#ff4d6a";

@@ -215,6 +215,7 @@ export default async function handler(req, res) {
     }
 
     const [
+      genLeads, genContacts, genDeals,
       assignedLeads, assignedContacts, assignedDeals,
       touchedLeads,  touchedContacts,  touchedDeals,
       connectedLeads, connectedContacts, connectedDeals,
@@ -222,6 +223,9 @@ export default async function handler(req, res) {
       discoLeads, discoContacts, discoDeals,
       presBooked, presHeld, closedDeals
     ] = (await Promise.all([
+      fetchByDateRange(token, "Leads",    commonFields, startDate, endDate, "Lead_Generated_Date",       lcCriteria()),
+      fetchByDateRange(token, "Contacts", commonFields, startDate, endDate, "Lead_Generated_Date",       lcCriteria()),
+      fetchByDateRange(token, "Deals",    commonFields, startDate, endDate, "Lead_Generated_Date",       dCriteria()),
       fetchByDateRange(token, "Leads",    commonFields, startDate, endDate, "Lead_Assigned_Date",        lcCriteria()),
       fetchByDateRange(token, "Contacts", commonFields, startDate, endDate, "Lead_Assigned_Date",        lcCriteria()),
       fetchByDateRange(token, "Deals",    commonFields, startDate, endDate, "Lead_Assigned_Date",        dCriteria()),
@@ -248,8 +252,16 @@ export default async function handler(req, res) {
     const isCur = r => { const g = genDate(r); return !!(g && g >= startDate); };
     const split = (...arrs) => { let current = 0, old = 0; arrs.forEach(a => a.forEach(r => isCur(r) ? current++ : old++)); return { current, old, count: current + old }; };
 
+    // Everything generated in the period, whether or not it has been assigned yet.
+    // It sits above the funnel as context rather than as its first stage: leads
+    // assigned this period include earlier months' data, so it is routinely the
+    // larger number and cannot serve as the conversion denominator.
+    const generated = split(genLeads, genContacts, genDeals);
+
     const funnel = [
-      { stage: "Leads Assigned",  ...split(assignedLeads, assignedContacts, assignedDeals),  icon: "👥" },
+      { stage: "New Leads Generated", count: generated.count, current: generated.count, old: 0,
+        icon: "✨", noSplit: true, context: true },
+      { stage: "Leads Assigned",  ...split(assignedLeads, assignedContacts, assignedDeals),  icon: "👥", pctBase: true },
       { stage: "Data Touched",    ...split(touchedLeads, touchedContacts, touchedDeals),     icon: "✋" },
       { stage: "Calls Connected", ...split(connectedLeads, connectedContacts, connectedDeals), icon: "📞" },
       { stage: "Qualified Leads", ...split(qualLeads, qualContacts, qualDeals),              icon: "⭐" },
