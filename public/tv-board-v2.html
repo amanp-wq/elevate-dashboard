@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElevateMe — Floor TV Board V2 (preview)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Barlow:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #05060b; overflow: hidden; height: 100%; font-family: Barlow, sans-serif; color: #eef0f7; }
+  @keyframes omDrift { 0% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(4%,-3%,0) scale(1.15); } 100% { transform: translate3d(0,0,0) scale(1); } }
+  @keyframes omShine { 0% { transform: translateX(-120%) skewX(-18deg); } 55%, 100% { transform: translateX(320%) skewX(-18deg); } }
+  @keyframes omPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+  @keyframes omMarquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+  @keyframes omRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes omTakeover { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: scale(1); } }
+  @keyframes omNameIn { from { opacity: 0; transform: translateY(38px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes omRingOut { 0% { transform: scale(0.6); opacity: 0.85; } 100% { transform: scale(2.1); opacity: 0; } }
+  @keyframes omFall { 0% { transform: translateY(-60px) rotate(0deg); opacity: 0; } 10% { opacity: 1; } 100% { transform: translateY(1120px) rotate(560deg); opacity: 0.9; } }
+  @keyframes omSpin { to { transform: rotate(360deg); } }
+  @keyframes omEventIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+  .tv-avatar-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+
+  /* Auth (same pattern as every other page) */
+  #auth-overlay {
+    position: fixed; inset: 0; z-index: 9999; background: #05060b;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .auth-card {
+    background: #0f1322; border: 1px solid #1e2640; border-radius: 20px;
+    padding: 48px 40px; text-align: center; max-width: 380px; width: 90%;
+  }
+  .auth-logo { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+  .auth-logo span { color: #ff4d3a; }
+  .auth-sub { font-size: 13px; color: #6b7499; margin-bottom: 28px; }
+  .auth-google-btn {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    width: 100%; padding: 14px; border-radius: 12px;
+    background: #fff; color: #1a1a1a; font-size: 15px; font-weight: 700;
+    border: none; cursor: pointer;
+  }
+  .auth-google-btn img { width: 20px; height: 20px; }
+  .auth-error { margin-top: 14px; font-size: 13px; color: #ff4d6a; min-height: 18px; }
+
+  /* Tiny hidden control — invisible until hovered, top-right corner */
+  #hidden-controls-trigger {
+    position: fixed; top: 0; right: 0; width: 60px; height: 60px; z-index: 500; cursor: default;
+  }
+  #settings-btn {
+    position: fixed; top: 10px; right: 10px; z-index: 501;
+    width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.04); color: #6b7499; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  #hidden-controls-trigger:hover + #settings-btn, #settings-btn:hover, #settings-btn.open { opacity: 1; }
+  #settings-panel {
+    position: fixed; top: 46px; right: 10px; z-index: 501; display: none;
+    background: #0f1322; border: 1px solid #1e2640; border-radius: 12px; padding: 16px;
+    font-family: 'Nunito Sans', sans-serif; font-size: 13px; color: #eef0f7; width: 240px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+  #settings-panel.open { display: block; }
+  #settings-panel label { display: block; font-size: 11px; color: #7b86ad; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 4px; }
+  #settings-panel input[type="date"] {
+    width: 100%; background: #05060b; border: 1px solid #1e2640; color: #eef0f7;
+    padding: 7px 8px; border-radius: 6px; font-size: 13px; color-scheme: dark;
+  }
+  #settings-panel .row { display: flex; gap: 8px; margin-top: 12px; }
+  #settings-panel button {
+    flex: 1; padding: 8px; border-radius: 6px; border: none; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  #btn-apply-range { background: #ff4d3a; color: #fff; }
+  #btn-reset-live { background: rgba(255,255,255,0.08); color: #eef0f7; }
+  #settings-panel .mode-note { font-size: 11px; color: #7b86ad; margin-top: 10px; line-height: 1.4; }
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/config.js"></script>
+<script src="/scoring.js"></script>
+
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">Elevate<span>Me</span></div>
+    <div class="auth-sub">Sign in to view the Floor TV Board</div>
+    <button class="auth-google-btn" id="btn-google-signin">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+      Sign in with Google
+    </button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<!-- Hidden ad-hoc date control — invisible on the TV, only shows on mouse hover (for setup/debugging on a machine with a mouse, not meant to be touched on the TV itself) -->
+<div id="hidden-controls-trigger"></div>
+<div id="settings-btn" title="View a specific date (hidden control)">⚙</div>
+<div id="settings-panel">
+  <label>Start date</label>
+  <input type="date" id="range-start">
+  <label>End date</label>
+  <input type="date" id="range-end">
+  <div class="row">
+    <button id="btn-apply-range">View Range</button>
+    <button id="btn-reset-live">Reset to Live</button>
+  </div>
+  <div class="mode-note" id="mode-note">Currently: LIVE (today, auto-rotating)</div>
+</div>
+
+<div id="board-root" style="display:none"></div>
+
+<script>
+// SUPABASE_URL, SUPABASE_ANON, ALLOWED_EMAILS come from /config.js.
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── Scoring — identical formulas to public/index.html / public/config.js ────
+const B_T = { calls:150, minutes:180, leads:4, discoveries:2, presBooked:2, presCompleted:2 };
+const C_T = { calls:60, minutes:120, presentations:2 };
+// Weights live in /scoring.js; the local copies had no caller left.
+const cap = (v, t) => Math.min(150, t > 0 ? (v / t) * 100 : 0);
+
+// Scoring comes from /scoring.js. This copy hardcoded 2/1 deal thresholds and
+// applied no per-person overrides, so a team lead's settings never showed on
+// the board even though the dashboard honoured them.
+function scoreBuilder(b, t, w){ return Scoring.builder(b, t, w); }
+function scoreCloser(c, t, deals, w){ return Scoring.closer(c, t, deals, w); }
+const zone = Scoring.zone;
+const zoneCloser = Scoring.zoneCloser;
+
+// Per-person overrides, loaded once and refreshed with the board's own cycle.
+let TARGET_ROWS = [];
+let _overridesFetchedAt = 0, _overridesMonth = "";
+const OVERRIDES_TTL_MS = 15 * 60 * 1000;
+// Targets change a few times a month, but this board reloads every 3
+// minutes for hours on end. Refetching them each cycle was the biggest
+// single source of egress from this page, so they are cached.
+async function loadTargetOverrides(month){
+  const fresh = Date.now() - _overridesFetchedAt < OVERRIDES_TTL_MS;
+  if (fresh && _overridesMonth === month && TARGET_ROWS.length) return;
+  TARGET_ROWS = await fetchTargetOverrides(month);
+  _overridesFetchedAt = Date.now();
+  _overridesMonth = month;
+}
+
+const TIER = {
+  gold:   { ink:"#ffd740", line:"rgba(255,215,64,0.62)",  bg:"linear-gradient(150deg,#1d1804 0%,#0b0a04 100%)", label:"Golden Card" },
+  green:  { ink:"#00e676", line:"rgba(0,230,118,0.55)",   bg:"linear-gradient(150deg,#03210f 0%,#040d07 100%)", label:"Green Card" },
+  yellow: { ink:"#ffab00", line:"rgba(255,171,0,0.5)",    bg:"linear-gradient(150deg,#1e1203 0%,#0c0803 100%)", label:"Yellow Card" },
+  orange: { ink:"#ff6d00", line:"rgba(255,109,0,0.5)",    bg:"linear-gradient(150deg,#1e0c02 0%,#0c0502 100%)", label:"Orange Card" },
+  red:    { ink:"#ff4d6a", line:"rgba(255,23,68,0.5)",    bg:"linear-gradient(150deg,#1c0209 0%,#0c0104 100%)", label:"Red Card" },
+  leave:  { ink:"#59597a", line:"rgba(120,120,170,0.28)", bg:"linear-gradient(150deg,#0e0f16 0%,#090a10 100%)", label:"On Leave" },
+};
+const RGB = { gold:"255,215,64", green:"0,230,118", yellow:"255,171,0", orange:"255,109,0", red:"255,23,68", leave:"120,120,170" };
+Object.keys(TIER).forEach(k => { TIER[k].rgb = a => `rgba(${RGB[k]},${a})`; });
+
+// ── BDE Scorecard config ─────────────────────────────────────────────────────
+// Teams, KPIs, daily targets and weights copied verbatim from
+// public/bde-scorecard.html so the TV board and that page always agree.
+const BDE_TEAMS = [
+  { name: "LinkedIn Team", role: "LinkedIn BDE",
+    members: bdMembersOf("LinkedIn Team"),
+    kpis: [
+      { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, dailyTarget: 4,  weight: 0.70 },
+      { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     dailyTarget: 15, weight: 0.30 },
+    ] },
+  { name: "Portal Team", role: "Portal BDE",
+    members: bdMembersOf("Portal Team"),
+    // Must match bde-scorecard.html's Portal config exactly.
+    kpis: [
+      { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     display: true },
+      { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, display: true },
+      { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   display: true },
+    ],
+    funnelWeights: {
+      "Touched": 0.10, "Connected": 0.10, "Qualified": 0.10, "Discovery": 0.10,
+      "Pres. Booked": 0.15, "Pres. Held": 0.20, "Enrolled": 0.25,
+    },
+    // Sunil works parser feeds rather than the cold-call funnel Ajay works, so
+    // he is scored on the leads he generates. See the fuller note in
+    // bde-scorecard.html, which this must agree with.
+    memberKpis: {
+      "Sunil Patel": [
+        { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   dailyTarget: 45, weight: 0.70 },
+        { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     dailyTarget: 15, weight: 0.25 },
+        { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, dailyTarget: 1,  weight: 0.05 },
+      ],
+    } },
+  { name: "Referral Team", role: "Referral BDE",
+    members: bdMembersOf("Referral Team"),
+    kpis: [
+      { label: "ICP Moderate", note: "Leads Generated",  get: b => (b.types||{})["ICP Moderate"]||0,  dailyTarget: 2,  weight: 0.30 },
+      { label: "ICP Cold",     note: "Leads Generated",  get: b => (b.types||{})["ICP Cold"]||0,      dailyTarget: 10, weight: 0.20 },
+      { label: "Reference",    note: "Source = Reference", get: b => (b.sourceGroups||{}).Reference||0, dailyTarget: 1,  weight: 0.50 },
+    ] },
+];
+// Reporting lead per BDE, from config.js.
+const BDE_TEAM_LEADS = BD_TEAM_LEADS;
+// Summary funnel shown under each BDE card — current + carried-over totals.
+// Stage-to-stage conversion through the full funnel, computed exactly as
+// bde-scorecard.html does it so the board and the scorecard agree. Null where
+// the previous stage is empty: the conversion is undefined then, not zero.
+const BDE_FUNNEL_ORDER = ["generated","touched","connected","qualified","discovery","presBooked","presHeld","enrolled"];
+const BDE_STAGE_OF_LABEL = {
+  "Touched":"touched", "Connected":"connected", "Qualified":"qualified",
+  "Discovery":"discovery", "Pres. Booked":"presBooked", "Pres. Held":"presHeld",
+  "Enrolled":"enrolled",
+};
+const BDE_CONV_CAP = 150;
+function bdeFunnelConv(b) {
+  const cur = b.cur || {}, old = b.old || {};
+  const out = {};
+  let prev = null;
+  for (const stage of BDE_FUNNEL_ORDER) {
+    const total = (cur[stage] || 0) + (old[stage] || 0);
+    out[stage] = prev === null ? null : (prev > 0 ? total / prev * 100 : null);
+    prev = total;
+  }
+  return out;
+}
+const BDE_FUNNEL = [["Generated","generated"], ["Qualified","qualified"], ["Pres. Held","presHeld"], ["Enrolled","enrolled"]];
+
+const initials = n => n.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
+const slug = n => n.toLowerCase().replace(/\s+/g, "-");
+function avatarBgHtml(name) {
+  // Same .png → .jfif → initials fallback chain used elsewhere in the app.
+  return `<img class="tv-avatar-img" src="/photos/${slug(name)}.png"
+    onerror="this.onerror=null;this.src='/photos/${slug(name)}.jfif';this.onerror=function(){this.style.display='none';this.nextElementSibling.style.opacity=1;};">`;
+}
+const barColor = p => p >= 100 ? "#00e676" : p >= 75 ? "#ffab00" : "#ff4d6a";
+
+// ── Data fetching ────────────────────────────────────────────────────────────
+async function authHeader() {
+  const { data: { session } } = await _supabase.auth.getSession();
+  return { Authorization: `Bearer ${session?.access_token || ""}` };
+}
+async function fetchRole(role, startDate, endDate) {
+  const res = await fetch(`/api/report?startDate=${startDate}&endDate=${endDate}&slot=7pm&role=${role}`, { headers: await authHeader() });
+      const data = await readApiJson(res, `${role} report`);
+  return data;
+}
+// BDE data is a separate endpoint. A failure here must not take the whole
+// board down — the other three views still have their data, so this returns
+// an empty list and only the BDE view ends up blank.
+async function fetchBde(startDate, endDate) {
+  try {
+    const res = await fetch(`/api/bde?startDate=${startDate}&endDate=${endDate}`, { headers: await authHeader() });
+      const data = await readApiJson(res, "BDE data");
+    return data.bdes || [];
+  } catch (e) {
+    console.error("TV board: BDE fetch failed (other views unaffected):", e.message);
+    return [];
+  }
+}
+
+// Builds the BDE view model from the raw /api/bde rows, using the same
+// weighted-KPI scoring as the BD Scorecard page. `wDays` scales the daily
+// targets to the period being shown.
+function buildBdeTeams(bdes, wDays) {
+  const byName = {};
+  bdes.forEach(b => { byName[(b.name||"").toLowerCase()] = b; });
+
+  return BDE_TEAMS.map(team => {
+    const members = team.members.map(name => {
+      const b = byName[name.toLowerCase()] || {};
+      let score = 0;
+      // A member the team names in memberKpis does a different job and is scored
+      // on their own rows, not on the team funnel — scoringFor() in
+      // bde-scorecard.html makes the same choice.
+      const ownKpis = (team.memberKpis || {})[name];
+      const kpis = ownKpis || team.kpis;
+      const funnelWeights = ownKpis ? null : team.funnelWeights;
+      // A funnel-scored member takes their score from conversion; their KPI rows
+      // are read-only context and carry no weight.
+      if (funnelWeights) {
+        const conv = bdeFunnelConv(b);
+        for (const [label, weight] of Object.entries(funnelWeights)) {
+          const raw = conv[BDE_STAGE_OF_LABEL[label]];
+          const pct = raw === null || raw === undefined ? null : Math.min(BDE_CONV_CAP, raw);
+          score += (pct || 0) * weight;
+        }
+      }
+      const rows = kpis.map(k => {
+        // Display row: shown for context, contributes nothing to the score.
+        if (k.display) return {
+          label: k.label, note: `${k.note} · not scored`,
+          actual: k.get(b), target: null, pctLabel: "—", color: "#6b7499", bar: "0",
+        };
+        // A conversion KPI takes its denominator from the previous funnel
+        // stage rather than a configured daily rate — see the same note in
+        // bde-scorecard.html, which must agree with this.
+        const target = k.targetOf ? k.targetOf(b) : Math.max(1, Math.round(k.dailyTarget * wDays));
+        const actual = k.get(b);
+        // Same 150 ceiling for both kinds, so a conversion row matches the
+        // CONV% shown in the funnel — see the note in bde-scorecard.html.
+        const cap = 150;
+        // Undefined rather than zero when the previous stage is empty, so the
+        // board shows a dash instead of claiming 0% — see bde-scorecard.html.
+        const pct = target > 0 ? Math.min(cap, (actual / target) * 100) : null;
+        if (!funnelWeights) score += (pct || 0) * k.weight;   // undefined earns nothing
+        return {
+          label: k.label,
+          note: `${k.note} · ${Math.round(k.weight * 100)}%`,
+          actual, target,
+          pctLabel: pct === null ? "—" : Math.round(pct) + "%",
+          color: pct === null ? "#6b7499" : barColor(pct),
+          bar: pct === null ? "0" : Math.min(100, (pct / 150) * 100).toFixed(0),
+        };
+      });
+      score = Math.round(score);
+      const cur = b.cur || {}, old = b.old || {};
+      return {
+        name, role: team.role, tl: BDE_TEAM_LEADS[name] || "—",
+        score, tier: zone(score), rows,
+        funnel: BDE_FUNNEL.map(([label, key]) => ({ label, val: ((cur[key]||0) + (old[key]||0)).toLocaleString() })),
+      };
+    }).sort((a, b) => b.score - a.score);
+
+    const avg = members.length ? Math.round(members.reduce((s, m) => s + m.score, 0) / members.length) : 0;
+    return {
+      name: team.name, score: avg, tier: zone(avg),
+      // Named after the team's default, plus anyone measured differently — the
+      // note would otherwise claim all of Portal is on conversion when one of
+      // them is not. Matches the footer on bde-scorecard.html.
+      note: ((base) => {
+        const exceptions = Object.keys(team.memberKpis || {});
+        return exceptions.length ? `${base} · ${exceptions.join(", ")} on lead generation` : base;
+      })(team.funnelWeights
+        ? "Funnel conversion · " + Object.entries(team.funnelWeights).map(([l,w])=>`${l} ${Math.round(w*100)}%`).join(" · ")
+        : team.kpis.filter(k => !k.display).map(k => `${k.label} ${k.targetOf ? k.note : k.dailyTarget + "/day"} (${Math.round(k.weight*100)}%)`).join(" · ")),
+      // Board columns this team occupies, which is also its own inner column
+      // count — from the design. Today that is 2 + 1 + 1 = 4 columns total.
+      span: members.length >= 4 ? 2 : 1,
+      members,
+    };
+  });
+}
+async function fetchLeaveMap(startDate, endDate) {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/attendance?date=gte.${startDate}&date=lte.${endDate}&status=eq.leave&select=person_name,date`,
+      { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } });
+    if (!r.ok) return {};
+    const rows = await r.json();
+    const map = {}; rows.forEach(row => { map[row.person_name] = (map[row.person_name] || 0) + 1; });
+    return map;
+  } catch { return {}; }
+}
+
+// ── Form: streaks and rank movement ─────────────────────────────────────────
+// Today's board says how today is going. It cannot say whether someone is on a
+// run, or climbing, and that is the part people watch. Both come out of the
+// daily_kpi snapshots, which already store a finished score and zone per person
+// per day — nothing is recomputed here.
+//
+// Those snapshots live in the snapshot Supabase project, the same one
+// history.html reads, not the project the rest of this page uses.
+const SNAPSHOT_SUPABASE_URL  = "https://czfsjrvngiojjjevmvtz.supabase.co";
+const SNAPSHOT_SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6ZnNqcnZuZ2lvampqZXZtdnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODc0NzIsImV4cCI6MjA5ODA2MzQ3Mn0.IbK1th8wcdrHOgJL1y5kQE3De1c0HSe0ju4Q9vNQ9BQ";
+
+const ZONE_RANK = { gold: 4, green: 3, yellow: 2, orange: 1, red: 0 };
+// Thirty calendar days back is about twenty snapshots — deep enough for any
+// streak worth showing, small enough to stay one quick request.
+const FORM_LOOKBACK_DAYS = 30;
+
+// Weekends are never snapshotted, so "days" here means snapshot days, which are
+// working days. A day on leave ends a run rather than extending it: the board
+// should not credit a streak to someone who was not in.
+function buildForm(rows, todayISO) {
+  const dates = [...new Set(rows.map(r => r.date))].filter(d => d < todayISO).sort().reverse();
+  const byPerson = {};
+  rows.forEach(r => { (byPerson[r.person_name] ||= {})[r.date] = r; });
+
+  // Yesterday's finishing order, per role, so a builder is only ever compared
+  // with builders.
+  const prevRank = {};
+  if (dates.length) {
+    const last = dates[0];
+    ["Builder", "Closer"].forEach(role => {
+      rows.filter(r => r.date === last && r.role === role && !r.on_leave)
+          .sort((a, b) => (b.score || 0) - (a.score || 0))
+          .forEach((r, i) => { prevRank[r.person_name] = i + 1; });
+    });
+  }
+
+  const streak = {};
+  Object.entries(byPerson).forEach(([name, days]) => {
+    let n = 0, everGold = true;
+    for (const d of dates) {
+      const row = days[d];
+      if (!row || row.on_leave) break;
+      if ((ZONE_RANK[row.zone] ?? 0) < ZONE_RANK.green) break;
+      if (row.zone !== "gold") everGold = false;
+      n++;
+    }
+    streak[name] = { days: n, allGold: n > 0 && everGold };
+  });
+  return { prevRank, streak, days: dates.length };
+}
+
+function isoShift(iso, days) {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+async function fetchForm(todayISO) {
+  const from = isoShift(todayISO, -FORM_LOOKBACK_DAYS);
+  try {
+    const r = await fetch(
+      `${SNAPSHOT_SUPABASE_URL}/rest/v1/daily_kpi?date=gte.${from}&date=lte.${todayISO}` +
+      `&select=date,person_name,role,score,zone,on_leave&order=date.desc&limit=5000`,
+      { headers: { apikey: SNAPSHOT_SUPABASE_ANON, Authorization: `Bearer ${SNAPSHOT_SUPABASE_ANON}` } });
+    if (!r.ok) throw new Error(`daily_kpi ${r.status}`);
+    return buildForm(await r.json(), todayISO);
+  } catch (e) {
+    // Form is decoration on top of a board that works without it.
+    console.error("TV board V2: form history unavailable (non-fatal):", e.message);
+    return { prevRank: {}, streak: {}, days: 0 };
+  }
+}
+
+// A person's run and their movement since the last snapshot, ready to render.
+function formFor(p, rankNow) {
+  const st = STATE.form.streak[p.name];
+  const prev = STATE.form.prevRank[p.name];
+  const moved = (!p.onLeave && prev != null) ? prev - rankNow : null;
+  return {
+    streakDays: st ? st.days : 0,
+    streakLabel: !p.onLeave && st && st.days > 0
+      ? `★ ${st.days}D ${st.allGold ? "GOLD" : "GREEN+"}` : "",
+    streakInk: st && st.allGold ? "#ffd740" : "#00e676",
+    move: moved,
+    moveLabel: moved == null ? "" : moved > 0 ? `▲${moved}` : moved < 0 ? `▼${-moved}` : "—",
+    moveInk: moved == null ? "#5b6488" : moved > 0 ? "#00e676" : moved < 0 ? "#ff4d6a" : "#5b6488",
+  };
+}
+
+// Working-hours day-fraction proration (today only) — mirrors index.html.
+const WORK_START_H = 10.5, WORK_END_H = 19.5, WORK_HOURS = 9.0;
+function etParts() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York", hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit",
+  }).formatToParts(new Date()).reduce((a, p) => (a[p.type] = p.value, a), {});
+}
+// Today's date in America/New_York as YYYY-MM-DD.
+// Previously this was fmtDate(estNow()), which converted to Eastern twice —
+// once building estNow() and again in fmtDate — shifting the result 9.5h back
+// and making the board request YESTERDAY's data between midnight and ~10am ET.
+function todayET() { const p = etParts(); return `${p.year}-${p.month}-${p.day}`; }
+// The Team Leader card reports revenue, admissions and conversion for the month
+// so far. On today's numbers alone those three read 0 / 0 / 0% for most of the
+// day, which tells nobody anything.
+function monthStartET() { const p = etParts(); return `${p.year}-${p.month}-01`; }
+// Eastern wall-clock hour as a decimal (e.g. 14.5 for 2:30pm).
+function etHour() { const p = etParts(); return Number(p.hour) + Number(p.minute) / 60; }
+function dayFraction(dateStr, isCustomRange) {
+  // Weekends carry no target. Without this the board showed prorated targets
+  // and live scores on a Saturday, unlike every other page.
+  if (Scoring.isWeekend(dateStr)) return 0;
+  if (isCustomRange) return 1; // a picked historical range is always "full"
+  return Scoring.dayFraction(dateStr);
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let STATE = {
+  view: 0,          // 0 Builders, 1 Closers, 2 Team Leaders, 3 BDE
+  page: 0,          // which slide of the Builder board (see builderPages)
+  takeover: false,  // the full-screen champion, once per full rotation
+  eventIdx: 0,      // which of today's real events the toast is showing
+  paused: false,    // set by goToView() when someone jumps to a view on purpose
+  elapsed: 0,
+  scale: 1,
+  now: new Date(),
+  builders: [],
+  closers: [],
+  bdeTeams: [],
+  // Month-to-date closers, keyed by name, behind the Team Leader card's money
+  // figures. Empty until the first load, and left empty if that fetch fails —
+  // teamRollup() then falls back to the daily numbers.
+  mtdByName: {},
+  mtdRange: null,
+  leaveMap: {},
+  // Streaks and rank movement from the daily snapshots; empty until loaded, and
+  // stays empty if that fetch fails.
+  form: { prevRank: {}, streak: {}, days: 0 },
+  isLive: true,
+  rangeStart: null,
+  rangeEnd: null,
+};
+const ROTATE_SECONDS = 30;
+const TAKEOVER_SECONDS = 12;    // long enough to land, short enough not to hide the board
+const EVENT_SECONDS = 10;       // one toast per ten seconds, cycling today's events
+
+// The Builder board splits across slides rather than shrinking to fit. Eighteen
+// builders on one screen meant five columns of four, and at that row count the
+// cards are too short to read from across the floor. Nine to a slide keeps them
+// at the size they were designed for and just takes two turns instead of one.
+const BUILDERS_PER_PAGE = 9;
+
+// Split evenly, so ten builders give two slides of five rather than nine and a
+// lone card on its own screen.
+function builderPages() {
+  const b = STATE.builders;
+  const n = Math.max(1, Math.ceil(b.length / BUILDERS_PER_PAGE));
+  const per = Math.ceil(b.length / n);
+  return Array.from({ length: n }, (_, i) => b.slice(i * per, (i + 1) * per));
+}
+
+// ── View switcher ────────────────────────────────────────────────────────────
+// The progress pips double as buttons, so the board can be taken straight to a
+// view instead of waiting out the rotation. Jumping also pauses the rotation —
+// the whole point is to sit on one view — and clicking the current view again
+// resumes it. Built by one function because two places re-render the strip.
+const VIEW_LABELS = ["Builders", "Closers", "Team Leads", "BDE"];
+
+function pipsMarkup(view) {
+  return VIEW_LABELS.map((label, i) => {
+    // The Builders pip covers every slide of that view, so the bar tracks the
+    // whole run rather than resetting to empty when the second slide appears.
+    const pages = i === 0 ? builderPages().length : 1;
+    const done  = i === 0 ? STATE.page : 0;
+    const fill = STATE.takeover ? 100 : i < view ? 100 : i > view ? 0
+      : Math.min(100, ((done + STATE.elapsed / ROTATE_SECONDS) / pages) * 100).toFixed(0);
+    const on = i === view;
+    return `<button class="tv-pip" data-view="${i}" title="${on && STATE.paused ? "Resume rotation" : "Jump to " + label}"
+      style="all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:2px 4px">
+      <span style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;color:${on ? "#eef0f7" : "#5c6488"}">${label}</span>
+      <span style="display:block;width:56px;height:5px;border-radius:3px;background:rgba(255,255,255,0.12);overflow:hidden">
+        <span style="display:block;height:5px;border-radius:3px;background:${on && STATE.paused ? "#ffab00" : "#eef0f7"};width:${fill}%"></span>
+      </span>
+    </button>`;
+  }).join("");
+}
+
+function goToView(i) {
+  if (i === STATE.view) { STATE.paused = !STATE.paused; }
+  else { STATE.view = i; STATE.page = 0; STATE.takeover = false; STATE.elapsed = 0; STATE.paused = true; }
+  render();
+  runCountUp();
+}
+// Delegated: the strip's innerHTML is rewritten twice a second, so listeners
+// bound to the buttons themselves would not survive.
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest(".tv-pip");
+  if (b) goToView(Number(b.dataset.view));
+});
+
+// Don't paint until real data has arrived — painting an empty board on
+// initial fit(), then again on the resize event(s) the browser fires right
+// after navigation, then again once data loads, is what produced the
+// "blinks 3 times" flash when coming back to this page.
+let _dataLoadedOnce = false;
+
+// The board is drawn at a fixed 1920x1080 and scaled down to the window. The
+// scale used to live only in STATE, written into the markup by render() — so
+// whenever the window's size and the last render disagreed, the board stayed
+// at the old scale, overflowed the window and was clipped on the right. Write
+// it straight onto the node instead: that costs nothing, needs no re-render,
+// and can be redone after every render and on every size change.
+const BOARD_W = 1920, BOARD_H = 1080;
+function applyScale() {
+  const el = document.getElementById("board-canvas");
+  if (!el) return;
+  // clientWidth excludes a scrollbar; innerWidth does not. Either can read 0
+  // on a hidden or not-yet-laid-out tab, and scaling to that would leave the
+  // board stuck at the 0.1 floor once it became visible — keep the last good
+  // scale until there is a real size to work from.
+  const w = document.documentElement.clientWidth  || window.innerWidth;
+  const h = document.documentElement.clientHeight || window.innerHeight;
+  if (!w || !h) return;
+  const next = Math.max(0.1, Math.min(w / BOARD_W, h / BOARD_H));
+  if (Math.abs(next - STATE.scale) < 0.0001 && el.style.transform) return;
+  STATE.scale = next;
+  el.style.transform = `scale(${next.toFixed(4)})`;
+}
+function fit() {
+  applyScale();
+  if (_dataLoadedOnce) render();
+}
+let _resizeTimer = null;
+function onResize() {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(fit, 150);
+}
+
+// If data fetches keep failing (e.g. an expired auth session on a tab left
+// open for hours), don't just sit there empty — reload the whole page after
+// a few consecutive misses so it comes back with a fresh session.
+let _consecutiveLoadFailures = 0;
+async function loadData() {
+  const today = todayET();
+  // Cached for 15 minutes inside loadTargetOverrides, so an unattended board
+  // still picks up a target change without refetching every 3 minutes.
+  await loadTargetOverrides((STATE.isLive ? today : STATE.rangeStart).slice(0, 7));
+  const startDate = STATE.isLive ? today : STATE.rangeStart;
+  const endDate = STATE.isLive ? today : STATE.rangeEnd;
+  try {
+    // Month-to-date closers feed only the Team Leader card's three money
+    // figures; everything else on the board stays on the selected range. It is
+    // its own cache key, so this costs one Zoho call per 20 minutes, not one
+    // per refresh. A failure here leaves those tiles on the daily numbers
+    // rather than taking the board down.
+    const mtdStart = STATE.isLive ? monthStartET() : startDate;
+    const [leaveMap, builderData, closerData, bdes, mtdCloserData, form] = await Promise.all([
+      fetchLeaveMap(startDate, endDate),
+      fetchRole("Builder", startDate, endDate),
+      fetchRole("Closer", startDate, endDate),
+      fetchBde(startDate, endDate),
+      mtdStart === startDate
+        ? Promise.resolve(null)
+        : fetchRole("Closer", mtdStart, endDate).catch(e => {
+            console.error("TV board: month-to-date closers failed (non-fatal):", e.message);
+            return null;
+          }),
+      fetchForm(endDate),
+    ]);
+
+    STATE.form = form;
+
+    STATE.mtdRange = mtdCloserData ? { start: mtdStart, end: endDate } : null;
+    STATE.mtdByName = {};
+    (mtdCloserData?.closers || []).forEach(c => { STATE.mtdByName[c.name] = c; });
+    const frac = dayFraction(endDate, !STATE.isLive);
+    const T = Object.fromEntries(Object.entries(B_T).map(([k,v]) => [k, Math.max(1, Math.round(v * frac))]));
+    const TC = Object.fromEntries(Object.entries(C_T).map(([k,v]) => [k, Math.max(1, Math.round(v * frac))]));
+
+    STATE.builders = (builderData.builders || []).map(b => {
+      const onLeave = (leaveMap[b.name] || 0) >= frac;
+      const s = onLeave ? 0 : scoreBuilder(b, T);
+      return { ...b, score: s, tier: onLeave ? "leave" : zone(s), role: "Builder", onLeave, team: teamOf(b) };
+    }).sort((a,b) => (a.onLeave?1:0) - (b.onLeave?1:0) || b.score - a.score);
+
+    STATE.closers = (closerData.closers || []).map(c => {
+      const onLeave = (leaveMap[c.name] || 0) >= frac;
+      const s = onLeave ? 0 : scoreCloser(c, TC);
+      return { ...c, score: s, tier: onLeave ? "leave" : zoneCloser(c, s), role: "Closer", onLeave, team: teamOf(c) };
+    }).sort((a,b) => (a.onLeave?1:0) - (b.onLeave?1:0) || b.score - a.score);
+
+    // BDE targets are daily rates, so scale them by the same day fraction the
+    // Builder/Closer targets use — the board is showing today, not month-to-date.
+    STATE.bdeTeams = buildBdeTeams(bdes, frac);
+
+    STATE.now = new Date();
+    _consecutiveLoadFailures = 0;
+  } catch (e) {
+    console.error("TV board data load failed:", e.message);
+    _consecutiveLoadFailures++;
+    if (_consecutiveLoadFailures >= 3) { location.reload(); return; }
+  }
+  render();
+}
+
+// The person's own teamLead, which the report already derived from their Zoho
+// role — the same source the main dashboard groups by, so the two agree.
+//
+// The config roster is a fallback only. It is hand-maintained and had drifted:
+// Varsha Mahto, Yash Parikh and Dev Sompura were all appearing under the wrong
+// lead on this board, and Mr Aadil Thim and Sarim Mohammed were missing from it
+// entirely because nobody had added them. Reading the payload means a transfer
+// or a joiner shows up here without anyone editing a list.
+function teamOf(person) {
+  if (person && person.teamLead) return person.teamLead;
+  const m = SALES_TEAM_MEMBERS.find(x => x.name === (person && person.name));
+  return m ? m.team : "—";
+}
+
+// Card grid geometry. The board is a fixed 1920x1080 canvas, so a bigger roster
+// means shorter cards. Pick the column count that keeps the grid to as few rows
+// as it can without leaving holes, then shrink each card's internals to match
+// the row height — without the shrink, the KPI tiles overflow their row and land
+// on top of the call-breakdown line beneath them, which is what going from 8
+// builders to 12 did to the board.
+function gridFor(n) {
+  let cols = 5, best = Infinity;
+  for (let c = 3; c <= 5; c++) {
+    const rows = Math.ceil(n / c);
+    // Fewer rows first — rows are what squeeze the cards — then fewer empty
+    // cells. Weighting holes above rows sent 17 people into six short rows.
+    const score = rows * 10 + (c * rows - n);
+    if (score < best) { best = score; cols = c; }
+  }
+  const rows = Math.ceil(n / cols);
+  // Largest density each row count can hold without the KPI tiles overflowing.
+  // Measured against the grid's real height on the 1920x1080 canvas.
+  const DENSITY = { 1: 1, 2: 1, 3: 0.85, 4: 0.63, 5: 0.49 };
+  return { cols, rows, density: DENSITY[rows] || 0.45 };
+}
+
+function personCard(p, i, isCloser, s = 1) {
+  const z = v => Math.max(1, Math.round(v * s));   // scale a px value to the card's density
+  const t = TIER[p.tier];
+  const kdef = isCloser
+    ? [["calls", p.calls, C_T.calls], ["minutes", p.minutes, C_T.minutes], ["pres held", p.presentations, C_T.presentations], ["deals", p.dealsClosed, 1]]
+    : [["calls", p.calls, B_T.calls], ["minutes", p.minutes, B_T.minutes], ["q. leads", p.leads, B_T.leads], ["disco", p.discoveries, B_T.discoveries], ["pres bkd", p.presBooked, B_T.presBooked], ["pres cmp", p.presCompleted, B_T.presCompleted]];
+  const celebrate = p.tier === "gold";
+  const f = formFor(p, i + 1);
+  // Only this score text counts up (0% -> final) — everything else in the
+  // card is static, so it's tagged for animateScores() to update directly
+  // instead of being rebuilt by render() on every animation step.
+  const scoreFinal = p.onLeave ? "" : Math.round(p.score);
+  const kpisHtml = kdef.map(([label, val, tgt]) => {
+    const pct = cap(val, tgt);
+    const bar = Math.min(100, (pct / 150) * 100).toFixed(0);
+    return `<div style="border-radius:9px;background:rgba(255,255,255,0.045);border:1px solid rgba(255,255,255,0.06);padding:${z(7)}px ${z(9)}px;display:flex;flex-direction:column;justify-content:center;gap:${z(4)}px;min-width:0;overflow:hidden">
+      <div style="font-size:${z(10)}px;font-weight:800;letter-spacing:${(1.2*s).toFixed(1)}px;color:#8e98bb;text-transform:uppercase;white-space:nowrap;overflow:hidden">${label}</div>
+      <div style="display:flex;align-items:baseline;gap:${z(4)}px;min-width:0">
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:${z(26)}px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;color:#eef0f7">${val}</span>
+        <span style="font-size:${z(11)}px;font-weight:700;color:#6c769b;white-space:nowrap">/ ${tgt}</span>
+      </div>
+      <div style="height:${z(4)}px;border-radius:2px;background:rgba(255,255,255,0.1);overflow:hidden">
+        <div style="height:${z(4)}px;border-radius:2px;background:${barColor(pct)};width:${bar}%"></div>
+      </div>
+    </div>`;
+  }).join("");
+
+  return `<div style="position:relative;border-radius:14px;padding:${z(14)}px ${z(16)}px;border:1.5px solid ${t.line};background:${t.bg};box-shadow:${p.onLeave?"none":"0 0 26px "+t.rgb(0.3)+", inset 0 0 46px "+t.rgb(0.06)};overflow:hidden;display:flex;flex-direction:column;gap:${z(10)}px;min-height:0;animation:omRise 0.5s ease both">
+    ${celebrate ? `<div style="position:absolute;top:0;bottom:0;left:0;width:150px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.14),transparent);animation:omShine 4.2s ease-in-out infinite;pointer-events:none"></div>` : ""}
+    <div style="display:flex;align-items:center;gap:${z(10)}px;flex:none;min-width:0">
+      <div style="position:relative;flex:none;width:${z(46)}px;height:${z(46)}px">
+        <div style="width:100%;height:100%;border-radius:50%;position:relative;border:2px solid ${t.line};background:rgba(255,255,255,0.06);overflow:hidden;display:flex;align-items:center;justify-content:center">
+          ${avatarBgHtml(p.name)}
+          <span style="position:absolute;font-family:'Barlow Condensed',sans-serif;font-size:${z(16)}px;font-weight:900;color:${t.ink};opacity:0">${initials(p.name)}</span>
+        </div>
+        <span style="position:absolute;left:${z(-4)}px;bottom:${z(-3)}px;min-width:${z(19)}px;height:${z(19)}px;line-height:${z(17)}px;text-align:center;border-radius:999px;padding:0 ${z(4)}px;box-sizing:border-box;font-family:'Barlow Condensed',sans-serif;font-size:${z(12)}px;font-weight:900;color:${i===0&&!p.onLeave?"#0b0a04":t.ink};background:${i===0&&!p.onLeave?t.ink:"#141826"};border:1px solid ${t.line}">${p.onLeave?"—":i+1}</span>
+        ${f.moveLabel && f.move !== 0 ? `<span style="position:absolute;right:${z(-10)}px;top:${z(-6)}px;padding:0 ${z(5)}px;height:${z(17)}px;line-height:${z(16)}px;border-radius:999px;background:#0b0e18;border:1px solid ${f.moveInk};font-family:'Barlow Condensed',sans-serif;font-size:${z(13)}px;font-weight:900;color:${f.moveInk};white-space:nowrap">${f.moveLabel}</span>` : ""}
+      </div>
+      <!-- Name and team read across on one line ("Avni Gajjar - Soham"), with
+           the card label stacked under the score. The label used to sit on this
+           line too, which cost ~85px and truncated every longer name on the
+           Closer board; the score column had that height going spare. -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:${z(1)}px;overflow:hidden">
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:${z(21)}px;font-weight:800;line-height:1.04;color:${p.onLeave?"#7a7a99":"#f4f6fc"};display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${p.name}</span>
+        ${p.team ? `<span style="font-size:${z(11)}px;font-weight:800;letter-spacing:${(1.1*s).toFixed(1)}px;color:#7b86ad;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.team}</span>` : ""}
+      </div>
+      <div style="flex:none;width:${z(96)}px;display:flex;flex-direction:column;align-items:flex-end;gap:${z(3)}px">
+        <div class="${p.onLeave?'':'tv-cnt'}" data-final="${scoreFinal}" style="font-family:'Barlow Condensed',sans-serif;font-size:${z(32)}px;font-weight:900;line-height:0.95;white-space:nowrap;color:${t.ink};text-shadow:${p.onLeave?"none":"0 0 20px "+t.ink};font-variant-numeric:tabular-nums">${p.onLeave ? "—" : "0%"}</div>
+        <span style="display:inline-flex;align-items:center;padding:${z(2)}px ${z(7)}px;border-radius:999px;border:1px solid ${t.ink};background:rgba(255,255,255,0.05)">
+          <span style="font-size:${z(9)}px;font-weight:900;letter-spacing:${(0.9*s).toFixed(1)}px;color:${t.ink};text-transform:uppercase;white-space:nowrap">${t.label}</span>
+        </span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(${isCloser?2:3},minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:${z(7)}px;flex:1;min-height:0">${kpisHtml}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:${z(8)}px;padding-top:${z(8)}px;border-top:1px solid rgba(255,255,255,0.08);font-size:${z(12)}px;font-weight:800;letter-spacing:0.4px;flex:none">
+      <span style="color:#40c4ff">↙ ${p.inbound} in</span>
+      <span style="color:#ff8a78">↗ ${p.outbound} out</span>
+      <span style="color:#b388ff">✕ ${p.missed} miss</span>
+      ${f.streakLabel ? `<span style="color:${f.streakInk};white-space:nowrap">${f.streakLabel}</span>` : ""}
+    </div>
+    ${p.onLeave ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,6,11,0.55);pointer-events:none">
+      <div style="padding:8px 18px;border:2px dashed rgba(150,150,200,0.4);border-radius:8px;transform:rotate(-11deg);font-family:'Barlow Condensed',sans-serif;font-size:${z(24)}px;font-weight:900;letter-spacing:3px;color:rgba(160,160,205,0.6)">ON LEAVE</div>
+    </div>` : ""}
+  </div>`;
+}
+
+// Today's team roll-up behind the three figures on the Team Leader card.
+// Deliberately the same shape as the History page's teamTotals(): revenue,
+// admissions and presentations held are all closer-side. A builder row also
+// carries a deal count for the deals they sourced, but never the money or the
+// presentation behind them, so counting those would report the same enrolment
+// twice against a revenue figure that never included it.
+// `mtd` maps a closer's name to their month-to-date record; when it is missing
+// (or a name isn't in it) the member's own figures are used, so this still
+// works on a fixed range and stays comparable with history.html's teamTotals().
+function teamRollup(members, mtd) {
+  const t = { revenue: 0, newUpfront: 0, futureUpfront: 0, admissions: 0, presHeld: 0 };
+  members.forEach(m => {
+    if (m.role !== "Closer") return;
+    const src = (mtd && mtd[m.name]) || m;
+    t.newUpfront    += src.newUpfront || 0;
+    t.futureUpfront += src.futureUpfront || 0;
+    t.admissions    += src.dealsClosed || 0;
+    t.presHeld      += src.presentations || 0;
+  });
+  t.revenue   = t.newUpfront + t.futureUpfront;
+  t.avgTicket = t.admissions ? t.revenue / t.admissions : 0;
+  t.convPct   = t.presHeld ? Math.round(t.admissions / t.presHeld * 100) : 0;
+  t.convColor = !t.presHeld ? "#6c769b" : t.convPct >= 50 ? "#00e676" : t.convPct >= 25 ? "#ffd740" : "#ff4d6a";
+  return t;
+}
+
+function teamCard(team, members, rowSlots = members.length) {
+  const active = members.filter(m => !m.onLeave);
+  const roll = teamRollup(members, STATE.mtdByName);
+  const money = n => "$" + Math.round(n).toLocaleString();
+  // Say the period out loud — these three cover the month so far while the
+  // health score and the member list beside them are today's.
+  const periodLabel = (() => {
+    const r = STATE.mtdRange;
+    if (!r) return "Selected range";
+    const d = s => new Date(s + "T12:00:00Z").toLocaleDateString("en-US", { timeZone: "UTC", day: "numeric", month: "short" }).toUpperCase();
+    return `Month to date · ${d(r.start)} – ${d(r.end)}`;
+  })();
+  const statTile = (label, value, sub, color) => `
+    <div style="flex:1;min-width:0;border-radius:11px;background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.08);padding:11px 14px">
+      <div style="font-size:11px;font-weight:800;letter-spacing:1.4px;color:#7b86ad;text-transform:uppercase;white-space:nowrap;overflow:hidden">${label}</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:900;line-height:1.1;margin-top:3px;color:${color};font-variant-numeric:tabular-nums;white-space:nowrap">${value}</div>
+      <div style="font-size:11px;font-weight:700;color:#6c769b;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sub}</div>
+    </div>`;
+  // On-leave members count as 0 toward the team average (their score is
+  // already 0 from loadData), so health reflects the whole roster.
+  const health = members.length ? Math.round(members.reduce((s,m) => s + m.score, 0) / members.length) : 0;
+  const t = TIER[zone(health)];
+  const sortedMembers = [...active.sort((a,b) => b.score - a.score), ...members.filter(m => m.onLeave)];
+  // Nine or more rows have to share the height eight used to have, so the row
+  // contents come down with them rather than spilling over the row below.
+  const rs = rowSlots > 8 ? 8 / rowSlots : 1;
+  const z = v => Math.max(1, Math.round(v * rs));
+  const membersHtml = sortedMembers.map(m => {
+    const mt = TIER[m.tier];
+    const memberScoreFinal = m.onLeave ? "" : Math.round(m.score);
+    return `<div style="min-height:0;display:flex;align-items:center;gap:12px;padding:0 24px;border-bottom:1px solid rgba(255,255,255,0.05);overflow:hidden">
+      <div style="width:${z(40)}px;height:${z(40)}px;border-radius:50%;flex:none;border:1.5px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.06);overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative">
+        ${avatarBgHtml(m.name)}
+        <span style="position:absolute;font-family:'Barlow Condensed',sans-serif;font-size:${z(14)}px;font-weight:900;color:${mt.ink};opacity:0">${initials(m.name)}</span>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:${z(22)}px;font-weight:800;line-height:1.1;color:${m.onLeave?"#7a7a99":"#f4f6fc"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}</div>
+        <div style="font-size:${z(11)}px;font-weight:800;letter-spacing:1.5px;color:#6c769b;text-transform:uppercase;white-space:nowrap">${m.role}</div>
+      </div>
+      <div style="width:112px;flex:none">
+        <div style="height:5px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden">
+          <div style="height:5px;border-radius:3px;background:${mt.ink};width:${m.onLeave?0:Math.min(100,(m.score/150)*100).toFixed(0)}%"></div>
+        </div>
+      </div>
+      <div class="${m.onLeave?'':'tv-cnt'}" data-final="${memberScoreFinal}" style="width:78px;text-align:right;flex:none;font-family:'Barlow Condensed',sans-serif;font-size:${z(28)}px;font-weight:900;color:${mt.ink};font-variant-numeric:tabular-nums">${m.onLeave ? "—" : "0%"}</div>
+    </div>`;
+  }).join("");
+
+  return `<div style="position:relative;border-radius:16px;border:1.5px solid ${t.line};background:${t.bg};box-shadow:0 0 30px rgba(0,0,0,0.5);overflow:hidden;display:flex;flex-direction:column;animation:omRise 0.5s ease both">
+    <div style="padding:20px 24px 16px;border-bottom:1px solid rgba(255,255,255,0.09);display:flex;align-items:flex-start;justify-content:space-between;gap:14px">
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:40px;font-weight:900;line-height:1;letter-spacing:0.6px;color:${t.ink}">${team}</div>
+        <div style="font-size:12px;font-weight:800;letter-spacing:2.2px;color:#7b86ad;text-transform:uppercase;margin-top:5px">TEAM HEALTH SCORE</div>
+        <div style="display:inline-flex;margin-top:9px;padding:4px 11px;border-radius:999px;border:1px solid ${t.ink};background:rgba(255,255,255,0.05);font-size:12px;font-weight:900;letter-spacing:1.4px;white-space:nowrap;color:${t.ink}">${t.label}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="tv-cnt" data-final="${health}" style="font-family:'Barlow Condensed',sans-serif;font-size:74px;font-weight:900;line-height:0.9;color:${t.ink};text-shadow:0 0 26px ${t.ink};font-variant-numeric:tabular-nums">0%</div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:1.5px;color:#7b86ad;margin-top:4px">${active.length} ACTIVE · ${members.length-active.length} ON LEAVE</div>
+      </div>
+    </div>
+    <div style="padding:12px 24px 14px;border-bottom:1px solid rgba(255,255,255,0.09);flex:none">
+      <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:#5c6488;text-transform:uppercase;margin-bottom:9px">${periodLabel}</div>
+      <div style="display:flex;gap:10px">
+        ${statTile("Avg Ticket Size", roll.admissions ? money(roll.avgTicket) : "—", money(roll.revenue) + " revenue", "#40c4ff")}
+        ${statTile("Admissions", roll.admissions, money(roll.newUpfront) + " new · " + money(roll.futureUpfront) + " future", "#00e676")}
+        ${statTile("Pres → Enrolment", roll.presHeld ? roll.convPct + "%" : "—", roll.admissions + " of " + roll.presHeld + " held", roll.convColor)}
+      </div>
+    </div>
+    <div style="flex:1;min-height:0;display:grid;grid-template-rows:repeat(${rowSlots},minmax(0,1fr))">${membersHtml}</div>
+  </div>`;
+}
+
+// One BDE's card: KPI rows on top, summary funnel along the bottom.
+function bdeMemberCard(m) {
+  const t = TIER[m.tier];
+  const celebrate = m.tier === "gold";
+  // A display row (the ICP lead-type breakdown) is context, not a target, so it
+  // carries target: null. Calling toLocaleString() on that threw, and the throw
+  // came out of render() — which left the whole board unpainted and stuck at
+  // whatever scale it last had, on every view, not just this one.
+  const num = v => (v === null || v === undefined || Number.isNaN(v)) ? null : Number(v).toLocaleString();
+  const rowsHtml = m.rows.map(r => `
+    <div style="border-radius:9px;background:rgba(255,255,255,0.045);border:1px solid rgba(255,255,255,0.06);padding:7px 10px;display:flex;flex-direction:column;gap:5px">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font-size:12px;font-weight:800;letter-spacing:0.9px;color:#c3cae0;text-transform:uppercase;white-space:nowrap">${r.label}</span>
+        <span style="flex:1;min-width:0;font-size:10px;font-weight:700;color:#6c769b;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.note}</span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;line-height:1;color:#eef0f7;font-variant-numeric:tabular-nums">${num(r.actual) ?? "—"}</span>
+        ${num(r.target) != null ? `<span style="font-size:11px;font-weight:700;color:#6c769b">/ ${num(r.target)}</span>` : ""}
+        <span style="font-size:13px;font-weight:900;color:${r.color};min-width:44px;text-align:right">${r.pctLabel}</span>
+      </div>
+      <div style="height:4px;border-radius:2px;background:rgba(255,255,255,0.1);overflow:hidden">
+        <div style="height:4px;border-radius:2px;background:${r.color};width:${r.bar}%"></div>
+      </div>
+    </div>`).join("");
+
+  const funnelHtml = m.funnel.map(f => `
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+      <span style="font-size:9.5px;font-weight:800;letter-spacing:0.9px;color:#6c769b;text-transform:uppercase;white-space:nowrap">${f.label}</span>
+      <span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;line-height:1;color:#c3cae0;font-variant-numeric:tabular-nums">${f.val}</span>
+    </div>`).join("");
+
+  return `<div style="position:relative;border-radius:14px;padding:13px 15px;border:1.5px solid ${t.line};background:${t.bg};box-shadow:0 0 22px ${t.rgb(0.26)}, inset 0 0 46px ${t.rgb(0.06)};overflow:hidden;display:flex;flex-direction:column;gap:9px;animation:omRise 0.5s ease both">
+    ${celebrate ? `<div style="position:absolute;top:0;bottom:0;left:0;width:150px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.14),transparent);animation:omShine 4.2s ease-in-out infinite;pointer-events:none"></div>` : ""}
+    <div style="display:flex;align-items:center;gap:11px">
+      <div style="width:52px;height:52px;border-radius:50%;flex:none;border:2px solid ${t.line};background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:900;color:${t.ink}">${initials(m.name)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:800;line-height:1.05;color:#f4f6fc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}</div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#7b86ad;text-transform:uppercase;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.role} · TL ${m.tl}</div>
+        <div style="display:inline-flex;margin-top:5px;padding:3px 9px;border-radius:999px;border:1px solid ${t.ink};background:rgba(255,255,255,0.05);font-size:11px;font-weight:900;letter-spacing:1.2px;color:${t.ink};text-transform:uppercase;white-space:nowrap">${t.label}</div>
+      </div>
+      <div class="tv-cnt" data-final="${m.score}" style="text-align:right;flex:none;width:84px;font-family:'Barlow Condensed',sans-serif;font-size:34px;font-weight:900;line-height:0.95;white-space:nowrap;color:${t.ink};text-shadow:0 0 20px ${t.ink};font-variant-numeric:tabular-nums">0%</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;justify-content:center">${rowsHtml}</div>
+    <div style="display:flex;align-items:center;gap:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08)">${funnelHtml}</div>
+  </div>`;
+}
+
+// A BDE team: header strip with the team average, then its member cards.
+function bdeTeamBlock(bt) {
+  const t = TIER[bt.tier];
+  return `<div style="grid-column:span ${bt.span};min-width:0;display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;border-radius:10px;border:1px solid ${t.line};background:rgba(255,255,255,0.035)">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.4px;color:${t.ink};white-space:nowrap">${bt.name}</div>
+      <div style="padding:2px 9px;border-radius:999px;border:1px solid ${t.ink};font-size:11px;font-weight:900;letter-spacing:1.2px;color:${t.ink};white-space:nowrap">${t.label}</div>
+      <div style="flex:1;min-width:0;font-size:11px;font-weight:700;letter-spacing:0.8px;color:#6c769b;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${bt.note}</div>
+      <div class="tv-cnt" data-final="${bt.score}" style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;line-height:1;white-space:nowrap;color:${t.ink};font-variant-numeric:tabular-nums">0%</div>
+    </div>
+    <div style="flex:1;min-height:0;display:grid;gap:10px;grid-template-columns:repeat(${bt.span},minmax(0,1fr));grid-auto-rows:minmax(0,1fr)">
+      ${bt.members.map(bdeMemberCard).join("")}
+    </div>
+  </div>`;
+}
+
+// ── Champion takeover ───────────────────────────────────────────────────────
+// Once per full rotation the board stops being a table and names one person at
+// 250px. Nothing new is fetched — it is the builder already sitting at #1 on a
+// board the floor has just watched go past.
+function takeoverHtml() {
+  const p = [...STATE.builders, ...STATE.closers]
+    .filter(x => !x.onLeave)
+    .sort((a, b) => b.score - a.score)[0];
+  if (!p) return "";
+  const t = TIER[p.tier], rgb = RGB[p.tier];
+  const f = formFor(p, 1);
+  const isCloser = p.role === "Closer";
+  const stats = isCloser
+    ? [["Follow-up Calls", p.calls], ["Call Minutes", p.minutes], ["Pres. Held", p.presentations], ["Deals Closed", p.dealsClosed]]
+    : [["Outbound Calls", p.calls], ["Call Minutes", p.minutes], ["Qualified Leads", p.leads], ["Pres. Completed", p.presCompleted]];
+  // Cheap confetti: fixed-seed positions so it does not re-shuffle on every
+  // half-second tick, and skipped entirely for a red-zone leader.
+  const confetti = p.tier === "gold" || p.tier === "green"
+    ? Array.from({ length: 46 }, (_, i) => {
+        const x = (i * 37) % 100, dur = 3.2 + ((i * 7) % 22) / 10, delay = ((i * 13) % 40) / 10;
+        const c = [t.ink, "#ffffff", "#40c4ff"][i % 3];
+        return `<div style="position:absolute;top:0;left:${x}%;width:${6 + (i % 3) * 2}px;height:${10 + (i % 4) * 3}px;background:${c};border-radius:2px;opacity:0;animation:omFall ${dur}s linear infinite ${delay}s"></div>`;
+      }).join("")
+    : "";
+  // 132px fits "ARYAN SHARMA" beside a 250px avatar and a 250px score inside
+  // 1920. "LEKHRAJ PRAJAPATI" at that size does not, so the longest names step
+  // down rather than pushing the score off the screen.
+  const nameSize = p.name.length <= 13 ? 132 : p.name.length <= 17 ? 106 : 88;
+  const runner = [...STATE.builders, ...STATE.closers].filter(x => !x.onLeave).sort((a,b) => b.score - a.score)[1];
+  const gap = runner ? `${Math.max(0, Math.round(p.score - runner.score))} POINTS CLEAR OF ${runner.name.toUpperCase()}` : "";
+
+  return `<div style="position:absolute;inset:0;z-index:70;overflow:hidden;background:#05060b;animation:omTakeover 0.7s ease both">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 42%,rgba(${rgb},0.22) 0%,rgba(7,7,13,0) 62%)"></div>
+    <div style="position:absolute;left:50%;top:44%;width:2400px;height:2400px;margin:-1200px 0 0 -1200px;opacity:0.22;background:conic-gradient(${t.ink} 0deg 6deg,transparent 6deg 30deg,${t.ink} 30deg 36deg,transparent 36deg 60deg);animation:omSpin 70s linear infinite;mask-image:radial-gradient(circle,#000 12%,transparent 62%);-webkit-mask-image:radial-gradient(circle,#000 12%,transparent 62%)"></div>
+    ${confetti}
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 90px">
+      <div style="display:flex;align-items:center;gap:18px;animation:omNameIn 0.7s ease 0.1s both">
+        <div style="height:1px;width:120px;background:linear-gradient(90deg,transparent,${t.ink})"></div>
+        <div style="font-size:22px;font-weight:900;letter-spacing:11px;color:${t.ink}">TOP OF THE FLOOR</div>
+        <div style="height:1px;width:120px;background:linear-gradient(90deg,${t.ink},transparent)"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:56px;margin-top:34px;max-width:100%">
+        <div style="position:relative;flex:none;animation:omNameIn 0.8s ease 0.18s both">
+          <div style="position:absolute;inset:-30px;border-radius:50%;border:2px solid ${t.line};animation:omRingOut 3.4s ease-out infinite"></div>
+          <div style="position:absolute;inset:-30px;border-radius:50%;border:2px solid ${t.line};animation:omRingOut 3.4s ease-out infinite 1.7s"></div>
+          <div style="width:250px;height:250px;border-radius:50%;border:4px solid ${t.ink};background:rgba(255,255,255,0.06);overflow:hidden;box-shadow:0 0 90px rgba(${rgb},0.5);display:flex;align-items:center;justify-content:center;position:relative">
+            ${avatarBgHtml(p.name)}
+            <span style="position:absolute;font-family:'Barlow Condensed',sans-serif;font-size:88px;font-weight:900;color:${t.ink};opacity:0">${initials(p.name)}</span>
+          </div>
+        </div>
+        <div style="animation:omNameIn 0.8s ease 0.26s both;min-width:0">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:${nameSize}px;font-weight:900;line-height:0.88;color:#f7f8fc;text-transform:uppercase;white-space:nowrap">${p.name}</div>
+          <div style="display:flex;align-items:center;gap:16px;margin-top:14px">
+            <div style="padding:6px 18px;border-radius:999px;border:2px solid ${t.ink};font-size:17px;font-weight:900;letter-spacing:2.6px;color:${t.ink};text-transform:uppercase;white-space:nowrap">${t.label}</div>
+            <div style="font-size:17px;font-weight:800;letter-spacing:2.4px;color:#8e98bb;text-transform:uppercase;white-space:nowrap">${isCloser ? "Closer" : "Builder"}${p.team ? " · " + p.team : ""}</div>
+          </div>
+          ${f.streakLabel ? `<div style="font-size:16px;font-weight:800;letter-spacing:2.6px;color:${f.streakInk};margin-top:14px">${f.streakLabel.replace("★", "★ ")} RUNNING</div>` : ""}
+        </div>
+        <div style="text-align:right;flex:none;animation:omNameIn 0.8s ease 0.34s both">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:250px;font-weight:900;line-height:0.82;color:${t.ink};text-shadow:0 0 70px rgba(${rgb},0.5);font-variant-numeric:tabular-nums">${Math.round(p.score)}%</div>
+          <div style="font-size:16px;font-weight:900;letter-spacing:3px;color:#8e98bb;margin-top:8px">SCORECARD RESULT</div>
+          ${gap ? `<div style="font-size:15px;font-weight:800;letter-spacing:2px;color:${t.ink};margin-top:8px">${gap}</div>` : ""}
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:52px;animation:omNameIn 0.8s ease 0.44s both">
+        ${stats.map(([k, v]) => `<div style="min-width:230px;padding:18px 26px;border-radius:14px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:13px;font-weight:900;letter-spacing:2.4px;color:#8e98bb;text-transform:uppercase;white-space:nowrap">${k}</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:56px;font-weight:900;line-height:1;color:#f4f6fc;font-variant-numeric:tabular-nums">${(v || 0).toLocaleString()}</div>
+        </div>`).join("")}
+      </div>
+    </div>
+  </div>`;
+}
+
+function todaysEvents() {
+  const all = [...STATE.builders, ...STATE.closers].filter(p => !p.onLeave);
+  const ev = [];
+  STATE.closers.filter(c => !c.onLeave && (c.dealsClosed || 0) > 0)
+    .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
+    .forEach(c => ev.push({ kind: "DEAL CLOSED", who: c.name, ink: "#00e676",
+      detail: (c.revenue ? "$" + Math.round(c.revenue).toLocaleString() + " collected" : "closed today")
+              + (c.dealsClosed > 1 ? ` · ${c.dealsClosed} today` : "") }));
+  all.filter(p => p.tier === "gold").sort((a, b) => b.score - a.score).slice(0, 4)
+    .forEach(p => ev.push({ kind: "GOLDEN CARD", who: p.name, ink: "#ffd740",
+      detail: `${Math.round(p.score)}% · ${p.team || (p.role === "Closer" ? "Closer" : "Builder")}` }));
+  Object.entries(STATE.form.streak)
+    .filter(([name, st]) => st.days >= 3 && all.some(p => p.name === name))
+    .sort((a, b) => b[1].days - a[1].days).slice(0, 3)
+    .forEach(([name, st]) => ev.push({ kind: "ON A RUN", who: name, ink: st.allGold ? "#ffd740" : "#00e676",
+      detail: `${st.days} days ${st.allGold ? "holding gold" : "green or better"}` }));
+  const topLeads = STATE.builders.filter(b => !b.onLeave && (b.leads || 0) > 0)
+    .sort((a, b) => b.leads - a.leads)[0];
+  if (topLeads) ev.push({ kind: "QUALIFIED LEADS", who: topLeads.name, ink: "#b388ff",
+    detail: `${topLeads.leads} today · most on the floor` });
+  return ev;
+}
+
+function eventToastInner() {
+  const ev = todaysEvents();
+  if (!ev.length) return "";
+  const e = ev[STATE.eventIdx % ev.length];
+  return `<div style="display:flex;align-items:center;gap:14px;padding:12px 20px;border-radius:14px;border:1.5px solid ${e.ink};background:linear-gradient(120deg,rgba(10,12,20,0.96),rgba(10,12,20,0.82));box-shadow:0 14px 44px rgba(0,0,0,0.6),0 0 34px ${e.ink}44;animation:omEventIn 0.5s ease both">
+    <div style="width:40px;height:40px;border-radius:11px;flex:none;background:${e.ink}22;border:1px solid ${e.ink};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;color:${e.ink}">${initials(e.who)}</div>
+    <div style="min-width:0">
+      <div style="font-size:11px;font-weight:900;letter-spacing:2.2px;color:${e.ink};text-transform:uppercase;white-space:nowrap">${e.kind}</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;line-height:1.05;color:#f4f6fc;white-space:nowrap">${e.who}</div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:0.6px;color:#8e98bb;white-space:nowrap">${e.detail}</div>
+    </div>
+  </div>`;
+}
+
+function paintToast() {
+  const el = document.getElementById("tv-toast");
+  if (el) el.innerHTML = STATE.takeover ? "" : eventToastInner();
+}
+
+function render() {
+  document.getElementById("board-root").style.display = "block";
+  const { builders, closers, bdeTeams } = STATE;
+
+  const clock = STATE.now.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", hour12: true });
+  const dateLabel = STATE.now.toLocaleDateString("en-US", { timeZone: "America/New_York", day: "numeric", month: "short", year: "numeric" }).toUpperCase();
+  const h = etHour();
+  const frac = h <= WORK_START_H ? 0.01 : h >= WORK_END_H ? 1 : (h - WORK_START_H) / WORK_HOURS;
+  const view = STATE.view;
+  const pipsHtml = pipsMarkup(view);
+
+  let cardsHtml = "", cols = 5, viewTitle = "", viewSub = "", leaderHtml = "", leaderScoreFinal = 0, totalsHtml = "", tickerText = "";
+
+  if (view === 3) {
+    // Auto-arrange: the board is exactly as wide as the teams need, so they
+    // sit on one row with no empty columns. A fixed 3 left a third of the
+    // board blank and squeezed the 4-member team into quarter-height cards.
+    cols = Math.max(1, bdeTeams.reduce((s, t) => s + t.span, 0));
+    cardsHtml = bdeTeams.map(bdeTeamBlock).join("");
+    viewTitle = "BDE Scorecard";
+    viewSub = "Today · weighted lead-generation targets";
+    const allBdes = bdeTeams.flatMap(t => t.members);
+    const top = allBdes.slice().sort((a, b) => b.score - a.score)[0] || { name: "—", score: 0, tier: "red" };
+    leaderHtml = `${initials(top.name)}|${top.name}|TOP BDE · ${TIER[top.tier].label}`;
+    leaderScoreFinal = top.score;
+    totalsHtml = bdeTeams.map(t => ({
+      label: t.name, value: t.score + "%", hint: t.members.length + " BDE",
+      color: TIER[t.tier].ink, bar: Math.min(100, (t.score / 150) * 100).toFixed(0),
+    }));
+    const sumStage = key => allBdes.reduce((s, m) => {
+      const f = m.funnel.find(x => x.label === key);
+      return s + (f ? Number(String(f.val).replace(/,/g, "")) : 0);
+    }, 0);
+    const golds = allBdes.filter(m => m.tier === "gold").length;
+    tickerText = top.name.toUpperCase() + " LEADS THE BDE BOARD AT " + top.score + "%   ·   "
+      + golds + " GOLDEN CARDS   ·   LEADS GENERATED " + sumStage("Generated").toLocaleString()
+      + "   ·   QUALIFIED " + sumStage("Qualified").toLocaleString()
+      + "   ·   ENROLLED " + sumStage("Enrolled").toLocaleString() + "   ·   ";
+  } else if (view === 2) {
+    const all = [...builders, ...closers];
+    // Teams come from the people actually in the report, so a transfer or a new
+    // lead shows up without a config edit. The config order is applied first so
+    // the board's familiar left-to-right layout does not shuffle.
+    const configOrder = [...new Set(SALES_TEAM_MEMBERS.map(m => m.team))];
+    const present = new Set(all.map(m => m.team).filter(n => n && n !== "—"));
+    const teamNames = [
+      ...configOrder.filter(n => present.has(n)),
+      ...[...present].filter(n => !configOrder.includes(n)).sort(),
+    ];
+    const teams = teamNames.map(name => {
+      const members = all.filter(m => m.team === name);
+      // On-leave members count as 0 toward the average, so health reflects
+      // the whole roster rather than just who's active today.
+      const health = members.length ? Math.round(members.reduce((s,m) => s+m.score, 0) / members.length) : 0;
+      return { name, members, health };
+    });
+    cols = teams.length || 1;
+    // One shared row count across the cards: without it each card divided its
+    // own height by its own member count, so an eight-person team's rows sat
+    // between a ten-person team's and nothing lined up across the board.
+    const rowSlots = Math.max(1, ...teams.map(t => t.members.length));
+    cardsHtml = teams.map(t => teamCard(t.name, t.members, rowSlots)).join("");
+    viewTitle = "Team Leader Board"; viewSub = "Team health score · average of all member scores";
+    const best = teams.slice().sort((a,b) => b.health - a.health)[0] || { name: "—", health: 0 };
+    leaderHtml = `${initials(best.name)}|${best.name}|TOP TEAM`;
+    leaderScoreFinal = best.health;
+    totalsHtml = teams.map(t => {
+      const tk = TIER[zone(t.health)];
+      return { label: t.name, value: t.health+"%", hint: t.members.length+" members", color: tk.ink, bar: Math.min(100,(t.health/150)*100).toFixed(0) };
+    });
+    tickerText = teams.map(t => t.name.toUpperCase()+" "+t.health+"%").join("   ·   ") + "   ·   TEAM HEALTH INCLUDES MEMBERS ON LEAVE   ·   ";
+  } else if (view === 1) {
+    const g = gridFor(closers.length);
+    cols = g.cols;
+    cardsHtml = closers.map((p,i) => personCard(p, i, true, g.density)).join("");
+    viewTitle = "Closer Board"; viewSub = "Follow-up calls 40% · call minutes 20% · presentations held 40% · deal multiplier";
+    const top = closers[0] || { name:"—", score:0, tier:"red" };
+    leaderHtml = `${initials(top.name)}|${top.name}|TOP CLOSER · ${TIER[top.tier].label}`;
+    leaderScoreFinal = top.score;
+    const sum = k => closers.reduce((s,c) => s+(c[k]||0), 0);
+    const n = closers.length || 1;
+    totalsHtml = [
+      { label:"Follow-up Calls", value:sum("calls"), hint:"/ "+n*C_T.calls, color:"#ff8a78", bar:Math.min(100,(sum("calls")/(n*C_T.calls))*100).toFixed(0) },
+      { label:"Call Minutes", value:sum("minutes"), hint:"/ "+n*C_T.minutes, color:"#ffab00", bar:Math.min(100,(sum("minutes")/(n*C_T.minutes))*100).toFixed(0) },
+      { label:"Pres. Held", value:sum("presentations"), hint:"/ "+n*C_T.presentations, color:"#40c4ff", bar:Math.min(100,(sum("presentations")/(n*C_T.presentations))*100).toFixed(0) },
+      { label:"Deals Closed", value:sum("dealsClosed"), hint:"today", color:"#00e676", bar:100 },
+      { label:"Revenue", value:"$"+((sum("revenue"))/1000).toFixed(1)+"K", hint:"collected", color:"#00e676", bar:100 },
+    ];
+    tickerText = "DEALS CLOSED "+sum("dealsClosed")+"   ·   REVENUE $"+sum("revenue").toLocaleString()+"   ·   "+top.name.toUpperCase()+" LEADS AT "+top.score+"%   ·   2+ DEALS = GUARANTEED GOLDEN CARD   ·   ";
+  } else {
+    // One slide of the roster at a time. The rank badge is the builder's
+    // position on the whole board, not on the slide, so #10 stays #10 when it
+    // moves to the second screen.
+    const pages = builderPages();
+    const page  = Math.min(STATE.page, pages.length - 1);
+    const shown = pages[page] || [];
+    const offset = pages.slice(0, page).reduce((n, p) => n + p.length, 0);
+    const g = gridFor(shown.length);
+    cols = g.cols;
+    cardsHtml = shown.map((p,i) => personCard(p, offset + i, false, g.density)).join("");
+    viewTitle = "Builder Board";
+    viewSub = (pages.length > 1 ? `Ranks ${offset+1}–${offset+shown.length} of ${builders.length} · slide ${page+1}/${pages.length} · ` : "")
+      + "Calls 20% · minutes 20% · leads 10% · discoveries 15% · pres booked 10% · pres completed 25%";
+    const top = builders[0] || { name:"—", score:0, tier:"red" };
+    leaderHtml = `${initials(top.name)}|${top.name}|TOP BUILDER · ${TIER[top.tier].label}`;
+    leaderScoreFinal = top.score;
+    const sum = k => builders.reduce((s,b) => s+(b[k]||0), 0);
+    const n = builders.filter(b => !b.onLeave).length || 1;
+    totalsHtml = [
+      { label:"Outbound Calls", value:sum("calls"), hint:"/ "+n*B_T.calls, color:"#ff8a78", bar:Math.min(100,(sum("calls")/(n*B_T.calls))*100).toFixed(0) },
+      { label:"Call Minutes", value:sum("minutes"), hint:"/ "+n*B_T.minutes, color:"#ffab00", bar:Math.min(100,(sum("minutes")/(n*B_T.minutes))*100).toFixed(0) },
+      { label:"Qualified Leads", value:sum("leads"), hint:"/ "+n*B_T.leads, color:"#40c4ff", bar:Math.min(100,(sum("leads")/(n*B_T.leads))*100).toFixed(0) },
+      { label:"Discoveries", value:sum("discoveries"), hint:"/ "+n*B_T.discoveries, color:"#b388ff", bar:Math.min(100,(sum("discoveries")/(n*B_T.discoveries))*100).toFixed(0) },
+      { label:"Pres. Completed", value:sum("presCompleted"), hint:"/ "+n*B_T.presCompleted, color:"#00e676", bar:Math.min(100,(sum("presCompleted")/(n*B_T.presCompleted))*100).toFixed(0) },
+    ];
+    const golds = builders.filter(b => b.tier === "gold").length;
+    tickerText = top.name.toUpperCase()+" HOLDS #1 AT "+top.score+"%   ·   "+golds+" GOLDEN CARDS ON THE FLOOR   ·   TEAM CALLS "+sum("calls")+" / "+n*B_T.calls+"   ·   110%+ = GOLDEN CARD   ·   ";
+  }
+
+  const [linit, lname, lsub] = leaderHtml.split("|");
+  const totalsBlockHtml = totalsHtml.map(t => `
+    <div style="flex:1;min-width:0;padding:11px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.09);background:rgba(255,255,255,0.03);display:flex;flex-direction:column;justify-content:center;gap:5px">
+      <div style="font-size:12px;font-weight:800;letter-spacing:1.9px;color:#7b86ad;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.label}</div>
+      <div style="display:flex;align-items:baseline;gap:7px">
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:34px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;color:${t.color}">${t.value}</span>
+        <span style="font-size:12px;font-weight:700;color:#6c769b">${t.hint}</span>
+      </div>
+      <div style="height:4px;border-radius:2px;background:rgba(255,255,255,0.1);overflow:hidden">
+        <div style="height:4px;border-radius:2px;background:${t.color};width:${t.bar}%"></div>
+      </div>
+    </div>`).join("");
+
+  document.getElementById("board-root").innerHTML = `
+  <div style="position:fixed;inset:0;background:#05060b;display:flex;align-items:center;justify-content:center">
+    <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none">
+      <div style="position:absolute;width:1100px;height:1100px;left:-260px;top:-380px;border-radius:50%;background:radial-gradient(circle,rgba(255,77,58,0.16) 0%,transparent 62%);animation:omDrift 26s ease-in-out infinite"></div>
+      <div style="position:absolute;width:1000px;height:1000px;right:-240px;bottom:-360px;border-radius:50%;background:radial-gradient(circle,rgba(0,230,118,0.13) 0%,transparent 62%);animation:omDrift 34s ease-in-out infinite reverse"></div>
+    </div>
+    <div id="board-canvas" style="width:1920px;height:1080px;flex:none;position:relative;transform-origin:50% 50%;transform:scale(${STATE.scale.toFixed(4)})">
+      ${STATE.takeover ? takeoverHtml() : ""}
+      <div id="tv-toast" style="position:absolute;right:40px;bottom:88px;z-index:60"></div>
+      <div style="position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:92px auto 1fr 54px;padding:22px 40px 18px;gap:14px">
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;min-width:0;border-bottom:1px solid rgba(255,255,255,0.09);padding-bottom:14px">
+          <div style="display:flex;align-items:center;gap:20px">
+            <img src="/e92c4bab-2eb7-4e8f-bc76-e00992442f1f.png" alt="ElevateMe" style="height:46px;width:auto;display:block" />
+            <div style="width:1px;height:42px;background:rgba(255,255,255,0.12)"></div>
+            <div style="display:flex;flex-direction:column;gap:2px;max-width:1000px;min-width:0">
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:900;letter-spacing:1px;line-height:1;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${viewTitle}</div>
+              <div style="font-size:12px;font-weight:700;letter-spacing:1.4px;color:#7b86ad;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${viewSub}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:34px">
+            <div style="display:flex;align-items:center;gap:9px;padding:7px 16px;border:1px solid rgba(255,77,58,0.5);border-radius:999px;background:rgba(255,77,58,0.09)">
+              <div style="width:9px;height:9px;border-radius:50%;background:#ff4d3a;box-shadow:0 0 10px #ff4d3a;animation:omPulse 1.6s ease-in-out infinite"></div>
+              <span style="font-size:14px;font-weight:800;letter-spacing:2.4px;color:#ff8a78">${STATE.isLive ? "LIVE" : "HISTORICAL"}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+              <div id="tv-datelabel" style="font-size:13px;font-weight:700;letter-spacing:2.2px;color:#7b86ad;text-transform:uppercase">${dateLabel}</div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:150px;height:5px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden">
+                  <div id="tv-fracbar" style="height:5px;border-radius:3px;background:linear-gradient(90deg,#ff4d3a,#ffab00);width:${Math.round(frac*100)}%"></div>
+                </div>
+                <span id="tv-fracpct" style="font-size:13px;font-weight:800;color:#ffab00;font-variant-numeric:tabular-nums">${Math.round(frac*100)}% OF DAY</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              <div id="tv-clock" style="font-family:'Barlow Condensed',sans-serif;font-size:34px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums">${clock}</div>
+              <div style="font-size:12px;font-weight:700;letter-spacing:2.4px;color:#7b86ad">EST</div>
+            </div>
+            <div id="tv-pips" style="display:flex;align-items:center;gap:7px">${pipsHtml}</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:stretch;gap:12px;min-width:0">
+          <div style="display:flex;align-items:center;gap:14px;padding:12px 20px;border-radius:12px;border:1px solid rgba(255,215,64,0.34);background:linear-gradient(100deg,rgba(255,215,64,0.14),rgba(255,215,64,0.02));flex:0 0 510px;min-width:0;position:relative;overflow:hidden">
+            <div style="position:absolute;inset:0;width:120px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.16),transparent);animation:omShine 5s ease-in-out infinite"></div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:2.6px;color:#ffd740;writing-mode:vertical-rl;transform:rotate(180deg)">LEADER</div>
+            <div style="width:56px;height:56px;border-radius:50%;flex:none;background:rgba(255,215,64,0.14);border:2px solid #ffd740;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:#ffd740">${linit}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:900;letter-spacing:0.6px;line-height:1.05;color:#ffe484;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lname}</div>
+              <div style="font-size:12px;font-weight:700;letter-spacing:1px;color:#a2914f;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lsub}</div>
+            </div>
+            <div class="tv-cnt" data-final="${leaderScoreFinal}" style="font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:900;line-height:1;color:#ffd740;text-shadow:0 0 22px rgba(255,215,64,0.55);font-variant-numeric:tabular-nums">0%</div>
+          </div>
+          ${totalsBlockHtml}
+        </div>
+
+        <div style="display:grid;gap:12px;grid-template-columns:repeat(${cols},minmax(0,1fr));grid-auto-rows:minmax(0,1fr);min-height:0">
+          ${cardsHtml}
+        </div>
+
+        <div style="border-radius:10px;border:1px solid rgba(255,255,255,0.09);background:rgba(255,255,255,0.035);overflow:hidden;display:flex;align-items:center">
+          <div style="flex:none;padding:0 20px;height:100%;display:flex;align-items:center;background:#ff4d3a;font-size:14px;font-weight:900;letter-spacing:2.4px;color:#fff">FLOOR FEED</div>
+          <div style="flex:1;min-width:0;overflow:hidden;padding-left:18px">
+            <div style="display:flex;width:max-content;animation:omMarquee 46s linear infinite">
+              <div style="flex:none;width:max-content;padding-right:80px;font-size:17px;font-weight:700;letter-spacing:1.4px;color:#c9cfe4;white-space:nowrap">${tickerText}</div>
+              <div style="flex:none;width:max-content;padding-right:80px;font-size:17px;font-weight:700;letter-spacing:1.4px;color:#c9cfe4;white-space:nowrap">${tickerText}</div>
+            </div>
+          </div>
+          <div style="flex:none;padding:0 20px;display:flex;gap:16px;align-items:center;font-size:12px;font-weight:800;letter-spacing:1.5px">
+            <span style="color:#ffd740">● GOLD 110+</span>
+            <span style="color:#00e676">● GREEN 95–110</span>
+            <span style="color:#ffab00">● YELLOW 75–95</span>
+            <span style="color:#ff6d00">● ORANGE 50–75</span>
+            <span style="color:#ff4d6a">● RED &lt;50</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // render() replaces the canvas node, so the scale has to go back on. Reading
+  // the window here rather than trusting STATE means a resize that arrived
+  // before the board had data still lands correctly on this first paint.
+  applyScale();
+  paintToast();
+
+  // render() is also called directly (resize, the 3-min data refresh) with
+  // no animateScores() to follow — snap every score straight to its final
+  // value so it never gets stuck showing the "0%" placeholder. The
+  // animated 0->final count-up only happens via the explicit runCountUp()
+  // path (initial load, view rotation), which overrides this right after.
+  document.querySelectorAll(".tv-cnt").forEach(el => {
+    const final = parseFloat(el.dataset.final);
+    if (!isNaN(final)) el.textContent = Math.round(final) + "%";
+  });
+}
+
+// Lightweight per-tick chrome update (clock/date/day-progress/pips) that
+// patches only those DOM nodes directly, instead of rebuilding the whole
+// board every 500ms — a full render() reset the ticker's CSS animation and
+// reloaded every avatar <img> on each tick, which is what caused the
+// screen-blink and the "stuck" marquee.
+function updateChrome() {
+  const clockEl = document.getElementById("tv-clock");
+  if (!clockEl) return; // board not rendered yet
+  const clock = STATE.now.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", hour12: true });
+  const dateLabel = STATE.now.toLocaleDateString("en-US", { timeZone: "America/New_York", day: "numeric", month: "short", year: "numeric" }).toUpperCase();
+  const h = etHour();
+  const frac = h <= WORK_START_H ? 0.01 : h >= WORK_END_H ? 1 : (h - WORK_START_H) / WORK_HOURS;
+  clockEl.textContent = clock;
+  document.getElementById("tv-datelabel").textContent = dateLabel;
+  document.getElementById("tv-fracbar").style.width = Math.round(frac*100)+"%";
+  document.getElementById("tv-fracpct").textContent = Math.round(frac*100)+"% OF DAY";
+  const view = STATE.view;
+  document.getElementById("tv-pips").innerHTML = pipsMarkup(view);
+}
+
+// render() rebuilds the whole board's DOM, including every avatar <img>.
+// Calling it on every animation step (even throttled to 12 steps/sec)
+// still recreated every image a dozen times in a row, which is what kept
+// causing visible flicker during the 0% -> final count-up. Only the score
+// percentage text actually changes during that animation — everything
+// else (avatars, names, KPI grids, bars) is identical before and after —
+// so render() now runs exactly ONCE per data/view change, and the count-up
+// only updates text on the tagged `.tv-cnt` elements directly, with zero
+// DOM rebuilds.
+function runCountUp() {
+  render();
+  animateScores();
+}
+function animateScores() {
+  clearTimeout(window._tvCountTimer);
+  const nodes = Array.from(document.querySelectorAll(".tv-cnt"));
+  const STEPS = 16, dur = 900;
+  let i = 0;
+  const step = () => {
+    try {
+      const k = Math.min(1, i / STEPS);
+      const eased = 1 - Math.pow(1 - k, 3);
+      nodes.forEach(el => {
+        const final = parseFloat(el.dataset.final);
+        if (!isNaN(final)) el.textContent = Math.round(final * eased) + "%";
+      });
+      i++;
+      if (k < 1) window._tvCountTimer = setTimeout(step, dur / STEPS);
+    } catch (e) {
+      console.error("TV board countUp step failed:", e.message);
+      i++;
+      window._tvCountTimer = setTimeout(step, dur / STEPS);
+    }
+  };
+  step();
+}
+
+let _toastT = 0;
+let _tick = null;
+function startTicking() {
+  if (_tick) clearInterval(_tick);
+  _tick = setInterval(() => {
+    try {
+      STATE.now = new Date();
+      // Paused means someone jumped to a view to look at it — hold there, but
+      // keep the clock and the data refresh running.
+      // Cheap enough to do on every tick, and it means the board cannot stay
+      // at the wrong scale for more than half a second no matter which resize
+      // signal the TV's browser fails to send. Returns immediately when the
+      // scale has not moved.
+      applyScale();
+      // The toast runs on its own clock and repaints only itself — a full
+      // render would replay every card's entrance animation every ten seconds.
+      _toastT += 0.5;
+      if (_toastT >= EVENT_SECONDS) { _toastT = 0; STATE.eventIdx += 1; paintToast(); }
+      if (STATE.paused) { updateChrome(); return; }
+      STATE.elapsed += 0.5;
+      if (STATE.elapsed >= (STATE.takeover ? TAKEOVER_SECONDS : ROTATE_SECONDS)) {
+        if (STATE.takeover) {
+          STATE.takeover = false; STATE.view = 0; STATE.page = 0;
+        } else {
+          const pages = STATE.view === 0 ? builderPages().length : 1;
+          if (STATE.page + 1 < pages) { STATE.page += 1; }
+          // After the last view, name the champion before starting over.
+          else if (STATE.view === 3) { STATE.page = 0; STATE.takeover = true; }
+          else { STATE.page = 0; STATE.view = STATE.view + 1; }
+        }
+        STATE.elapsed = 0;
+        runCountUp();
+      } else {
+        updateChrome();
+      }
+    } catch (e) {
+      console.error("TV board tick failed:", e.message);
+    }
+  }, 500);
+}
+// Refresh underlying data periodically (every 3 min) while live, so numbers
+// stay current without a full page reload.
+let _dataRefresh = null;
+function startDataRefresh() {
+  if (_dataRefresh) clearInterval(_dataRefresh);
+  _dataRefresh = setInterval(() => { if (STATE.isLive) loadData(); }, 3 * 60 * 1000);
+}
+
+function initBoard() {
+  fit();
+  window.addEventListener("resize", onResize);
+  // A resize event is not guaranteed for every size change a TV browser goes
+  // through — entering kiosk mode, the on-screen chrome settling after load,
+  // a display waking up. Observing the element catches those too.
+  if (window.ResizeObserver) new ResizeObserver(onResize).observe(document.documentElement);
+  startTicking();
+  startDataRefresh();
+  loadData().then(() => { _dataLoadedOnce = true; runCountUp(); });
+  // Kiosk safeguard: force a full reload every 4 hours so a tab left open
+  // indefinitely always ends up running the latest deployed code and a
+  // fresh auth session, without anyone needing to walk over and refresh it.
+  setTimeout(() => location.reload(), 4 * 60 * 60 * 1000);
+}
+
+// ── Hidden settings panel wiring ─────────────────────────────────────────────
+const settingsBtn = document.getElementById("settings-btn");
+const settingsPanel = document.getElementById("settings-panel");
+settingsBtn.onclick = () => {
+  settingsBtn.classList.toggle("open");
+  settingsPanel.classList.toggle("open");
+};
+document.getElementById("btn-apply-range").onclick = () => {
+  const s = document.getElementById("range-start").value;
+  const e = document.getElementById("range-end").value;
+  if (!s || !e) return;
+  STATE.isLive = false;
+  STATE.rangeStart = s;
+  STATE.rangeEnd = e;
+  document.getElementById("mode-note").textContent = `Currently: HISTORICAL (${s} to ${e}, rotation paused)`;
+  if (_tick) clearInterval(_tick);
+  loadData();
+};
+document.getElementById("btn-reset-live").onclick = () => {
+  STATE.isLive = true;
+  document.getElementById("mode-note").textContent = "Currently: LIVE (today, auto-rotating)";
+  loadData();
+  startTicking();
+};
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+// getSession() and onAuthStateChange() both fire on initial page load (a
+// known Supabase behavior), so showApp() gets called twice — this ran
+// initBoard() twice, starting two independent loadData()+count-up
+// sequences racing each other, which is what caused the several-second
+// flicker with the score visibly drifting between two slightly different
+// values. Guard so initBoard() only ever runs once per page load.
+let _appStarted = false;
+function showApp() {
+  document.getElementById("auth-overlay").style.display = "none";
+  if (_appStarted) return;
+  _appStarted = true;
+  initBoard();
+}
+_supabase.auth.getSession().then(async ({ data: { session } }) => {
+  await APP_USERS_READY;
+  if (session?.user) {
+    const email = session.user.email || "";
+    if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) showApp();
+    else { _supabase.auth.signOut(); showAuthOverlay(); document.getElementById("auth-error").textContent = "Access denied. Your account is not authorized."; }
+  } else showAuthOverlay();   // signed out, or a token too stale to refresh
+});
+_supabase.auth.onAuthStateChange(async (_e, session) => {
+  await APP_USERS_READY;
+  if (session?.user) {
+    const email = session.user.email || "";
+    if (ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) showApp();
+    else { _supabase.auth.signOut(); showAuthOverlay(); document.getElementById("auth-error").textContent = "Access denied. Your account is not authorized."; }
+  } else showAuthOverlay();   // signed out, or a token too stale to refresh
+});
+document.getElementById("btn-google-signin").onclick = async () => {
+  document.getElementById("auth-error").textContent = "";
+  const { error } = await _supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: "https://elevate-dashboard-iota.vercel.app/tv-board.html" }
+  });
+  if (error) document.getElementById("auth-error").textContent = error.message;
+};
+</script>
+</body>
+</html>
