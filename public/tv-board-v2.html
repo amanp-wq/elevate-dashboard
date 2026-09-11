@@ -20,6 +20,7 @@
   @keyframes omRingOut { 0% { transform: scale(0.6); opacity: 0.85; } 100% { transform: scale(2.1); opacity: 0; } }
   @keyframes omFall { 0% { transform: translateY(-60px) rotate(0deg); opacity: 0; } 10% { opacity: 1; } 100% { transform: translateY(1120px) rotate(560deg); opacity: 0.9; } }
   @keyframes omSpin { to { transform: rotate(360deg); } }
+  @keyframes omEmber { 0% { transform: translateY(0) scale(0.7); opacity: 0; } 18% { opacity: 0.95; } 100% { transform: translateY(-86px) scale(0.25); opacity: 0; } }
   @keyframes omEventIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
   .tv-avatar-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
 
@@ -693,15 +694,14 @@ function gridFor(n) {
 function personCard(p, i, isCloser, s = 1) {
   const z = v => Math.max(1, Math.round(v * s));   // scale a px value to the card's density
   const t = TIER[p.tier];
+  const rank = i + 1;
+  const f = formFor(p, rank);
   const kdef = isCloser
     ? [["calls", p.calls, C_T.calls], ["minutes", p.minutes, C_T.minutes], ["pres held", p.presentations, C_T.presentations], ["deals", p.dealsClosed, 1]]
     : [["calls", p.calls, B_T.calls], ["minutes", p.minutes, B_T.minutes], ["q. leads", p.leads, B_T.leads], ["disco", p.discoveries, B_T.discoveries], ["pres bkd", p.presBooked, B_T.presBooked], ["pres cmp", p.presCompleted, B_T.presCompleted]];
   const celebrate = p.tier === "gold";
-  const f = formFor(p, i + 1);
-  // Only this score text counts up (0% -> final) — everything else in the
-  // card is static, so it's tagged for animateScores() to update directly
-  // instead of being rebuilt by render() on every animation step.
   const scoreFinal = p.onLeave ? "" : Math.round(p.score);
+
   const kpisHtml = kdef.map(([label, val, tgt]) => {
     const pct = cap(val, tgt);
     const bar = Math.min(100, (pct / 150) * 100).toFixed(0);
@@ -717,41 +717,53 @@ function personCard(p, i, isCloser, s = 1) {
     </div>`;
   }).join("");
 
-  return `<div style="position:relative;border-radius:14px;padding:${z(14)}px ${z(16)}px;border:1.5px solid ${t.line};background:${t.bg};box-shadow:${p.onLeave?"none":"0 0 26px "+t.rgb(0.3)+", inset 0 0 46px "+t.rgb(0.06)};overflow:hidden;display:flex;flex-direction:column;gap:${z(10)}px;min-height:0;animation:omRise 0.5s ease both">
-    ${celebrate ? `<div style="position:absolute;top:0;bottom:0;left:0;width:150px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.14),transparent);animation:omShine 4.2s ease-in-out infinite;pointer-events:none"></div>` : ""}
-    <div style="display:flex;align-items:center;gap:${z(10)}px;flex:none;min-width:0">
-      <div style="position:relative;flex:none;width:${z(46)}px;height:${z(46)}px">
-        <div style="width:100%;height:100%;border-radius:50%;position:relative;border:2px solid ${t.line};background:rgba(255,255,255,0.06);overflow:hidden;display:flex;align-items:center;justify-content:center">
+  // Gold cards get embers drifting up off the bottom edge as well as the sweep.
+  const embers = celebrate ? [[18, 5, 4.4, 0], [47, 4, 5.6, 1.3], [74, 6, 6.2, 2.6]].map(([x, d, dur, delay]) =>
+    `<div style="position:absolute;bottom:8px;left:${x}%;width:${d}px;height:${d}px;border-radius:50%;background:#ffd740;box-shadow:0 0 ${d * 2}px #ffd740;animation:omEmber ${dur}s ease-out infinite ${delay}s"></div>`).join("") : "";
+
+  return `<div style="position:relative;border-radius:14px;padding:${z(14)}px ${z(16)}px;border:1.5px solid ${t.line};background:${t.bg};box-shadow:${p.onLeave ? "none" : "0 0 26px " + t.rgb(0.3) + ", inset 0 0 46px " + t.rgb(0.06)};overflow:hidden;display:flex;flex-direction:column;gap:${z(10)}px;min-height:0;animation:omRise 0.5s ease both">
+    ${celebrate ? `<div style="position:absolute;top:0;bottom:0;left:0;width:150px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.14),transparent);animation:omShine 4.2s ease-in-out infinite;pointer-events:none"></div>
+    <div style="position:absolute;inset:0;pointer-events:none;overflow:hidden">${embers}</div>` : ""}
+
+    <div style="display:flex;align-items:flex-start;gap:${z(11)}px;flex:none;min-width:0">
+      <!-- Photo with the rank and the day's movement stacked underneath, rather
+           than a badge pinned to the photo's corner: at this size the rank is a
+           number people read, not a decoration. -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:${z(5)}px;flex:none;width:${z(58)}px">
+        <div style="width:${z(58)}px;height:${z(58)}px;border-radius:50%;position:relative;border:2px solid ${t.line};background:rgba(255,255,255,0.06);overflow:hidden;display:flex;align-items:center;justify-content:center">
           ${avatarBgHtml(p.name)}
-          <span style="position:absolute;font-family:'Barlow Condensed',sans-serif;font-size:${z(16)}px;font-weight:900;color:${t.ink};opacity:0">${initials(p.name)}</span>
+          <span style="position:absolute;font-family:'Barlow Condensed',sans-serif;font-size:${z(19)}px;font-weight:900;color:${t.ink};opacity:0">${initials(p.name)}</span>
         </div>
-        <span style="position:absolute;left:${z(-4)}px;bottom:${z(-3)}px;min-width:${z(19)}px;height:${z(19)}px;line-height:${z(17)}px;text-align:center;border-radius:999px;padding:0 ${z(4)}px;box-sizing:border-box;font-family:'Barlow Condensed',sans-serif;font-size:${z(12)}px;font-weight:900;color:${i===0&&!p.onLeave?"#0b0a04":t.ink};background:${i===0&&!p.onLeave?t.ink:"#141826"};border:1px solid ${t.line}">${p.onLeave?"—":i+1}</span>
-        ${f.moveLabel && f.move !== 0 ? `<span style="position:absolute;right:${z(-10)}px;top:${z(-6)}px;padding:0 ${z(5)}px;height:${z(17)}px;line-height:${z(16)}px;border-radius:999px;background:#0b0e18;border:1px solid ${f.moveInk};font-family:'Barlow Condensed',sans-serif;font-size:${z(13)}px;font-weight:900;color:${f.moveInk};white-space:nowrap">${f.moveLabel}</span>` : ""}
+        <div style="display:flex;align-items:center;gap:${z(4)}px">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:${z(19)}px;font-weight:900;line-height:1;padding:${z(1)}px ${z(7)}px;border-radius:6px;color:${rank === 1 && !p.onLeave ? "#0b0a04" : t.ink};background:${rank === 1 && !p.onLeave ? t.ink : "#141826"}">${p.onLeave ? "—" : rank}</span>
+          ${f.moveLabel && f.move !== 0 ? `<span style="font-size:${z(11)}px;font-weight:800;color:${f.moveInk};white-space:nowrap">${f.moveLabel}</span>` : ""}
+        </div>
       </div>
-      <!-- Name and team read across on one line ("Avni Gajjar - Soham"), with
-           the card label stacked under the score. The label used to sit on this
-           line too, which cost ~85px and truncated every longer name on the
-           Closer board; the score column had that height going spare. -->
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:${z(1)}px;overflow:hidden">
-        <span style="font-family:'Barlow Condensed',sans-serif;font-size:${z(21)}px;font-weight:800;line-height:1.04;color:${p.onLeave?"#7a7a99":"#f4f6fc"};display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${p.name}</span>
-        ${p.team ? `<span style="font-size:${z(11)}px;font-weight:800;letter-spacing:${(1.1*s).toFixed(1)}px;color:#7b86ad;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.team}</span>` : ""}
+
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:${z(27)}px;font-weight:800;line-height:1.02;letter-spacing:0.3px;color:${p.onLeave ? "#7a7a99" : "#f4f6fc"};overflow:hidden">${p.name}</div>
+        ${p.team ? `<div style="font-size:${z(12)}px;font-weight:700;letter-spacing:${(1.2*s).toFixed(1)}px;color:#7b86ad;text-transform:uppercase;margin-top:${z(2)}px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.team}</div>` : ""}
+        <div style="display:inline-flex;align-items:center;margin-top:${z(5)}px;padding:${z(3)}px ${z(9)}px;border-radius:999px;border:1px solid ${t.ink};background:rgba(255,255,255,0.05)">
+          <span style="font-size:${z(11)}px;font-weight:900;letter-spacing:${(1.3*s).toFixed(1)}px;color:${t.ink};text-transform:uppercase;white-space:nowrap">${t.label}</span>
+        </div>
       </div>
-      <div style="flex:none;width:${z(96)}px;display:flex;flex-direction:column;align-items:flex-end;gap:${z(3)}px">
-        <div class="${p.onLeave?'':'tv-cnt'}" data-final="${scoreFinal}" style="font-family:'Barlow Condensed',sans-serif;font-size:${z(32)}px;font-weight:900;line-height:0.95;white-space:nowrap;color:${t.ink};text-shadow:${p.onLeave?"none":"0 0 20px "+t.ink};font-variant-numeric:tabular-nums">${p.onLeave ? "—" : "0%"}</div>
-        <span style="display:inline-flex;align-items:center;padding:${z(2)}px ${z(7)}px;border-radius:999px;border:1px solid ${t.ink};background:rgba(255,255,255,0.05)">
-          <span style="font-size:${z(9)}px;font-weight:900;letter-spacing:${(0.9*s).toFixed(1)}px;color:${t.ink};text-transform:uppercase;white-space:nowrap">${t.label}</span>
-        </span>
+
+      <div style="text-align:right;flex:none;width:${z(92)}px">
+        <div class="${p.onLeave ? '' : 'tv-cnt'}" data-final="${scoreFinal}" style="font-family:'Barlow Condensed',sans-serif;font-size:${z(46)}px;font-weight:900;line-height:0.95;white-space:nowrap;color:${t.ink};text-shadow:${p.onLeave ? "none" : "0 0 20px " + t.ink};font-variant-numeric:tabular-nums">${p.onLeave ? "—" : "0%"}</div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(${isCloser?2:3},minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:${z(7)}px;flex:1;min-height:0">${kpisHtml}</div>
+
+    <div style="display:grid;grid-template-columns:repeat(${isCloser ? 2 : 3},minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:${z(7)}px;flex:1;min-height:0">${kpisHtml}</div>
+
     <div style="display:flex;align-items:center;justify-content:space-between;gap:${z(8)}px;padding-top:${z(8)}px;border-top:1px solid rgba(255,255,255,0.08);font-size:${z(12)}px;font-weight:800;letter-spacing:0.4px;flex:none">
       <span style="color:#40c4ff">↙ ${p.inbound} in</span>
       <span style="color:#ff8a78">↗ ${p.outbound} out</span>
       <span style="color:#b388ff">✕ ${p.missed} miss</span>
       ${f.streakLabel ? `<span style="color:${f.streakInk};white-space:nowrap">${f.streakLabel}</span>` : ""}
     </div>
-    ${p.onLeave ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,6,11,0.55);pointer-events:none">
-      <div style="padding:8px 18px;border:2px dashed rgba(150,150,200,0.4);border-radius:8px;transform:rotate(-11deg);font-family:'Barlow Condensed',sans-serif;font-size:${z(24)}px;font-weight:900;letter-spacing:3px;color:rgba(160,160,205,0.6)">ON LEAVE</div>
+
+    ${p.onLeave ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,6,11,0.55);backdrop-filter:blur(1.5px);pointer-events:none">
+      <div style="padding:${z(8)}px ${z(18)}px;border:2px dashed rgba(150,150,200,0.4);border-radius:8px;transform:rotate(-11deg);font-family:'Barlow Condensed',sans-serif;font-size:${z(24)}px;font-weight:900;letter-spacing:${(3*s).toFixed(1)}px;color:rgba(160,160,205,0.6)">ON LEAVE</div>
     </div>` : ""}
   </div>`;
 }
