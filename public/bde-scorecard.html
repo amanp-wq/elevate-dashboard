@@ -142,46 +142,18 @@ const TEAMS = [
     name: "Portal Team",
     role: "Portal BDE",
     members: bdMembersOf("Portal Team"),
-    // Scored on funnel conversion, not lead volume: each stage against the one
-    // before it, which is the CONV% shown in the strip under the card. Weights
-    // climb toward the outcome end deliberately — an enrolment is worth more
-    // than a lead being worked. Generated is excluded; it is the denominator
-    // of the first stage, not a stage that can be converted into.
-    // Read-only rows: how many leads came in, by type. The card colour comes
-    // from the funnel below, not from these.
+    // Scored on one number: the leads generated, whatever type they are. Ajay was
+    // on funnel conversion and Sunil on a 70/25/5 split across the three types;
+    // both are gone, so the two Portal BDEs are now measured the same way. The
+    // three type rows stay as context, but only the combined row is scored.
     kpis: [
+      { label: "ICP Leads",    note: "Parser + Cold + Moderate",
+        get: b => ((b.types||{})["ICP Parser"]||0) + ((b.types||{})["ICP Cold"]||0) + ((b.types||{})["ICP Moderate"]||0),
+        dailyTarget: 150, weight: 1.00 },
+      { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   display: true },
       { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     display: true },
       { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, display: true },
-      { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   display: true },
     ],
-    // The score comes from the funnel strip below the card — its CONV% column,
-    // weighted. Generated is the first denominator, not a scored stage.
-    // Keyed by the stage label, which is also what /manage-targets.html stores a
-    // per-person override against, so a team lead can retune these without a
-    // code change.
-    funnelWeights: {
-      "Touched": 0.10, "Connected": 0.10, "Qualified": 0.10, "Discovery": 0.10,
-      "Pres. Booked": 0.15, "Pres. Held": 0.20, "Enrolled": 0.25,
-    },
-    // Portal is not one job. Ajay works a cold-call funnel — the leads arrive in
-    // bulk and the question is how far he moves them, which is what conversion
-    // measures. Sunil works parser feeds, where the leads themselves ARE the
-    // output: 849 ICP Parser in August against Ajay's 59. Scoring him on
-    // conversion measured a job he is not doing, so he is scored on lead
-    // generation instead — the same target-and-weight shape the LinkedIn team
-    // uses. A member listed here is scored on their own rows, not the funnel.
-    //
-    // Targets start from his own August run rate over 19 working days (Parser
-    // ~45/day, Cold ~16/day, Moderate ~0.2/day) so the card reads near 100% on
-    // current output. They are per-person overridable from Targets & Weightage,
-    // which is where a lead should retune them rather than here.
-    memberKpis: {
-      "Sunil Patel": [
-        { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   dailyTarget: 45, weight: 0.70 },
-        { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     dailyTarget: 15, weight: 0.25 },
-        { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, dailyTarget: 1,  weight: 0.05 },
-      ],
-    },
   },
   {
     name: "Referral Team",

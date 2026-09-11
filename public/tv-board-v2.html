@@ -169,26 +169,18 @@ const BDE_TEAMS = [
     ] },
   { name: "Portal Team", role: "Portal BDE",
     members: bdMembersOf("Portal Team"),
-    // Must match bde-scorecard.html's Portal config exactly.
+    // Scored on one number: the leads generated, whatever type they are. Ajay was
+    // on funnel conversion and Sunil on a 70/25/5 split across the three types;
+    // both are gone. The three rows below stay as context so the mix is still
+    // visible, but only the combined row carries the score.
     kpis: [
+      { label: "ICP Leads",    note: "Parser + Cold + Moderate",
+        get: b => ((b.types||{})["ICP Parser"]||0) + ((b.types||{})["ICP Cold"]||0) + ((b.types||{})["ICP Moderate"]||0),
+        dailyTarget: 150, weight: 1.00 },
+      { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   display: true },
       { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     display: true },
       { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, display: true },
-      { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   display: true },
-    ],
-    funnelWeights: {
-      "Touched": 0.10, "Connected": 0.10, "Qualified": 0.10, "Discovery": 0.10,
-      "Pres. Booked": 0.15, "Pres. Held": 0.20, "Enrolled": 0.25,
-    },
-    // Sunil works parser feeds rather than the cold-call funnel Ajay works, so
-    // he is scored on the leads he generates. See the fuller note in
-    // bde-scorecard.html, which this must agree with.
-    memberKpis: {
-      "Sunil Patel": [
-        { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   dailyTarget: 45, weight: 0.70 },
-        { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     dailyTarget: 15, weight: 0.25 },
-        { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, dailyTarget: 1,  weight: 0.05 },
-      ],
-    } },
+    ] },
   { name: "Referral Team", role: "Referral BDE",
     members: bdMembersOf("Referral Team"),
     kpis: [
@@ -501,9 +493,55 @@ const EVENT_SECONDS = 10;       // one toast per ten seconds, cycling today's ev
 // cards are too short to read from across the floor. Nine to a slide keeps them
 // at the size they were designed for and just takes two turns instead of one.
 const BUILDERS_PER_PAGE = 9;
+// Ten BDEs on one screen put the seven-person LinkedIn team into four rows of
+// cards too small to read. Six is what fits at a readable size.
+const BDE_PER_PAGE = 6;
 
 // Split evenly, so ten builders give two slides of five rather than nine and a
 // lone card on its own screen.
+// Teams, in board order, with their health score. Built from the people
+// actually in the report, so a transfer or a new lead shows up without a config
+// edit; the config order goes first so the familiar left-to-right layout does
+// not shuffle. Sorted best-first only where a winner is wanted, not here.
+function teamHealth() {
+  const all = [...STATE.builders, ...STATE.closers];
+  const configOrder = [...new Set(SALES_TEAM_MEMBERS.map(m => m.team))];
+  const present = new Set(all.map(m => m.team).filter(n => n && n !== "—"));
+  const names = [
+    ...configOrder.filter(n => present.has(n)),
+    ...[...present].filter(n => !configOrder.includes(n)).sort(),
+  ];
+  return names.map(name => {
+    const members = all.filter(m => m.team === name);
+    // On-leave members count as 0 toward the average, so health reflects the
+    // whole roster rather than just who is in today.
+    const health = members.length ? Math.round(members.reduce((s, m) => s + m.score, 0) / members.length) : 0;
+    return { name, members, health };
+  });
+}
+
+// How many slides a view is split across.
+function pagesFor(view) {
+  return view === 0 ? builderPages().length : view === 3 ? bdePages().length : 1;
+}
+
+function bdePages() {
+  const teams = STATE.bdeTeams;
+  if (!teams.length) return [teams];
+  // Two slides while the whole board fits in two; the split falls where the
+  // running head-count first passes half, so the slides stay close in size.
+  const total = teams.reduce((n, t) => n + t.members.length, 0);
+  if (total <= BDE_PER_PAGE) return [teams];
+  const out = [[]];
+  let run = 0;
+  teams.forEach(t => {
+    if (run >= Math.ceil(total / 2) && out[out.length - 1].length) { out.push([]); run = 0; }
+    out[out.length - 1].push(t);
+    run += t.members.length;
+  });
+  return out;
+}
+
 function builderPages() {
   const b = STATE.builders;
   const n = Math.max(1, Math.ceil(b.length / BUILDERS_PER_PAGE));
@@ -522,7 +560,7 @@ function pipsMarkup(view) {
   return VIEW_LABELS.map((label, i) => {
     // The Builders pip covers every slide of that view, so the bar tracks the
     // whole run rather than resetting to empty when the second slide appears.
-    const pages = i === 0 ? builderPages().length : 1;
+    const pages = pagesFor(i);
     const done  = i === 0 ? STATE.page : 0;
     const fill = STATE.takeover ? 100 : i < view ? 100 : i > view ? 0
       : Math.min(100, ((done + STATE.elapsed / ROTATE_SECONDS) / pages) * 100).toFixed(0);
@@ -938,23 +976,24 @@ function bdeMemberCard(m, i = 0, s = 1) {
 }
 
 // A BDE team: header strip with the team average, then its member cards.
-function bdeTeamBlock(bt) {
+function bdeTeamBlock(bt, spanOverride) {
+  const span = spanOverride || bt.span;
   const t = TIER[bt.tier];
   // Teams do not have the same number of people, so a seven-person team's cards
   // are half the height of a two-person team's. Shrink their contents to match
   // rather than letting the bands collide — the same thing gridFor does for the
   // Builder board.
-  const rows = Math.max(1, Math.ceil(bt.members.length / bt.span));
+  const rows = Math.max(1, Math.ceil(bt.members.length / span));
   const DENSITY = { 1: 1, 2: 0.94, 3: 0.8, 4: 0.66, 5: 0.56 };
   const s = DENSITY[rows] || 0.5;
-  return `<div style="grid-column:span ${bt.span};min-width:0;display:flex;flex-direction:column;gap:10px">
+  return `<div style="grid-column:span ${span};min-width:0;display:flex;flex-direction:column;gap:10px">
     <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;border-radius:10px;border:1px solid ${t.line};background:rgba(255,255,255,0.035);flex:none;min-width:0">
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.4px;color:${t.ink};white-space:nowrap">${bt.name}</div>
       <div style="padding:2px 9px;border-radius:999px;border:1px solid ${t.ink};font-size:11px;font-weight:900;letter-spacing:1.2px;color:${t.ink};white-space:nowrap;flex:none">${t.label}</div>
       <div style="flex:1;min-width:0;font-size:11px;font-weight:700;letter-spacing:0.8px;color:#6c769b;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${bt.note}</div>
       <div class="tv-cnt" data-final="${bt.score}" style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;line-height:1;white-space:nowrap;color:${t.ink};font-variant-numeric:tabular-nums;flex:none">0%</div>
     </div>
-    <div style="flex:1;min-height:0;display:grid;gap:10px;grid-template-columns:repeat(${bt.span},minmax(0,1fr));grid-auto-rows:minmax(0,1fr)">
+    <div style="flex:1;min-height:0;display:grid;gap:10px;grid-template-columns:repeat(${span},minmax(0,1fr));grid-auto-rows:minmax(0,1fr)">
       ${bt.members.map((m, i) => bdeMemberCard(m, i, s)).join("")}
     </div>
   </div>`;
@@ -962,17 +1001,48 @@ function bdeTeamBlock(bt) {
 // Once per full rotation the board stops being a table and names one person at
 // 250px. Nothing new is fetched — it is the builder already sitting at #1 on a
 // board the floor has just watched go past.
+// Who leads the board about to appear, and the four numbers worth showing for
+// them. Returns null when that board has nobody to name.
+function championFor(view) {
+  const live = xs => xs.filter(x => !x.onLeave).sort((a, b) => b.score - a.score);
+  if (view === 1) {
+    const p = live(STATE.closers)[0];
+    return p && { p, kind: "TOP CLOSER", sub: "Closer" + (p.team ? " · " + p.team : ""), runners: live(STATE.closers),
+      stats: [["Follow-up Calls", p.calls], ["Call Minutes", p.minutes], ["Pres. Held", p.presentations], ["Deals Closed", p.dealsClosed]] };
+  }
+  if (view === 2) {
+    const teams = teamHealth().slice().sort((a, b) => b.health - a.health);
+    const t = teams[0];
+    if (!t) return null;
+    const active = t.members.filter(m => !m.onLeave);
+    const best = active.slice().sort((a, b) => b.score - a.score)[0];
+    return { p: { name: t.name, score: t.health, tier: zone(t.health), onLeave: false },
+      kind: "TOP TEAM", sub: `${active.length} active · ${t.members.length - active.length} on leave`,
+      runners: teams.map(x => ({ name: x.name, score: x.health })),
+      stats: [["Team Health", Math.round(t.health) + "%"], ["Members", t.members.length],
+              ["Golden Cards", t.members.filter(m => m.tier === "gold").length],
+              ["Top Scorer", best ? best.name.split(" ")[0] : "—"]] };
+  }
+  if (view === 3) {
+    const all = STATE.bdeTeams.flatMap(x => x.members);
+    const p = live(all)[0];
+    if (!p) return null;
+    const stage = k => { const f = (p.funnel || []).find(x => x.label === k); return f ? f.val : 0; };
+    return { p, kind: "TOP BDE", sub: `${p.role}${p.tl ? " · TL " + p.tl : ""}`, runners: live(all),
+      stats: [["Generated", stage("Generated")], ["Qualified", stage("Qualified")],
+              ["Pres. Held", stage("Pres. Held")], ["Enrolled", stage("Enrolled")]] };
+  }
+  const p = live(STATE.builders)[0];
+  return p && { p, kind: "TOP BUILDER", sub: "Builder" + (p.team ? " · " + p.team : ""), runners: live(STATE.builders),
+    stats: [["Outbound Calls", p.calls], ["Call Minutes", p.minutes], ["Qualified Leads", p.leads], ["Pres. Completed", p.presCompleted]] };
+}
+
 function takeoverHtml() {
-  const p = [...STATE.builders, ...STATE.closers]
-    .filter(x => !x.onLeave)
-    .sort((a, b) => b.score - a.score)[0];
-  if (!p) return "";
+  const champ = championFor(STATE.view);
+  if (!champ) return "";
+  const { p, stats } = champ;
   const t = TIER[p.tier], rgb = RGB[p.tier];
   const f = formFor(p, 1);
-  const isCloser = p.role === "Closer";
-  const stats = isCloser
-    ? [["Follow-up Calls", p.calls], ["Call Minutes", p.minutes], ["Pres. Held", p.presentations], ["Deals Closed", p.dealsClosed]]
-    : [["Outbound Calls", p.calls], ["Call Minutes", p.minutes], ["Qualified Leads", p.leads], ["Pres. Completed", p.presCompleted]];
   // Cheap confetti: fixed-seed positions so it does not re-shuffle on every
   // half-second tick, and skipped entirely for a red-zone leader.
   const confetti = p.tier === "gold" || p.tier === "green"
@@ -982,11 +1052,20 @@ function takeoverHtml() {
         return `<div style="position:absolute;top:0;left:${x}%;width:${6 + (i % 3) * 2}px;height:${10 + (i % 4) * 3}px;background:${c};border-radius:2px;opacity:0;animation:omFall ${dur}s linear infinite ${delay}s"></div>`;
       }).join("")
     : "";
-  // 132px fits "ARYAN SHARMA" beside a 250px avatar and a 250px score inside
-  // 1920. "LEKHRAJ PRAJAPATI" at that size does not, so the longest names step
-  // down rather than pushing the score off the screen.
-  const nameSize = p.name.length <= 13 ? 132 : p.name.length <= 17 ? 106 : 88;
-  const runner = [...STATE.builders, ...STATE.closers].filter(x => !x.onLeave).sort((a,b) => b.score - a.score)[1];
+  // The name, the 250px avatar and the score share one row inside 1740px of
+  // content box. Step-down thresholds alone left about 19px of margin on the
+  // longest name, which is close enough to clipping that a slightly wider
+  // glyph would do it — so size the name from the space actually left over.
+  // The per-character figures are measured, not guessed: at these weights a
+  // name runs to about 0.51em per character and "150%" to about 0.59em, the
+  // percent sign being the wide one. Both are rounded up here, so the estimate
+  // errs toward a smaller name rather than a clipped board.
+  const AVATAR_W = 250, GAP = 56, PAD = 90, TRACK = BOARD_W - PAD * 2;
+  const scoreText = `${Math.round(p.score)}%`;
+  const scoreW = Math.ceil(scoreText.length * 250 * 0.60);
+  const nameRoom = TRACK - AVATAR_W - GAP * 2 - scoreW - 48;   // slack, checked against every name on the roster
+  const nameSize = Math.max(56, Math.min(132, Math.floor(nameRoom / (p.name.length * 0.52))));
+  const runner = champ.runners[1];
   const gap = runner ? `${Math.max(0, Math.round(p.score - runner.score))} POINTS CLEAR OF ${runner.name.toUpperCase()}` : "";
 
   return `<div style="position:absolute;inset:0;z-index:70;overflow:hidden;background:#05060b;animation:omTakeover 0.7s ease both">
@@ -996,7 +1075,7 @@ function takeoverHtml() {
     <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 90px">
       <div style="display:flex;align-items:center;gap:18px;animation:omNameIn 0.7s ease 0.1s both">
         <div style="height:1px;width:120px;background:linear-gradient(90deg,transparent,${t.ink})"></div>
-        <div style="font-size:22px;font-weight:900;letter-spacing:11px;color:${t.ink}">TOP OF THE FLOOR</div>
+        <div style="font-size:22px;font-weight:900;letter-spacing:11px;color:${t.ink}">${champ.kind}</div>
         <div style="height:1px;width:120px;background:linear-gradient(90deg,${t.ink},transparent)"></div>
       </div>
       <div style="display:flex;align-items:center;gap:56px;margin-top:34px;max-width:100%">
@@ -1012,20 +1091,20 @@ function takeoverHtml() {
           <div style="font-family:'Barlow Condensed',sans-serif;font-size:${nameSize}px;font-weight:900;line-height:0.88;color:#f7f8fc;text-transform:uppercase;white-space:nowrap">${p.name}</div>
           <div style="display:flex;align-items:center;gap:16px;margin-top:14px">
             <div style="padding:6px 18px;border-radius:999px;border:2px solid ${t.ink};font-size:17px;font-weight:900;letter-spacing:2.6px;color:${t.ink};text-transform:uppercase;white-space:nowrap">${t.label}</div>
-            <div style="font-size:17px;font-weight:800;letter-spacing:2.4px;color:#8e98bb;text-transform:uppercase;white-space:nowrap">${isCloser ? "Closer" : "Builder"}${p.team ? " · " + p.team : ""}</div>
+            <div style="font-size:17px;font-weight:800;letter-spacing:2.4px;color:#8e98bb;text-transform:uppercase;white-space:nowrap">${champ.sub}</div>
           </div>
           ${f.streakLabel ? `<div style="font-size:16px;font-weight:800;letter-spacing:2.6px;color:${f.streakInk};margin-top:14px">${f.streakLabel.replace("★", "★ ")} RUNNING</div>` : ""}
         </div>
-        <div style="text-align:right;flex:none;animation:omNameIn 0.8s ease 0.34s both">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:250px;font-weight:900;line-height:0.82;color:${t.ink};text-shadow:0 0 70px rgba(${rgb},0.5);font-variant-numeric:tabular-nums">${Math.round(p.score)}%</div>
+        <div style="text-align:right;flex:none;width:${scoreW}px;animation:omNameIn 0.8s ease 0.34s both">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:250px;font-weight:900;line-height:0.82;color:${t.ink};text-shadow:0 0 70px rgba(${rgb},0.5);font-variant-numeric:tabular-nums;white-space:nowrap">${scoreText}</div>
           <div style="font-size:16px;font-weight:900;letter-spacing:3px;color:#8e98bb;margin-top:8px">SCORECARD RESULT</div>
-          ${gap ? `<div style="font-size:15px;font-weight:800;letter-spacing:2px;color:${t.ink};margin-top:8px">${gap}</div>` : ""}
+          ${gap ? `<div style="font-size:15px;font-weight:800;letter-spacing:2px;line-height:1.25;color:${t.ink};margin-top:8px">${gap}</div>` : ""}
         </div>
       </div>
       <div style="display:flex;gap:16px;margin-top:52px;animation:omNameIn 0.8s ease 0.44s both">
         ${stats.map(([k, v]) => `<div style="min-width:230px;padding:18px 26px;border-radius:14px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);display:flex;flex-direction:column;gap:6px">
           <div style="font-size:13px;font-weight:900;letter-spacing:2.4px;color:#8e98bb;text-transform:uppercase;white-space:nowrap">${k}</div>
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:56px;font-weight:900;line-height:1;color:#f4f6fc;font-variant-numeric:tabular-nums">${(v || 0).toLocaleString()}</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:56px;font-weight:900;line-height:1;color:#f4f6fc;font-variant-numeric:tabular-nums">${typeof v === "number" ? v.toLocaleString() : (v || "—")}</div>
         </div>`).join("")}
       </div>
     </div>
@@ -1091,10 +1170,19 @@ function render() {
     // Auto-arrange: the board is exactly as wide as the teams need, so they
     // sit on one row with no empty columns. A fixed 3 left a third of the
     // board blank and squeezed the 4-member team into quarter-height cards.
-    cols = Math.max(1, bdeTeams.reduce((s, t) => s + t.span, 0));
-    cardsHtml = bdeTeams.map(bdeTeamBlock).join("");
+    const bPages = bdePages();
+    const bPage  = Math.min(STATE.page, bPages.length - 1);
+    const shownTeams = bPages[bPage] || [];
+    const soloSpan = shownTeams.length === 1
+      ? Math.max(1, Math.min(4, Math.ceil(shownTeams[0].members.length / 2)))
+      : null;
+    cols = soloSpan || Math.max(1, shownTeams.reduce((s, t) => s + t.span, 0));
+    cardsHtml = shownTeams.map(t => bdeTeamBlock(t, soloSpan)).join("");
     viewTitle = "BDE Scorecard";
-    viewSub = "Today · weighted lead-generation targets";
+    viewSub = (bPages.length > 1
+      ? `${shownTeams.map(t => t.name.replace(" Team", "")).join(" · ")} · slide ${bPage + 1}/${bPages.length} · `
+      : "") + "Today · weighted lead-generation targets";
+    // The leader strip, totals and ticker stay on the whole board, not the slide.
     const allBdes = bdeTeams.flatMap(t => t.members);
     const top = allBdes.slice().sort((a, b) => b.score - a.score)[0] || { name: "—", score: 0, tier: "red" };
     leaderHtml = `${initials(top.name)}|${top.name}|TOP BDE · ${TIER[top.tier].label}`;
@@ -1113,23 +1201,7 @@ function render() {
       + "   ·   QUALIFIED " + sumStage("Qualified").toLocaleString()
       + "   ·   ENROLLED " + sumStage("Enrolled").toLocaleString() + "   ·   ";
   } else if (view === 2) {
-    const all = [...builders, ...closers];
-    // Teams come from the people actually in the report, so a transfer or a new
-    // lead shows up without a config edit. The config order is applied first so
-    // the board's familiar left-to-right layout does not shuffle.
-    const configOrder = [...new Set(SALES_TEAM_MEMBERS.map(m => m.team))];
-    const present = new Set(all.map(m => m.team).filter(n => n && n !== "—"));
-    const teamNames = [
-      ...configOrder.filter(n => present.has(n)),
-      ...[...present].filter(n => !configOrder.includes(n)).sort(),
-    ];
-    const teams = teamNames.map(name => {
-      const members = all.filter(m => m.team === name);
-      // On-leave members count as 0 toward the average, so health reflects
-      // the whole roster rather than just who's active today.
-      const health = members.length ? Math.round(members.reduce((s,m) => s+m.score, 0) / members.length) : 0;
-      return { name, members, health };
-    });
+    const teams = teamHealth();
     cols = teams.length || 1;
     // One shared row count across the cards: without it each card divided its
     // own height by its own member count, so an eight-person team's rows sat
@@ -1382,13 +1454,12 @@ function startTicking() {
       STATE.elapsed += 0.5;
       if (STATE.elapsed >= (STATE.takeover ? TAKEOVER_SECONDS : ROTATE_SECONDS)) {
         if (STATE.takeover) {
-          STATE.takeover = false; STATE.view = 0; STATE.page = 0;
+          // The takeover introduces the board it is standing in front of.
+          STATE.takeover = false;
         } else {
-          const pages = STATE.view === 0 ? builderPages().length : 1;
+          const pages = pagesFor(STATE.view);
           if (STATE.page + 1 < pages) { STATE.page += 1; }
-          // After the last view, name the champion before starting over.
-          else if (STATE.view === 3) { STATE.page = 0; STATE.takeover = true; }
-          else { STATE.page = 0; STATE.view = STATE.view + 1; }
+          else { STATE.page = 0; STATE.view = (STATE.view + 1) % 4; STATE.takeover = true; }
         }
         STATE.elapsed = 0;
         runCountUp();

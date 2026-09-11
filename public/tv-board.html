@@ -162,26 +162,18 @@ const BDE_TEAMS = [
     ] },
   { name: "Portal Team", role: "Portal BDE",
     members: bdMembersOf("Portal Team"),
-    // Must match bde-scorecard.html's Portal config exactly.
+    // Scored on one number: the leads generated, whatever type they are. Ajay was
+    // on funnel conversion and Sunil on a 70/25/5 split across the three types;
+    // both are gone. The three rows below stay as context so the mix is still
+    // visible, but only the combined row carries the score.
     kpis: [
+      { label: "ICP Leads",    note: "Parser + Cold + Moderate",
+        get: b => ((b.types||{})["ICP Parser"]||0) + ((b.types||{})["ICP Cold"]||0) + ((b.types||{})["ICP Moderate"]||0),
+        dailyTarget: 150, weight: 1.00 },
+      { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   display: true },
       { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     display: true },
       { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, display: true },
-      { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   display: true },
-    ],
-    funnelWeights: {
-      "Touched": 0.10, "Connected": 0.10, "Qualified": 0.10, "Discovery": 0.10,
-      "Pres. Booked": 0.15, "Pres. Held": 0.20, "Enrolled": 0.25,
-    },
-    // Sunil works parser feeds rather than the cold-call funnel Ajay works, so
-    // he is scored on the leads he generates. See the fuller note in
-    // bde-scorecard.html, which this must agree with.
-    memberKpis: {
-      "Sunil Patel": [
-        { label: "ICP Parser",   note: "Leads Generated", get: b => (b.types||{})["ICP Parser"]||0,   dailyTarget: 45, weight: 0.70 },
-        { label: "ICP Cold",     note: "Leads Generated", get: b => (b.types||{})["ICP Cold"]||0,     dailyTarget: 15, weight: 0.25 },
-        { label: "ICP Moderate", note: "Leads Generated", get: b => (b.types||{})["ICP Moderate"]||0, dailyTarget: 1,  weight: 0.05 },
-      ],
-    } },
+    ] },
   { name: "Referral Team", role: "Referral BDE",
     members: bdMembersOf("Referral Team"),
     kpis: [
