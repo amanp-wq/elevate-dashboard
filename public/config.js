@@ -231,11 +231,7 @@ function buildNav(email) {
     // only one that shows them — the live TV board deliberately has no slide
     // rotation. The page itself spells that out so the link isn't misleading.
     { group: "TV", items: [
-      ...(isAdmin ? [{ label: "TV Board", href: "/tv-board.html" },
-                     // A preview of the redesign, running on the same live data.
-                     // Nothing points the floor TV at it — it is here to be looked at.
-                     { label: "TV Board V2 (preview)", href: "/tv-board-v2.html" },
-                     { label: "TV Slides", href: "/manage-slides.html" }] : []),
+      ...(isAdmin ? [{ label: "TV Board", href: "/tv-board.html" }, { label: "TV Slides", href: "/manage-slides.html" }] : []),
     ]},
     ...(isAdmin ? [{ label: "Admin Panel", href: "/admin.html" }] : []),
     // Visible to everyone — it explains how their own numbers are calculated.
