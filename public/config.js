@@ -226,6 +226,7 @@ function buildNav(email) {
     ]},
     { group: "Targets", items: [
       ...(isAdmin || isSalesTL || isBdTL ? [{ label: "Targets & Weightage", href: "/manage-targets.html" }] : []),
+      ...(isAdmin ? [{ label: "Holidays", href: "/manage-holidays.html" }] : []),
     ]},
     // "TV Slides" manages the promo slides on the *test* TV board, which is the
     // only one that shows them — the live TV board deliberately has no slide
@@ -407,4 +408,48 @@ async function fetchTargetOverrides(months) {
     const r = await fetch(url, { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } });
     return r.ok ? await r.json() : [];
   } catch { return []; }
+}
+
+// ── Company holidays ────────────────────────────────────────────────────────
+// Days the floor is closed carry no target, the same way a weekend does not.
+// The list lives in the snapshot Supabase project rather than this one because
+// it is the only project both the live pages and the test board already read,
+// so there is a single list rather than one per environment.
+//
+// Only rows marked closes_floor are applied. The calendar also carries
+// holidays the floor works straight through — 3 July 2026 took 717 calls
+// across 13 people — and excluding those would hand back a day's target for a
+// day that was worked.
+const HOLIDAYS_SUPABASE_URL  = "https://czfsjrvngiojjjevmvtz.supabase.co";
+const HOLIDAYS_SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6ZnNqcnZuZ2lvampqZXZtdnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODc0NzIsImV4cCI6MjA5ODA2MzQ3Mn0.IbK1th8wcdrHOgJL1y5kQE3De1c0HSe0ju4Q9vNQ9BQ";
+
+// Every holiday row, closed or not — the manage page and the upcoming-holiday
+// notice both want the full list, not just the closing ones.
+let HOLIDAYS = [];
+
+// Resolves once the list has been applied to Scoring. Any page that counts
+// working days must await this before it does, or its first render prices a
+// closed day as a working one and the numbers move when the fetch lands.
+const HOLIDAYS_READY = (async () => {
+  try {
+    const r = await fetch(
+      `${HOLIDAYS_SUPABASE_URL}/rest/v1/holidays?select=date,name,closes_floor,note&order=date.asc`,
+      { headers: { apikey: HOLIDAYS_SUPABASE_ANON, Authorization: `Bearer ${HOLIDAYS_SUPABASE_ANON}` } });
+    if (!r.ok) throw new Error("holidays " + r.status);
+    HOLIDAYS = await r.json();
+  } catch (e) {
+    // An empty list means every weekday counts, which is what the app did
+    // before this existed — wrong, but not broken, and it says so in the log.
+    console.error("Holidays unavailable, treating every weekday as a working day:", e.message);
+    HOLIDAYS = [];
+  }
+  Scoring.setClosedDays(HOLIDAYS.filter(h => h.closes_floor).map(h => h.date));
+  return HOLIDAYS;
+})();
+
+// The next closing holiday on or after `fromISO`, or null. Drives the notice.
+function nextClosedHoliday(fromISO) {
+  const from = fromISO || Scoring.todayET();
+  return HOLIDAYS.filter(h => h.closes_floor && h.date >= from)
+                 .sort((a, b) => a.date.localeCompare(b.date))[0] || null;
 }

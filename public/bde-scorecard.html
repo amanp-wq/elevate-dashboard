@@ -195,9 +195,11 @@ document.querySelectorAll(".preset-btn").forEach(btn => btn.onclick = () => {
   btn.classList.add("active"); setPreset(btn.dataset.preset); load();
 });
 
+// Counts working days, which now means skipping closed holidays as well as
+// weekends — scoring.js holds that list, so the count comes from there.
 function workingDays(start,end){
   let n=0; const d=new Date(start+"T12:00:00Z"), e=new Date(end+"T12:00:00Z");
-  while(d<=e){ const w=d.getUTCDay(); if(w!==0&&w!==6)n++; d.setUTCDate(d.getUTCDate()+1); }
+  while(d<=e){ if(!Scoring.isNonWorkingDay(d.toISOString().slice(0,10)))n++; d.setUTCDate(d.getUTCDate()+1); }
   return Math.max(1,n);
 }
 
@@ -544,6 +546,9 @@ async function load(){
   const start = document.getElementById("inp-start").value;
   const end   = document.getElementById("inp-end").value;
   if (!start || !end) return;
+  // Working days depend on the holiday list, so it has to land before any
+  // target is worked out. Cached after the first resolve.
+  await HOLIDAYS_READY;
   const btn = document.getElementById("btn-gen");
   btn.disabled = true; btn.textContent = "Loading...";
   document.getElementById("status").textContent = "Fetching BDE data from Zoho…";

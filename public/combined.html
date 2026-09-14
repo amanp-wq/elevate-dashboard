@@ -456,6 +456,10 @@ document.getElementById("btn-gen").onclick = async function(){
   setError(""); document.getElementById("results").style.display="none";
   setStatus("Fetching Builders and Closers...");
 
+    // The holiday list decides how many working days this range holds, so it
+    // has to be in place before any target is worked out. Resolved once and
+    // cached, so this is free after the first page load.
+    await HOLIDAYS_READY;
   try {
     const { data: { session } } = await _supabase.auth.getSession();
     const authHeader = { Authorization: `Bearer ${session?.access_token || ""}` };

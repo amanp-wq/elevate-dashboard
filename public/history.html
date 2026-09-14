@@ -566,7 +566,7 @@ function aggregate(rows){
     // the daily rate × days, and nobody is targeted on a weekend, so counting it
     // would raise someone's bar for having worked their day off.
     m.rowDays += 1;
-    if (!Scoring.isWeekend(row.date)){
+    if (!Scoring.isNonWorkingDay(row.date)){
       m.days += 1;
       if (_leaveSet.has(`${row.person_name}|${row.date}`)) m.leaveDays += 1;
     }
@@ -930,6 +930,9 @@ async function load(){
   const start = document.getElementById("inp-start").value;
   const end   = document.getElementById("inp-end").value;
   if (!start || !end) return;
+  // Working days depend on the holiday list, so it has to land before any
+  // target is worked out. Cached after the first resolve.
+  await HOLIDAYS_READY;
   // Refreshed on every Generate so a target edited on /manage-targets.html
   // applies without a hard reload. Deliberately above the re-render shortcut
   // below, which would otherwise score against stale overrides.

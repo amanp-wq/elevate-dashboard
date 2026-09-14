@@ -248,11 +248,13 @@ function isLinkedInMember(name) {
   return LINKEDIN_TEAM.includes(first);
 }
 
+// Working days: weekends and closed holidays both count for nothing. The
+// holiday list lives in scoring.js.
 function workingDaysInRange(startStr, endStr) {
   let count = 0;
   const d = new Date(startStr + "T12:00:00Z");
   const end = new Date(endStr + "T12:00:00Z");
-  while (d <= end) { const day = d.getUTCDay(); if (day !== 0 && day !== 6) count++; d.setUTCDate(d.getUTCDate()+1); }
+  while (d <= end) { if (!Scoring.isNonWorkingDay(d.toISOString().slice(0,10))) count++; d.setUTCDate(d.getUTCDate()+1); }
   return count;
 }
 
@@ -421,6 +423,9 @@ document.getElementById("btn-gen").onclick = async function() {
   const btn = this;
   btn.disabled=true; btn.textContent="Loading...";
   setError(""); document.getElementById("results").style.display="none";
+  // Working days depend on the holiday list, so it has to land before any
+  // target is worked out. Cached after the first resolve.
+  await HOLIDAYS_READY;
   try {
     setStatus("Fetching BDE data from Zoho...");
     const { data: { session: bdeSession } } = await _auth.auth.getSession();

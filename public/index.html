@@ -1029,6 +1029,10 @@ document.getElementById("btn-gen").onclick = async function(){
   btn.disabled = true; btn.textContent = "Loading...";
   setError(""); document.getElementById("results").style.display = "none";
 
+    // The holiday list decides how many working days this range holds, so it
+    // has to be in place before any target is worked out. Resolved once and
+    // cached, so this is free after the first page load.
+    await HOLIDAYS_READY;
   try {
     setStatus("Loading...");
     // Log activity
@@ -1069,35 +1073,11 @@ document.getElementById("btn-gen").onclick = async function(){
 
     const fullDayMode = document.getElementById("chk-fullday")?.checked;
 
-    function getDayFraction(dateStr) {
-      // Skip weekends — no targets on Sat/Sun
-      const dow = new Date(dateStr + "T12:00:00Z").getUTCDay();
-      if (dow === 0 || dow === 6) return 0;
-
-      if (fullDayMode) return 1; // toggle: always full-day targets
-
-      const todayEST = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-      if (dateStr < todayEST) return 1;          // past weekday → full day
-      if (dateStr > todayEST) return 1;          // future weekday → full day
-      // It's today — calculate elapsed fraction in EST
-      const nowEST = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-      const hDecimal = nowEST.getHours() + nowEST.getMinutes() / 60;
-      if (hDecimal <= WORK_START_H) return 0.01; // before work — near zero
-      if (hDecimal >= WORK_END_H)   return 1;    // after work  — full day
-      return (hDecimal - WORK_START_H) / WORK_HOURS;
-    }
-
-    // Sum fractions across date range (weekends return 0 from getDayFraction)
-    function totalDayFraction(start, end) {
-      let total = 0;
-      const d = new Date(start + "T12:00:00Z");
-      const e = new Date(end   + "T12:00:00Z");
-      while (d <= e) {
-        total += getDayFraction(d.toISOString().split("T")[0]);
-        d.setUTCDate(d.getUTCDate() + 1);
-      }
-      return total;
-    }
+    // Both of these were local copies that knew about weekends and nothing
+    // else, so a closed holiday still carried a full day's target here. They
+    // now defer to scoring.js, which is where the holiday list is applied.
+    const getDayFraction = d => Scoring.dayFraction(d, { fullDay: fullDayMode });
+    const totalDayFraction = (a, b) => Scoring.totalDayFraction(a, b, { fullDay: fullDayMode });
 
     const effectiveDays = totalDayFraction(startDate, endDate);
     const T  = Object.fromEntries(Object.entries(TARGETS).map(([k,v])       => [k, Math.max(1, Math.round(v * effectiveDays))]));

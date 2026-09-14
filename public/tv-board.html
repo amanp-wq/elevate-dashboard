@@ -632,6 +632,9 @@ function onResize() {
 let _consecutiveLoadFailures = 0;
 async function loadData() {
   const today = todayET();
+  // Working days depend on the holiday list, so it has to land before any
+  // target is worked out. Cached after the first resolve.
+  await HOLIDAYS_READY;
   // Cached for 15 minutes inside loadTargetOverrides, so an unattended board
   // still picks up a target change without refetching every 3 minutes.
   await loadTargetOverrides((STATE.isLive ? today : STATE.rangeStart).slice(0, 7));
