@@ -443,7 +443,13 @@ const HOLIDAYS_READY = (async () => {
     console.error("Holidays unavailable, treating every weekday as a working day:", e.message);
     HOLIDAYS = [];
   }
-  Scoring.setClosedDays(HOLIDAYS.filter(h => h.closes_floor).map(h => h.date));
+  // Most pages that load this file never count a working day and so never load
+  // scoring.js. Applying the list there would throw, and because this runs in a
+  // promise the throw would surface as a rejection — which any page that awaits
+  // this would then inherit as a failed load. Guard it, and never reject.
+  if (typeof Scoring !== "undefined") {
+    Scoring.setClosedDays(HOLIDAYS.filter(h => h.closes_floor).map(h => h.date));
+  }
   return HOLIDAYS;
 })();
 
