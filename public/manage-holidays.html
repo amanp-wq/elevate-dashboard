@@ -184,9 +184,12 @@
 </div>
 
 <script>
-// The holiday list lives in the snapshot Supabase project, the one both the live
-// pages and the test board already read, so there is a single list for both. Its
-// constants come from /config.js.
+// Sign-in runs against the app's own project, the same as every other page.
+// The holiday list itself lives in the snapshot project — the one both the live
+// pages and the test board already read — so there is a single list for both.
+// Both sets of constants come from /config.js.
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
 let ROWS = [];
 
 const dowOf = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-US", { timeZone: "UTC", weekday: "long" });
