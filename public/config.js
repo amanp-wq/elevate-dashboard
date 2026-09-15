@@ -459,3 +459,40 @@ function nextClosedHoliday(fromISO) {
   return HOLIDAYS.filter(h => h.closes_floor && h.date >= from)
                  .sort((a, b) => a.date.localeCompare(b.date))[0] || null;
 }
+
+// Renders a short notice when a closing holiday is today or coming up, into
+// #holiday-notice if the page has one. Styled inline so it carries its own look
+// onto any page rather than depending on that page's CSS.
+//
+// The window is deliberately short. A notice that sits there for a fortnight
+// stops being read, and the thing it is warning about — that a day will carry
+// no target — only matters as it arrives.
+const HOLIDAY_NOTICE_DAYS = 7;
+
+function showHolidayNotice(elId = "holiday-notice") {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const today = Scoring.todayET();
+  const h = nextClosedHoliday(today);
+  if (!h) { el.style.display = "none"; return; }
+
+  const days = Math.round(
+    (new Date(h.date + "T12:00:00Z") - new Date(today + "T12:00:00Z")) / 86400000);
+  if (days > HOLIDAY_NOTICE_DAYS) { el.style.display = "none"; return; }
+
+  const when = new Date(h.date + "T12:00:00Z").toLocaleDateString("en-US",
+    { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" });
+  const lead = days === 0 ? "Today is a holiday"
+             : days === 1 ? "Holiday tomorrow"
+             : `Holiday in ${days} days`;
+
+  el.style.display = "";
+  el.innerHTML =
+    '<div style="display:flex;align-items:center;gap:10px;margin:0 0 16px;padding:10px 16px;' +
+    'border-radius:10px;border:1px solid rgba(255,171,0,0.45);background:rgba(255,171,0,0.08);' +
+    'font-size:13px;line-height:1.5;color:#e8eaf6">' +
+    '<span style="font-size:15px">\u{1F334}</span>' +
+    `<span><strong>${lead} — ${when}, ${h.name}.</strong> ` +
+    'It carries no target, so it drops out of the working-day count. ' +
+    'Anything worked that day still counts toward the actuals.</span></div>';
+}

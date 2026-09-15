@@ -485,6 +485,8 @@
 
   <div class="status-bar" id="status"><div class="spinner"></div><span id="status-text"></span></div>
   <div class="error-box" id="error-box"></div>
+  <!-- Filled by showHolidayNotice() when a closed holiday is today or close. -->
+  <div id="holiday-notice" style="display:none"></div>
 
   <div id="results">
     <div class="meta">
@@ -1033,6 +1035,7 @@ document.getElementById("btn-gen").onclick = async function(){
     // has to be in place before any target is worked out. Resolved once and
     // cached, so this is free after the first page load.
     await HOLIDAYS_READY;
+    showHolidayNotice();
   try {
     setStatus("Loading...");
     // Log activity

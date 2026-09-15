@@ -1156,6 +1156,26 @@ function paintToast() {
   if (el) el.innerHTML = STATE.takeover ? "" : eventToastInner();
 }
 
+// A closing holiday that is today or nearly here, as a chip for the top strip.
+// The board has no spare vertical room for a banner, and the floor reads that
+// strip anyway. Empty when nothing is close, so it costs no space.
+function holidayChipHtml() {
+  const today = Scoring.todayET();
+  const h = typeof nextClosedHoliday === "function" ? nextClosedHoliday(today) : null;
+  if (!h) return "";
+  const days = Math.round(
+    (new Date(h.date + "T12:00:00Z") - new Date(today + "T12:00:00Z")) / 86400000);
+  if (days > 7) return "";
+  const when = new Date(h.date + "T12:00:00Z").toLocaleDateString("en-US",
+    { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).toUpperCase();
+  const lead = days === 0 ? "HOLIDAY TODAY" : days === 1 ? "HOLIDAY TOMORROW" : `HOLIDAY IN ${days} DAYS`;
+  return `<div style="display:flex;align-items:center;gap:8px;padding:5px 14px;border-radius:999px;border:1px solid rgba(255,171,0,0.5);background:rgba(255,171,0,0.12);white-space:nowrap">
+    <span style="font-size:13px">&#127796;</span>
+    <span style="font-size:12px;font-weight:900;letter-spacing:1.6px;color:#ffab00">${lead}</span>
+    <span style="font-size:11px;font-weight:700;letter-spacing:1px;color:#a2914f">${when} &middot; ${h.name.toUpperCase()}</span>
+  </div>`;
+}
+
 function render() {
   document.getElementById("board-root").style.display = "block";
   const { builders, closers, bdeTeams } = STATE;
@@ -1306,6 +1326,7 @@ function render() {
               <div style="width:9px;height:9px;border-radius:50%;background:#ff4d3a;box-shadow:0 0 10px #ff4d3a;animation:omPulse 1.6s ease-in-out infinite"></div>
               <span style="font-size:14px;font-weight:800;letter-spacing:2.4px;color:#ff8a78">${STATE.isLive ? "LIVE" : "HISTORICAL"}</span>
             </div>
+            ${holidayChipHtml()}
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
               <div id="tv-datelabel" style="font-size:13px;font-weight:700;letter-spacing:2.2px;color:#7b86ad;text-transform:uppercase">${dateLabel}</div>
               <div style="display:flex;align-items:center;gap:10px">
