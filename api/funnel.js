@@ -60,13 +60,20 @@ async function setCached(key, data) {
   } catch { /* cache write is best-effort */ }
 }
 
-function logAPI(type, role, date_range, triggered_by, duration_ms) {
+// Must be awaited, and so must the fetch inside it. On Vercel the instance is
+// frozen the moment the response is sent, so an insert left running here is
+// killed mid-flight. Both callers already await this; until now that awaited
+// undefined, because the function returned before the fetch had gone anywhere.
+// report.js and refresh.js were fixed for this; this copy was missed.
+async function logAPI(type, role, date_range, triggered_by, duration_ms) {
   if (!SUPABASE_URL || !SUPABASE_KEY) return;
-  fetch(`${SUPABASE_URL}/rest/v1/api_logs`, {
-    method: "POST",
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ type, role, date_range, triggered_by, duration_ms })
-  }).catch(() => {});
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/api_logs`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ type, role, date_range, triggered_by, duration_ms })
+    });
+  } catch { /* logging must never fail the request */ }
 }
 
 const API_DOMAIN = "https://www.zohoapis.in";
