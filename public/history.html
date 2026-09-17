@@ -426,10 +426,10 @@
 <script src="/scoring.js"></script>
 <script>
 // Data source: test Supabase snapshot project (daily_kpi lives here for now).
-// Named distinctly from the live SUPABASE_URL/SUPABASE_ANON in /config.js,
-// which this page also uses (below) for login.
-const SNAPSHOT_SUPABASE_URL  = "https://czfsjrvngiojjjevmvtz.supabase.co";
-const SNAPSHOT_SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6ZnNqcnZuZ2lvampqZXZtdnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODc0NzIsImV4cCI6MjA5ODA2MzQ3Mn0.IbK1th8wcdrHOgJL1y5kQE3De1c0HSe0ju4Q9vNQ9BQ";
+// daily_kpi is in this project now; these aliases stay so the reads below do
+// not all have to be renamed too.
+const SNAPSHOT_SUPABASE_URL = SUPABASE_URL;
+const SNAPSHOT_SUPABASE_ANON = SUPABASE_ANON;
 
 // Auth: LIVE Supabase project (same Google login/session as the main dashboard).
 // SUPABASE_URL/SUPABASE_ANON, ALLOWED_EMAILS, ADMIN_EMAILS, SALES_TL_EMAILS,

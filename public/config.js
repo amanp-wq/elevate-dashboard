@@ -412,16 +412,15 @@ async function fetchTargetOverrides(months) {
 
 // ── Company holidays ────────────────────────────────────────────────────────
 // Days the floor is closed carry no target, the same way a weekend does not.
-// The list lives in the snapshot Supabase project rather than this one because
-// it is the only project both the live pages and the test board already read,
-// so there is a single list rather than one per environment.
 //
 // Only rows marked closes_floor are applied. The calendar also carries
 // holidays the floor works straight through — 3 July 2026 took 717 calls
 // across 13 people — and excluding those would hand back a day's target for a
 // day that was worked.
-const HOLIDAYS_SUPABASE_URL  = "https://czfsjrvngiojjjevmvtz.supabase.co";
-const HOLIDAYS_SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6ZnNqcnZuZ2lvampqZXZtdnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODc0NzIsImV4cCI6MjA5ODA2MzQ3Mn0.IbK1th8wcdrHOgJL1y5kQE3De1c0HSe0ju4Q9vNQ9BQ";
+// One project now. These aliases are kept so the pages that read the holiday
+// list do not all have to change names as well.
+const HOLIDAYS_SUPABASE_URL  = SUPABASE_URL;
+const HOLIDAYS_SUPABASE_ANON = SUPABASE_ANON;
 
 // Every holiday row, closed or not — the manage page and the upcoming-holiday
 // notice both want the full list, not just the closing ones.

@@ -347,10 +347,9 @@ async function fetchLeaveMap(startDate, endDate) {
 // daily_kpi snapshots, which already store a finished score and zone per person
 // per day — nothing is recomputed here.
 //
-// Those snapshots live in the snapshot Supabase project, the same one
-// history.html reads, not the project the rest of this page uses.
-const SNAPSHOT_SUPABASE_URL  = "https://czfsjrvngiojjjevmvtz.supabase.co";
-const SNAPSHOT_SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6ZnNqcnZuZ2lvampqZXZtdnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODc0NzIsImV4cCI6MjA5ODA2MzQ3Mn0.IbK1th8wcdrHOgJL1y5kQE3De1c0HSe0ju4Q9vNQ9BQ";
+// daily_kpi is in this project now, alongside everything else.
+const SNAPSHOT_SUPABASE_URL = SUPABASE_URL;
+const SNAPSHOT_SUPABASE_ANON = SUPABASE_ANON;
 
 const ZONE_RANK = { gold: 4, green: 3, yellow: 2, orange: 1, red: 0 };
 // Thirty calendar days back is about twenty snapshots — deep enough for any

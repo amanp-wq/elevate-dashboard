@@ -33,19 +33,11 @@ const RESNAPSHOT_DAYS = 7;
 // so a day left undone here is picked up by the next run.
 const TIME_BUDGET_MS = 45000;
 
-// Two projects, deliberately. Attendance is read from this app's own project,
-// which is where attendance.html actually records it; daily_kpi is written to
-// the snapshot project, because that is where history.html and the TV board
-// read it from and moving the table is a separate job from moving the cron.
-//
-// Until this ran here it ran on the test deploy, which read attendance from a
-// mirror copy the attendance pages keep in the snapshot project. Reading the
-// primary is one fewer thing that can drift.
-const SUPABASE_URL = process.env.SUPABASE_URL;              // app project
+// One project. attendance and daily_kpi are both here, so this reads and
+// writes the same database — which is the whole point of the merge.
+const SUPABASE_URL = process.env.SUPABASE_URL;
 const ANON_KEY     = process.env.SUPABASE_ANON_KEY;         // read attendance
-
-const SNAPSHOT_URL = process.env.SNAPSHOT_SUPABASE_URL;     // snapshot project
-const SERVICE_KEY  = process.env.SNAPSHOT_SERVICE_ROLE_KEY; // server-only, RLS bypass
+const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY; // write daily_kpi, RLS bypass
 const CRON_SECRET  = process.env.CRON_SECRET;
 
 const AUTH_DOMAIN = "https://accounts.zoho.in";
@@ -287,7 +279,7 @@ async function fetchLeaveNames(date){
 // Bulk upsert rows into daily_kpi (conflict on date+person_id)
 async function upsertRows(rows){
   if (!rows.length) return { count:0 };
-  const url = `${SNAPSHOT_URL}/rest/v1/daily_kpi?on_conflict=date,person_id`;
+  const url = `${SUPABASE_URL}/rest/v1/daily_kpi?on_conflict=date,person_id`;
   const r = await fetch(url, {
     method:"POST",
     headers:{
@@ -425,8 +417,8 @@ export default async function handler(req, res){
   if (CRON_SECRET && bearer !== CRON_SECRET && req.query.secret !== CRON_SECRET){
     return res.status(401).json({ error:"unauthorized" });
   }
-  if (!SUPABASE_URL || !ANON_KEY || !SNAPSHOT_URL || !SERVICE_KEY){
-    return res.status(500).json({ error:"Missing one of SUPABASE_URL, SUPABASE_ANON_KEY, SNAPSHOT_SUPABASE_URL, SNAPSHOT_SERVICE_ROLE_KEY" });
+  if (!SUPABASE_URL || !SERVICE_KEY){
+    return res.status(500).json({ error:"Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env" });
   }
 
   // Build the list of dates to snapshot
