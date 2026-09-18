@@ -502,8 +502,18 @@ const BDE_PER_PAGE = 6;
 // actually in the report, so a transfer or a new lead shows up without a config
 // edit; the config order goes first so the familiar left-to-right layout does
 // not shuffle. Sorted best-first only where a winner is wanted, not here.
+// Someone who has left still shows up in the report while Zoho carries them,
+// scoring zero, and a zero in a team average is a real penalty for a seat
+// nobody is sitting in. The roster's leftOn decides who belongs to a period;
+// they keep counting for the periods they actually worked.
+function hasLeftBefore(name, startDate) {
+  const m = SALES_TEAM_MEMBERS.find(x => x.name === name);
+  return !!(m && m.leftOn && startDate && m.leftOn < startDate);
+}
+
 function teamHealth() {
-  const all = [...STATE.builders, ...STATE.closers];
+  const from = STATE.isLive ? todayET() : STATE.rangeStart;
+  const all = [...STATE.builders, ...STATE.closers].filter(p => !hasLeftBefore(p.name, from));
   const configOrder = [...new Set(SALES_TEAM_MEMBERS.map(m => m.team))];
   const present = new Set(all.map(m => m.team).filter(n => n && n !== "—"));
   const names = [

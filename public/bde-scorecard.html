@@ -458,16 +458,24 @@ function tile(member, team, bmap, wDays){
   </div>`;
 }
 
+// Who was on this team during the period being reported. Someone who left
+// before it started earns nothing and should not sit in the average scoring
+// zero; someone who left during it worked part of it and still counts.
+function membersInPeriod(team, start) {
+  return bdMembersOf(team.name, start);
+}
+
 function render(bdes, start, end){
   CURRENT_REPORT_MONTH = start.slice(0, 7);
   const wDays = workingDays(start, end);
   const bmap = {};
   bdes.forEach(b => { bmap[(b.name||"").toLowerCase()] = b; });
   const view = (document.getElementById("inp-view") || {}).value || "team";
-  if (view === "tl") return renderByTL(bmap, wDays);
+  if (view === "tl") return renderByTL(bmap, wDays, start);
   let html = "";
   TEAMS.forEach(team => {
-    const scores = team.members.map(m => scoreMember(m, team, bmap, wDays).score);
+    const members = membersInPeriod(team, start);
+    const scores = members.map(m => scoreMember(m, team, bmap, wDays).score);
     const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
     const z = ZONE(avg); const col = ZCOL[z];
     const exceptions = Object.keys(team.memberKpis || {});
@@ -483,7 +491,7 @@ function render(bdes, start, end){
         <div class="team-avg">Avg Score <b style="color:${col}">${avg}%</b></div>
         <div class="team-kpi-note">${noteWithExceptions} · ${wDays} working days</div>
       </div>
-      <div class="cards">${team.members.map(m => tile(m, team, bmap, wDays)).join("")}</div>
+      <div class="cards">${members.map(m => tile(m, team, bmap, wDays)).join("")}</div>
     </div>`;
   });
   document.getElementById("results").innerHTML = html;
@@ -491,10 +499,13 @@ function render(bdes, start, end){
 
 // Grouped by reporting lead, not by KPI team. A BDE is scored against their
 // own KPI team's targets and weights, then counted in their lead's bucket.
-function renderByTL(bmap, wDays){
-  // Built from TEAM_LEADS so a roster change in one place is enough.
+function renderByTL(bmap, wDays, start){
+  // Built from TEAM_LEADS so a roster change in one place is enough. Anyone who
+  // had already left before this period is dropped, the same as the team view.
+  const active = new Set(TEAMS.flatMap(t => membersInPeriod(t, start)));
   const buckets = {};
   Object.entries(TEAM_LEADS).forEach(([member, lead]) => {
+    if (!active.has(member)) return;
     (buckets[lead] = buckets[lead] || []).push(member);
   });
   // Anyone in a KPI team but missing from TEAM_LEADS would otherwise vanish

@@ -1173,7 +1173,20 @@ document.getElementById("btn-gen").onclick = async function(){
       document.getElementById("totals-grid").innerHTML = "";
       document.getElementById("breakdown-toggle").style.display = "none";
       document.getElementById("breakdown-table-wrap").classList.remove("show");
-      renderTLView(data.teams, T, TC, leaveMap, personTargets, effectiveDays, personDealThresholds, personW);
+      // Zoho keeps returning someone after they leave, and a zero in a team
+      // average penalises the team for a seat nobody is sitting in. The roster's
+      // leftOn says who belonged to this period; anyone who left before it
+      // started comes out, and stays in every earlier report.
+      const leftBefore = name => {
+        const m = SALES_TEAM_MEMBERS.find(x => x.name === name);
+        return !!(m && m.leftOn && m.leftOn < startDate);
+      };
+      const teamsInPeriod = Object.fromEntries(Object.entries(data.teams || {}).map(([tl, t]) => [tl, {
+        ...t,
+        builders: (t.builders || []).filter(p => !leftBefore(p.name)),
+        closers:  (t.closers  || []).filter(p => !leftBefore(p.name)),
+      }]));
+      renderTLView(teamsInPeriod, T, TC, leaveMap, personTargets, effectiveDays, personDealThresholds, personW);
       document.getElementById("results").style.display = "block";
       setStatus("");
       return;

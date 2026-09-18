@@ -325,7 +325,14 @@ const SALES_TEAM_MEMBERS = [
   { name: "Nishant Sharma",    team: "Mamta Das", role: "Builder" },
   { name: "Talha Shaikh",      team: "Mamta Das", role: "Builder" },
   { name: "Yash Parikh",       team: "Mamta Das", role: "Builder" },
-  { name: "Dev Sompura",       team: "Mamta Das", role: "Builder" },
+  // Resigned. 3 Sep is his last day with any recorded activity — confirm the
+  // real last working day if it differs, since it decides which weeks he is
+  // scored in.
+  { name: "Dev Sompura",       team: "Mamta Das", role: "Builder", leftOn: "2026-09-03" },
+  // Joined recently: present in Zoho as Builders, no activity recorded yet.
+  { name: "Ankit Kumar",       team: "Mamta Das", role: "Builder" },
+  { name: "Hetraj Sarvaiya",   team: "Mamta Das", role: "Builder" },
+  { name: "Surjeet Singh",     team: "Soham",     role: "Builder" },
   { name: "Pranali Mishra",    team: "Mamta Das", role: "Closer"  },
   { name: "Meet Patel",        team: "Mamta Das", role: "Closer"  },
   { name: "Vidhi Patel",       team: "Mamta Das", role: "Closer"  },
@@ -349,7 +356,7 @@ const bdPersonKey = m => BD_PERSON_KEY_OVERRIDES[m] || m;
 // with zero activity everywhere. `display` is only for the UI.
 const BD_TEAM_MEMBERS = [
   { name: "Ronak Khant",           team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
-  { name: "Jiya Chandrawanshi",    team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
+  { name: "Jiya Chandrawanshi",    team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD", leftOn: "2026-09-11" },
   { name: "Bhoomi Barot",          team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
   { name: "Dhiraj Prajapati",      team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
   { name: "Manish Sonagara",       team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
@@ -363,9 +370,20 @@ const BD_TEAM_MEMBERS = [
 // Derived so the BD pages stop keeping their own copies of the roster. All of
 // these key on the display name, which is what those pages show and what they
 // look overrides up by.
+// Someone who has left still belongs to the periods they worked — their leads
+// are real and the team earned them — but must not sit in a later period's
+// average scoring zero. `leftOn` is their last working day; they count for any
+// period that starts on or before it.
+//
+// Removing the row instead would have been simpler and wrong: last month's
+// report would quietly lose their work and every historical team score would
+// move.
+const activeInPeriod = (m, startDate) => !m.leftOn || !startDate || m.leftOn >= startDate;
+
 const bdDisplay = m => m.display || m.name;
 const BD_TEAM_LEADS = Object.fromEntries(BD_TEAM_MEMBERS.map(m => [bdDisplay(m), m.team]));
-const bdMembersOf = kpiTeam => BD_TEAM_MEMBERS.filter(m => m.kpiTeam === kpiTeam).map(bdDisplay);
+const bdMembersOf = (kpiTeam, startDate) =>
+  BD_TEAM_MEMBERS.filter(m => m.kpiTeam === kpiTeam && activeInPeriod(m, startDate)).map(bdDisplay);
 // No per-member edit scoping for BD: by existing design both BD leads and
 // admins may edit any BD member (see the note that was on manage-targets-bd).
 // A lead-scoped helper was added here but had no caller, so it is not kept.
