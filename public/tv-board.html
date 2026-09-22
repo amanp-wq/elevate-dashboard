@@ -1512,7 +1512,32 @@ function startDataRefresh() {
   _dataRefresh = setInterval(() => { if (STATE.isLive) loadData(); }, 3 * 60 * 1000);
 }
 
+// ── Kill switch ─────────────────────────────────────────────────────────────
+// Paused 22 Sep 2026. Supabase hit its egress quota and restricted both
+// projects, so report_cache could not be read; every request then became a
+// cache miss and went to Zoho in full. Two boards refreshing every three
+// minutes around the clock took Zoho past its daily credit quota.
+//
+// The board is the largest single caller, so it stops here rather than someone
+// having to close a browser on the floor. Set this to false to bring it back —
+// nothing else needs changing.
+const BOARD_PAUSED = true;
+
+function pausedScreen() {
+  document.getElementById("board-root").style.display = "block";
+  document.getElementById("board-root").innerHTML = `
+    <div style="position:fixed;inset:0;background:#05060b;display:flex;flex-direction:column;
+                align-items:center;justify-content:center;gap:18px;font-family:Barlow,sans-serif">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:74px;font-weight:900;
+                  letter-spacing:6px;color:#ffab00">PAUSED FOR MAINTENANCE</div>
+      <div style="font-size:19px;font-weight:600;letter-spacing:2px;color:#7b86ad">
+        The board will be back shortly
+      </div>
+    </div>`;
+}
+
 function initBoard() {
+  if (BOARD_PAUSED) { pausedScreen(); return; }
   fit();
   window.addEventListener("resize", onResize);
   // A resize event is not guaranteed for every size change a TV browser goes

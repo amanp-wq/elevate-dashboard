@@ -1,8 +1,8 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
-  ],
-  "crons": [
-    { "path": "/api/snapshot", "schedule": "0 6 * * *" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
   ]
 }
