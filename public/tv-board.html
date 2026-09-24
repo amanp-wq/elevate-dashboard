@@ -397,7 +397,16 @@ function isoShift(iso, days) {
   return d.toISOString().slice(0, 10);
 }
 
+// A snapshot lands once a night, so this thirty-day window holds the same
+// answer all day. Refetching it every cycle was ~960 pulls a day of data that
+// had not changed — the same mistake loadTargetOverrides already fixed above.
+let _formCache = null, _formFetchedAt = 0, _formKey = "";
+const FORM_TTL_MS = 30 * 60 * 1000;
+
 async function fetchForm(todayISO) {
+  if (_formCache && _formKey === todayISO && Date.now() - _formFetchedAt < FORM_TTL_MS) {
+    return _formCache;
+  }
   const from = isoShift(todayISO, -FORM_LOOKBACK_DAYS);
   try {
     const r = await fetch(
@@ -405,11 +414,17 @@ async function fetchForm(todayISO) {
       `&select=date,person_name,role,score,zone,on_leave&order=date.desc&limit=5000`,
       { headers: { apikey: SNAPSHOT_SUPABASE_ANON, Authorization: `Bearer ${SNAPSHOT_SUPABASE_ANON}` } });
     if (!r.ok) throw new Error(`daily_kpi ${r.status}`);
-    return buildForm(await r.json(), todayISO);
+    _formCache = buildForm(await r.json(), todayISO);
+    _formKey = todayISO;
+    _formFetchedAt = Date.now();
+    return _formCache;
   } catch (e) {
-    // Form is decoration on top of a board that works without it.
+    // Form is decoration on top of a board that works without it. A failure is
+    // not cached, so the next cycle tries again.
     console.error("TV board V2: form history unavailable (non-fatal):", e.message);
-    return { prevRank: {}, streak: {}, days: 0 };
+    return _formCache && _formKey === todayISO
+      ? _formCache
+      : { prevRank: {}, streak: {}, days: 0 };
   }
 }
 
@@ -1521,7 +1536,7 @@ function startDataRefresh() {
 // The board is the largest single caller, so it stops here rather than someone
 // having to close a browser on the floor. Set this to false to bring it back —
 // nothing else needs changing.
-const BOARD_PAUSED = true;
+const BOARD_PAUSED = false;
 
 function pausedScreen() {
   document.getElementById("board-root").style.display = "block";
