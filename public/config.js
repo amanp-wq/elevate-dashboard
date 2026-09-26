@@ -440,6 +440,17 @@ async function fetchTargetOverrides(months) {
 const HOLIDAYS_SUPABASE_URL  = SUPABASE_URL;
 const HOLIDAYS_SUPABASE_ANON = SUPABASE_ANON;
 
+// Weekend days the floor worked, as YYYY-MM-DD. A date here is scored as an
+// ordinary working day rather than a weekend.
+//
+// This is a list in code rather than a row in a table because a worked weekend
+// is called on the day, and a deploy is the fastest way to make one count. If
+// it becomes a regular thing it belongs in `holidays` beside closes_floor, with
+// a tick on /manage-holidays.html.
+const WORKING_WEEKENDS = [
+  "2026-09-26",   // Saturday — floor worked
+];
+
 // Every holiday row, closed or not — the manage page and the upcoming-holiday
 // notice both want the full list, not just the closing ones.
 let HOLIDAYS = [];
@@ -466,6 +477,7 @@ const HOLIDAYS_READY = (async () => {
   // this would then inherit as a failed load. Guard it, and never reject.
   if (typeof Scoring !== "undefined") {
     Scoring.setClosedDays(HOLIDAYS.filter(h => h.closes_floor).map(h => h.date));
+    Scoring.setOpenDays(WORKING_WEEKENDS);
   }
   return HOLIDAYS;
 })();

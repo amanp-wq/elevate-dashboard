@@ -465,9 +465,11 @@ function monthStartET() { const p = etParts(); return `${p.year}-${p.month}-01`;
 // Eastern wall-clock hour as a decimal (e.g. 14.5 for 2:30pm).
 function etHour() { const p = etParts(); return Number(p.hour) + Number(p.minute) / 60; }
 function dayFraction(dateStr, isCustomRange) {
-  // Weekends carry no target. Without this the board showed prorated targets
-  // and live scores on a Saturday, unlike every other page.
-  if (Scoring.isWeekend(dateStr)) return 0;
+  // Non-working days carry no target. Without this the board showed prorated
+  // targets and live scores on a Saturday, unlike every other page. It asks
+  // Scoring rather than the calendar so a worked weekend — or a holiday that
+  // closes the floor — is priced the same here as everywhere else.
+  if (Scoring.isNonWorkingDay(dateStr)) return 0;
   if (isCustomRange) return 1; // a picked historical range is always "full"
   return Scoring.dayFraction(dateStr);
 }
