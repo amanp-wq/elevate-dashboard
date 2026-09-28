@@ -146,6 +146,7 @@
 </style>
 <!-- SUPERSEDED-REDIRECT: replaced by /manage-targets.html (unified targets + weightage) -->
 <script>location.replace("/manage-targets.html" + location.hash);</script>
+<link rel="stylesheet" href="/app-header.css">
 </head>
 <body>
 
@@ -164,18 +165,16 @@
   </div>
 </div>
 
-<header>
+<header class="app-header">
   <div class="logo">
     <img src="/e92c4bab-2eb7-4e8f-bc76-e00992442f1f.png" alt="ElevateMe" class="logo-img">
     <span class="logo-sub">Manage Targets</span>
   </div>
-  <div style="display:flex;align-items:center">
-    <div class="nav-links" id="nav-links" style="display:none"></div>
-    <div class="header-right" id="user-bar" style="display:none">
-      <img id="user-avatar" src="" style="display:none">
-      <strong id="user-name"></strong>
-      <button id="btn-signout">Sign out</button>
-    </div>
+  <div class="nav-links" id="nav-links" style="display:none"></div>
+  <div class="header-right" id="user-bar" style="display:none">
+    <img id="user-avatar" src="" style="display:none">
+    <strong id="user-name"></strong>
+    <button id="btn-signout">Sign out</button>
   </div>
 </header>
 

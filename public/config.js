@@ -196,6 +196,25 @@ function injectNavStyles() {
   document.head.appendChild(el);
 }
 
+// Fills the header's signed-in person and wires Sign out. Most pages do this
+// in their own showApp(); the pages whose header had no person block at all
+// call this instead, so every header ends the same way. Safe to call on a page
+// that already filled it — the values are the same.
+function mountUserBar(user, client) {
+  const bar = document.getElementById("user-bar");
+  if (!bar || !user) return;
+  const name = document.getElementById("user-name");
+  if (name) name.textContent = user.user_metadata?.full_name || user.email || "";
+  const av = document.getElementById("user-avatar");
+  if (av) {
+    if (user.user_metadata?.avatar_url) { av.src = user.user_metadata.avatar_url; av.style.display = ""; }
+    else av.style.display = "none";
+  }
+  const out = document.getElementById("btn-signout");
+  if (out && client) out.onclick = async () => { await client.auth.signOut(); location.reload(); };
+  bar.style.display = "flex";
+}
+
 // Standard role-gated nav used by every page except admin.html (which has
 // its own simpler, admin-only nav). Related pages are grouped into
 // dropdowns so the bar stays short instead of running 12 buttons wide.

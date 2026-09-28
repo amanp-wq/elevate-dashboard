@@ -215,6 +215,7 @@
     .table-wrap { overflow-x: auto !important; }
   }
 </style>
+<link rel="stylesheet" href="/app-header.css">
 </head>
 <body>
 
@@ -240,18 +241,16 @@
   <button onclick="supabaseClient.auth.signOut().then(()=>location.reload())">Sign out</button>
 </div>
 
-<header>
+<header class="app-header">
   <div class="logo">
     <img src="/e92c4bab-2eb7-4e8f-bc76-e00992442f1f.png" alt="ElevateMe" class="logo-img">
     <span class="logo-sub">Admin Panel</span>
   </div>
-  <div style="display:flex;align-items:center">
-    <div class="nav-links" id="nav-links" style="display:none"></div>
-    <div class="header-right">
-      <img id="user-avatar" src="" style="display:none">
-      <strong id="user-name"></strong>
-      <button id="btn-signout">Sign out</button>
-    </div>
+  <div class="nav-links" id="nav-links" style="display:none"></div>
+  <div class="header-right" id="user-bar">
+    <img id="user-avatar" src="" style="display:none">
+    <strong id="user-name"></strong>
+    <button id="btn-signout">Sign out</button>
   </div>
 </header>
 

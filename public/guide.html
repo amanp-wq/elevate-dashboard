@@ -99,18 +99,24 @@
     h1 { font-size: 24px; }
   }
 </style>
+<link rel="stylesheet" href="/app-header.css">
 </head>
 <body>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/config.js"></script>
 
-<header>
+<header class="app-header">
   <div class="logo">
     <img src="/e92c4bab-2eb7-4e8f-bc76-e00992442f1f.png" alt="ElevateMe" class="logo-img">
     <span class="logo-sub">How It Works</span>
   </div>
   <div class="nav-links" id="nav-links"></div>
+  <div class="header-right" id="user-bar" style="display:none">
+    <img id="user-avatar" src="" alt="" style="display:none">
+    <span id="user-name"></span>
+    <button id="btn-signout">Sign out</button>
+  </div>
 </header>
 
 <div class="container">
@@ -386,6 +392,7 @@ _auth.auth.getSession().then(async ({ data: { session } }) => {
   if (session?.user && ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) {
     document.body.style.visibility = "";
     buildNav(email);
+    mountUserBar(session.user, _auth);
   } else {
     window.location.replace("/");
   }

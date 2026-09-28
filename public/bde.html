@@ -24,7 +24,6 @@
   #btn-signout:hover{border-color:var(--accent);color:var(--accent)}
 
   .container{width:100%;padding:20px 24px}
-  .test-banner{background:var(--accent);color:#fff;text-align:center;font-size:12px;font-weight:800;padding:5px 12px;letter-spacing:1.5px;border-radius:6px;margin-bottom:10px}
 
   .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:24px}
   .field{display:flex;flex-direction:column;gap:4px}
@@ -135,18 +134,18 @@
   #results{display:none}
   .empty-state{text-align:center;color:var(--muted);padding:60px 20px;font-size:14px}
 </style>
+<link rel="stylesheet" href="/app-header.css">
 </head>
 <body>
 
 <div id="main-content">
-  <div class="test-banner">⚠ TEST VERSION — Changes here will not affect the live dashboard</div>
-  <header>
+  <header class="app-header">
     <div class="logo">
       <img src="/e92c4bab-2eb7-4e8f-bc76-e00992442f1f.png" alt="ElevateMe" class="logo-img">
-      <span class="logo-sub">Performance Dashboard</span>
+      <span class="logo-sub">BDE Dashboard</span>
     </div>
     <div class="nav-links" id="nav-links"></div>
-    <div id="user-bar">
+    <div class="header-right" id="user-bar">
       <img id="user-avatar" src="" alt="">
       <strong id="user-name"></strong>
       <button id="btn-signout">Sign out</button>
@@ -447,8 +446,6 @@ document.getElementById("btn-gen").onclick = async function() {
   }
 };
 
-document.getElementById("btn-signout").onclick = () => {};
-
 // Init on page load — require Google login (same session as dashboard)
 document.body.style.visibility = "hidden";
 _auth.auth.getSession().then(async ({ data: { session } }) => {
@@ -457,6 +454,7 @@ _auth.auth.getSession().then(async ({ data: { session } }) => {
   if (session?.user && ALLOWED_EMAILS.includes(email) && isPageAllowed(email, window.location.pathname)) {
     document.body.style.visibility = "";
     buildNav(email);
+    mountUserBar(session.user, _auth);
     const today = todayEST();
     document.getElementById("inp-start").value = today;
     document.getElementById("inp-end").value   = today;
