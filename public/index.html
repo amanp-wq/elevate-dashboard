@@ -316,11 +316,29 @@
   .total-lbl { font-size: 13px; color: var(--muted); margin-top: 2px; }
   .total-target { font-size: 12px; color: var(--muted); opacity: 0.5; }
   /* Same point last month, under each team total */
-  .total-cmp { margin-top: 6px; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
-  .total-cmp .cmp-up { color: #00e676; font-weight: 700; }
-  .total-cmp .cmp-down { color: #ff5c7a; font-weight: 700; }
-  .total-cmp .cmp-flat { color: var(--muted); font-weight: 700; }
-  .totals-compare { text-transform: none; letter-spacing: 0; margin-left: 8px; color: var(--muted); opacity: 0.85; }
+  /* Tiles stretch to the tallest in the row; the comparison sits at the foot of
+     each, so they line up even though Calls carries an extra line above. */
+  #totals-grid .total-item { display: flex; flex-direction: column; align-items: center; }
+  .total-cmp { margin: auto auto 0; padding-top: 10px; width: 100%; max-width: 190px; font-size: 11px; color: var(--muted); text-align: left; }
+  .cmp-pill { display: block; width: fit-content; margin: 0 auto 8px; padding: 3px 10px; border-radius: 999px;
+              font-size: 12px; font-weight: 800; letter-spacing: 0.2px; white-space: nowrap; }
+  .cmp-pill.up   { color: #00e676; background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.35); }
+  .cmp-pill.down { color: #ff5c7a; background: rgba(255,92,122,0.12); border: 1px solid rgba(255,92,122,0.35); }
+  .cmp-pill.flat { color: #b7bdd6; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); }
+  .cmp-row { display: grid; grid-template-columns: 34px 1fr 38px; align-items: center; gap: 6px; margin-top: 4px; }
+  .cmp-row .cmp-k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
+  .cmp-row .cmp-v { font-size: 11px; font-weight: 700; text-align: right; color: #c9cee6; font-variant-numeric: tabular-nums; }
+  .cmp-track { position: relative; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.07); overflow: hidden; }
+  .cmp-fill  { position: absolute; inset: 0 auto 0 0; border-radius: 3px; }
+  .cmp-fill.now  { background: linear-gradient(90deg, #ff4d3a, #ff8a65); }
+  .cmp-fill.then { background: #4b5375; }
+  .cmp-goal { position: absolute; top: -2px; bottom: -2px; width: 2px; background: rgba(255,255,255,0.55); border-radius: 1px; }
+  .cmp-raw { margin-top: 6px; text-align: center; font-size: 10.5px; color: var(--muted); opacity: 0.85; }
+  .cmp-raw strong { color: #c9cee6; font-weight: 700; }
+  .totals-compare { display: inline-block; margin-left: 10px; padding: 2px 9px; border-radius: 999px; vertical-align: 1px;
+                    text-transform: none; letter-spacing: 0.2px; font-size: 11px; font-weight: 600;
+                    color: #c9cee6; background: rgba(255,255,255,0.05); border: 1px solid var(--border); }
+  .totals-compare:empty { display: none; }
 
   .scoring-toggle {
     display: flex; align-items: center; gap: 8px; margin-bottom: 1rem;
@@ -816,7 +834,7 @@ async function renderMonthCompare({ role, startDate, endDate, current, targets }
     // The working days in view, never past today.
     const cur = [];
     for (let d = startDate; d <= endDate && d <= today; d = _isoAdd(d, 1)) if (!Scoring.isNonWorkingDay(d)) cur.push(d);
-    if (!cur.length) { if (label) label.textContent = "· no working day here to compare"; return; }
+    if (!cur.length) { if (label) label.textContent = "No working day here to compare"; return; }
 
     // Each one's counterpart: the same working day of the month before.
     const wanted = cur.map(d => {
@@ -872,7 +890,7 @@ async function renderMonthCompare({ role, startDate, endDate, current, targets }
       days = uniq.filter(healthy);
       skipped = uniq.length - days.length;
     }
-    if (!days.length) { if (label) label.textContent = "· nothing usable last month to compare"; return; }
+    if (!days.length) { if (label) label.textContent = "Nothing usable last month to compare"; return; }
 
     const rates = role === "Builder" ? TARGETS : TARGETS_CLOSER;
     const prev = {}, prevTarget = {};
@@ -884,7 +902,7 @@ async function renderMonthCompare({ role, startDate, endDate, current, targets }
     if (label) {
       const span = days.length === 1 ? _fmtCmpDay(days[0])
         : `${_fmtCmpDay(days[0])} – ${_fmtCmpDay(days[days.length - 1])} · ${days.length} working days`;
-      label.textContent = `· vs last month: ${span}${skipped ? ` (${skipped} broken day${skipped > 1 ? "s" : ""} left out)` : ""}`;
+      label.textContent = `vs ${span}${skipped ? ` · ${skipped} broken day${skipped > 1 ? "s" : ""} left out` : ""}`;
     }
 
     // Before the floor has really started, today's target is near zero and any
@@ -894,14 +912,23 @@ async function renderMonthCompare({ role, startDate, endDate, current, targets }
     document.querySelectorAll("#totals-grid .total-item[data-kpi]").forEach(el => {
       const k = el.dataset.kpi;
       if (!(k in fields)) return;
-      let html = `Last month: <strong>${fmt(k, prev[k] || 0)}</strong>`;
+      const raw = `<div class="cmp-raw">Last month <strong>${fmt(k, prev[k] || 0)}</strong></div>`;
+      let html = raw;
       const tNow = targets[k], tThen = prevTarget[k];
       if (!tooEarly && tNow > 0 && tThen > 0) {
         const pNow = Math.round((current[k] || 0) / tNow * 100), pThen = Math.round((prev[k] || 0) / tThen * 100);
         const diff = pNow - pThen;
-        const cls = diff > 0 ? "cmp-up" : diff < 0 ? "cmp-down" : "cmp-flat";
+        const cls = diff > 0 ? "up" : diff < 0 ? "down" : "flat";
         const arrow = diff > 0 ? "▲" : diff < 0 ? "▼" : "■";
-        html += ` · ${pThen}%<br><span class="${cls}">${arrow} ${Math.abs(diff)} pts</span> <span style="opacity:.7">(${pNow}% now)</span>`;
+        // Both bars share one scale, wide enough for the larger of the two and
+        // never narrower than target, so the 100% mark sits in the same place.
+        const scale = Math.max(100, pNow, pThen);
+        const bar = (k2, p, kind) => `<div class="cmp-row"><span class="cmp-k">${k2}</span>` +
+          `<div class="cmp-track"><div class="cmp-fill ${kind}" style="width:${(p / scale * 100).toFixed(1)}%"></div>` +
+          `<div class="cmp-goal" style="left:calc(${(100 / scale * 100).toFixed(1)}% - 1px)"></div></div>` +
+          `<span class="cmp-v">${p}%</span></div>`;
+        html = `<div class="cmp-pill ${cls}">${arrow} ${diff > 0 ? "+" : diff < 0 ? "−" : ""}${Math.abs(diff)} pts</div>` +
+               bar("Now", pNow, "now") + bar("Last", pThen, "then") + raw;
       }
       let box = el.querySelector(".total-cmp");
       if (!box) { box = document.createElement("div"); box.className = "total-cmp"; el.appendChild(box); }
