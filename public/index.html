@@ -315,6 +315,12 @@
   .total-val { font-size: 24px; font-weight: 800; color: #ff6b6b; text-shadow: 0 0 10px rgba(255,77,58,0.5); }
   .total-lbl { font-size: 13px; color: var(--muted); margin-top: 2px; }
   .total-target { font-size: 12px; color: var(--muted); opacity: 0.5; }
+  /* Same point last month, under each team total */
+  .total-cmp { margin-top: 6px; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
+  .total-cmp .cmp-up { color: #00e676; font-weight: 700; }
+  .total-cmp .cmp-down { color: #ff5c7a; font-weight: 700; }
+  .total-cmp .cmp-flat { color: var(--muted); font-weight: 700; }
+  .totals-compare { text-transform: none; letter-spacing: 0; margin-left: 8px; color: var(--muted); opacity: 0.85; }
 
   .scoring-toggle {
     display: flex; align-items: center; gap: 8px; margin-bottom: 1rem;
@@ -548,7 +554,7 @@
     </div>
 
     <div class="totals">
-      <div class="totals-title">Team Totals</div>
+      <div class="totals-title">Team Totals<span class="totals-compare" id="totals-compare"></span></div>
       <div class="totals-grid" id="totals-grid"></div>
     </div>
 
@@ -748,6 +754,163 @@ function setPreset(preset, btn) {
       e.value = `${py}-${pad2(pm)}-${pad2(ld)}`; break;
     }
     case "custom": break;
+  }
+}
+
+// ── Same point last month ───────────────────────────────────────────────────
+// Each team total is set beside the same stretch of last month, read from the
+// nightly daily_kpi snapshots, so it costs no Zoho call.
+//
+// "The same day" is the same working day of the month: the 15th working day of
+// October is set against the 15th working day of September. Working days are
+// counted exactly as scoring counts them — weekends and floor-closing holidays
+// out, worked Saturdays in — so a Monday is never set against a Sunday, and a
+// closed holiday never lands on either side. If last month ran short, its last
+// working day stands in.
+//
+// The comparison is made on % of target, not raw totals. A day still in
+// progress has a target prorated to the clock, so 1,005 calls at 3:38pm can be
+// set fairly against a finished day, and a team of 17 against one of 20. Last
+// month's raw figure is shown alongside so the real number is never hidden.
+//
+// A day last month that is plainly broken — no snapshot, or a floor that logged
+// under a quarter of that month's typical calls, which is what an unticked
+// holiday looks like — is not used. A single day steps back to the working day
+// before it; a range leaves it out. Either way the label says which days.
+const COMPARE_FIELDS = {
+  Builder: { calls: "calls", minutes: "minutes", leads: "leads", discoveries: "discoveries",
+             presBooked: "pres_booked", presCompleted: "pres_completed" },
+  Closer:  { calls: "calls", minutes: "minutes", presentations: "presentations",
+             dealsClosed: "deals_closed", newUpfront: "new_upfront", futureUpfront: "future_upfront" },
+};
+const COMPARE_BROKEN_SHARE = 0.25;
+const COMPARE_MONEY = new Set(["newUpfront", "futureUpfront"]);
+let _compareSeq = 0;
+
+const _isoAdd = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const _prevYm = ym => { const [y, m] = ym.split("-").map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; };
+const _lastOfMonth = ym => { const [y, m] = ym.split("-").map(Number); return `${ym}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0")}`; };
+function _workingDaysOf(ym) {
+  const out = [];
+  for (let d = `${ym}-01`, end = _lastOfMonth(ym); d <= end; d = _isoAdd(d, 1)) if (!Scoring.isNonWorkingDay(d)) out.push(d);
+  return out;
+}
+const _fmtCmpDay = iso => new Date(iso + "T12:00:00Z").toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" });
+
+// role: "Builder" | "Closer". current: this period's team totals, keyed as in
+// COMPARE_FIELDS. targets: the team targets the tiles show, null where a KPI
+// has none.
+async function renderMonthCompare({ role, startDate, endDate, current, targets }) {
+  const seq = ++_compareSeq;
+  const label = document.getElementById("totals-compare");
+  if (label) label.textContent = "";
+  const fields = COMPARE_FIELDS[role];
+  const activeBtn = document.querySelector(".preset-btn.active");
+  const preset = ((activeBtn && activeBtn.getAttribute("onclick")) || "").match(/setPreset\('([^']+)'/)?.[1];
+  // A hand-picked range has no natural "same stretch" last month.
+  if (!fields || !preset || preset === "custom") return;
+  try {
+    await HOLIDAYS_READY;
+    const today = Scoring.todayET();
+
+    // The working days in view, never past today.
+    const cur = [];
+    for (let d = startDate; d <= endDate && d <= today; d = _isoAdd(d, 1)) if (!Scoring.isNonWorkingDay(d)) cur.push(d);
+    if (!cur.length) { if (label) label.textContent = "· no working day here to compare"; return; }
+
+    // Each one's counterpart: the same working day of the month before.
+    const wanted = cur.map(d => {
+      const ym = d.slice(0, 7), n = _workingDaysOf(ym).indexOf(d) + 1, W = _workingDaysOf(_prevYm(ym));
+      return W.length ? { day: W[Math.min(n, W.length) - 1], W } : null;
+    }).filter(Boolean);
+    if (!wanted.length) return;
+
+    // Whole previous months, so a broken day can be judged against its month.
+    const months = [...new Set(wanted.map(w => w.day.slice(0, 7)))].sort();
+    const cols = ["date", "person_name", "on_leave", ...new Set(Object.values(fields))].join(",");
+    const url = `${SUPABASE_URL}/rest/v1/daily_kpi?select=${cols}&role=eq.${role}` +
+                `&date=gte.${months[0]}-01&date=lte.${_lastOfMonth(months[months.length - 1])}&limit=10000`;
+    const r = await fetch(url, { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } });
+    if (!r.ok) throw new Error(`daily_kpi ${r.status}`);
+    const rows = await r.json();
+    if (seq !== _compareSeq) return;            // a newer report has been drawn since
+
+    // Headcount: someone counts towards last month's target on a day if they
+    // worked at some point that month — a day off without a leave mark still
+    // counts against the team, as it does in the live report. Zoho users who had
+    // already gone, and people who had not joined yet, are snapshotted with
+    // zeros every day; they did nothing all month and stay out.
+    const did = row => Object.values(fields).some(f => Number(row[f]) > 0);
+    const workedThatMonth = new Set(rows.filter(row => did(row) || row.on_leave)
+                                        .map(row => row.person_name + "|" + row.date.slice(0, 7)));
+    const counts = row => workedThatMonth.has(row.person_name + "|" + row.date.slice(0, 7));
+    const byDay = {};
+    for (const row of rows) {
+      if (!counts(row)) continue;
+      const day = byDay[row.date] || (byDay[row.date] = { n: 0, sums: {} });
+      day.n++;
+      for (const [k, f] of Object.entries(fields)) day.sums[k] = (day.sums[k] || 0) + (Number(row[f]) || 0);
+    }
+    const medianCalls = {};
+    for (const ym of months) {
+      const v = _workingDaysOf(ym).map(d => (byDay[d] && byDay[d].sums.calls) || 0).filter(x => x > 0).sort((a, b) => a - b);
+      medianCalls[ym] = v.length ? v[Math.floor(v.length / 2)] : 0;
+    }
+    const healthy = d => {
+      const c = (byDay[d] && byDay[d].sums.calls) || 0;
+      return c > 0 && c >= medianCalls[d.slice(0, 7)] * COMPARE_BROKEN_SHARE;
+    };
+
+    let days, skipped = 0;
+    if (cur.length === 1) {
+      const { day, W } = wanted[0];
+      let i = W.indexOf(day);
+      while (i >= 0 && !healthy(W[i])) i--;
+      days = i >= 0 ? [W[i]] : [];
+    } else {
+      const uniq = [...new Set(wanted.map(w => w.day))];
+      days = uniq.filter(healthy);
+      skipped = uniq.length - days.length;
+    }
+    if (!days.length) { if (label) label.textContent = "· nothing usable last month to compare"; return; }
+
+    const rates = role === "Builder" ? TARGETS : TARGETS_CLOSER;
+    const prev = {}, prevTarget = {};
+    for (const d of days) for (const k of Object.keys(fields)) {
+      prev[k] = (prev[k] || 0) + (byDay[d].sums[k] || 0);
+      if (rates[k] != null) prevTarget[k] = (prevTarget[k] || 0) + byDay[d].n * rates[k];
+    }
+
+    if (label) {
+      const span = days.length === 1 ? _fmtCmpDay(days[0])
+        : `${_fmtCmpDay(days[0])} – ${_fmtCmpDay(days[days.length - 1])} · ${days.length} working days`;
+      label.textContent = `· vs last month: ${span}${skipped ? ` (${skipped} broken day${skipped > 1 ? "s" : ""} left out)` : ""}`;
+    }
+
+    // Before the floor has really started, today's target is near zero and any
+    // percentage is noise; last month's figure is shown alone.
+    const tooEarly = endDate >= today && Scoring.dayFraction(today) < 0.1;
+    const fmt = (k, v) => (COMPARE_MONEY.has(k) ? "$" : "") + Math.round(v).toLocaleString();
+    document.querySelectorAll("#totals-grid .total-item[data-kpi]").forEach(el => {
+      const k = el.dataset.kpi;
+      if (!(k in fields)) return;
+      let html = `Last month: <strong>${fmt(k, prev[k] || 0)}</strong>`;
+      const tNow = targets[k], tThen = prevTarget[k];
+      if (!tooEarly && tNow > 0 && tThen > 0) {
+        const pNow = Math.round((current[k] || 0) / tNow * 100), pThen = Math.round((prev[k] || 0) / tThen * 100);
+        const diff = pNow - pThen;
+        const cls = diff > 0 ? "cmp-up" : diff < 0 ? "cmp-down" : "cmp-flat";
+        const arrow = diff > 0 ? "▲" : diff < 0 ? "▼" : "■";
+        html += ` · ${pThen}%<br><span class="${cls}">${arrow} ${Math.abs(diff)} pts</span> <span style="opacity:.7">(${pNow}% now)</span>`;
+      }
+      let box = el.querySelector(".total-cmp");
+      if (!box) { box = document.createElement("div"); box.className = "total-cmp"; el.appendChild(box); }
+      box.innerHTML = html;
+    });
+  } catch (e) {
+    // The comparison is extra; the report stands without it.
+    console.warn("Last-month comparison unavailable:", e.message);
+    if (seq === _compareSeq && label) label.textContent = "";
   }
 }
 
@@ -1172,6 +1335,7 @@ document.getElementById("btn-gen").onclick = async function(){
     if (isTL) {
       document.getElementById("meta-right").textContent = "3 Teams";
       document.getElementById("totals-grid").innerHTML = "";
+      renderMonthCompare({ role: null });
       document.getElementById("breakdown-toggle").style.display = "none";
       document.getElementById("breakdown-table-wrap").classList.remove("show");
       // Zoho keeps returning someone after they leave, and a zero in a team
@@ -1219,7 +1383,9 @@ document.getElementById("btn-gen").onclick = async function(){
         ["newUpfront","New Upfront","—"],
         ["futureUpfront","Future Upfront","—"],
         ["revenue","Revenue (Total)","—"],
-      ].map(([k,lbl,tg]) => `<div class="total-item${k==="calls"?" kpi-hoverable":""}"${k==="calls"?` data-bands='${JSON.stringify(totBands)}' data-total="${tot.calls}" data-off='${JSON.stringify(totOff)}'`:""}><div class="total-val">${k==="newUpfront"||k==="futureUpfront"||k==="revenue"?"$"+tot[k].toLocaleString():tot[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${tot.inbound} in</span> <span class="bd-out">↗${tot.outbound} out</span> <span class="bd-miss">✕${tot.missed} miss</span></div>`:""}</div>`).join("");
+      ].map(([k,lbl,tg]) => `<div class="total-item${k==="calls"?" kpi-hoverable":""}" data-kpi="${k}"${k==="calls"?` data-bands='${JSON.stringify(totBands)}' data-total="${tot.calls}" data-off='${JSON.stringify(totOff)}'`:""}><div class="total-val">${k==="newUpfront"||k==="futureUpfront"||k==="revenue"?"$"+tot[k].toLocaleString():tot[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${tot.inbound} in</span> <span class="bd-out">↗${tot.outbound} out</span> <span class="bd-miss">✕${tot.missed} miss</span></div>`:""}</div>`).join("");
+      renderMonthCompare({ role: "Closer", startDate, endDate, current: tot,
+        targets: Object.fromEntries(Object.keys(COMPARE_FIELDS.Closer).map(k => [k, TC[k] != null ? n * TC[k] : null])) });
 
       document.getElementById("tiles").innerHTML = closers.map(c => {
         const onLeave = (leaveMap[c.name] || 0) >= effectiveDays;
@@ -1277,7 +1443,9 @@ document.getElementById("btn-gen").onclick = async function(){
         ["discoveries","Discoveries",tgt(T.discoveries)],
         ["presBooked","Pres. Booked",tgt(T.presBooked)],
         ["presCompleted","Pres. Completed",tgt(T.presCompleted)]
-      ].map(([k,lbl,tg]) => `<div class="total-item${k==="calls"?" kpi-hoverable":""}"${k==="calls"?` data-bands='${JSON.stringify(totalsBands)}' data-total="${totals.calls}" data-off='${JSON.stringify(totalsOff)}'`:""}><div class="total-val">${totals[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${totals.inbound} in</span> <span class="bd-out">↗${totals.outbound} out</span> <span class="bd-miss">✕${totals.missed} miss</span></div>`:""}</div>`).join("");
+      ].map(([k,lbl,tg]) => `<div class="total-item${k==="calls"?" kpi-hoverable":""}" data-kpi="${k}"${k==="calls"?` data-bands='${JSON.stringify(totalsBands)}' data-total="${totals.calls}" data-off='${JSON.stringify(totalsOff)}'`:""}><div class="total-val">${totals[k]}</div><div class="total-lbl">${lbl}</div><div class="total-target">target ${tg}</div>${k==="calls"?`<div class="total-breakdown"><span class="bd-in">↙${totals.inbound} in</span> <span class="bd-out">↗${totals.outbound} out</span> <span class="bd-miss">✕${totals.missed} miss</span></div>`:""}</div>`).join("");
+      renderMonthCompare({ role: "Builder", startDate, endDate, current: totals,
+        targets: Object.fromEntries(Object.keys(COMPARE_FIELDS.Builder).map(k => [k, T[k] != null ? builders.length * T[k] : null])) });
 
       document.getElementById("tiles").innerHTML = builders.map(b => {
         const onLeave = (leaveMap[b.name] || 0) >= effectiveDays;
