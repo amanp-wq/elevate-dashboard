@@ -470,6 +470,7 @@ const HOLIDAYS_SUPABASE_ANON = SUPABASE_ANON;
 const WORKING_WEEKENDS = [
   "2026-09-26",   // Saturday — floor worked
   "2026-10-24",   // Saturday — floor worked
+  "2026-10-31",   // Saturday — floor worked
 ];
 
 // Every holiday row, closed or not — the manage page and the upcoming-holiday
