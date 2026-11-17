@@ -47,6 +47,10 @@
 
   .demo-band { background: rgba(255,171,0,0.08); border: 1px solid rgba(255,171,0,0.35); color: #ffc65c; border-radius: var(--r-md); padding: 9px 14px; font-size: 12.5px; margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   .demo-band b { color: #ffd98a; }
+  .role-band { background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--muted); border-radius: var(--r-md); padding: 9px 14px; font-size: 12.5px; margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .role-band b { color: var(--text); }
+  .role-band button { margin-left: auto; background: none; border: 1px solid var(--border); color: var(--muted); border-radius: var(--r-sm); padding: 5px 11px; font-size: 12px; cursor: pointer; }
+  body.readonly [data-a], body.readonly #btn-add-leave { display: none !important; }
   .demo-band button { margin-left: auto; background: none; border: 1px solid rgba(255,171,0,0.45); color: #ffc65c; border-radius: var(--r-sm); padding: 5px 11px; font-size: 12px; cursor: pointer; }
 
   /* Toolbar */
@@ -323,9 +327,9 @@
   </header>
 
   <main>
-    <div class="demo-band" id="demo-band">
-      <span><b>DEMO</b> — every status and leave on this page is made up, so the layout can be judged. Nothing is saved to the company database yet; your clicks are kept in this browser only.</span>
-      <button id="btn-reset">Reset demo data</button>
+    <div class="role-band" id="role-band">
+      <span id="role-text"></span>
+      <button id="btn-refresh" type="button">Refresh</button>
     </div>
 
     <div class="toolbar">
@@ -466,19 +470,22 @@ const lateAfter = team => hm2min(TEAMS[team].shift) + TEAMS[team].grace;
 
 const SCOLOR = { present: "var(--c-present)", late: "var(--c-late)", absent: "var(--c-absent)", planned: "var(--c-planned)", unplanned: "var(--c-unplanned)" };
 const SHEX = { present: "#00e676", late: "#ffab00", absent: "#ff5c7a", planned: "#22d3ee", unplanned: "#e879f9" };
-const SLABEL = { present: "Present", late: "Late", absent: "Not arrived", planned: "Planned leave", unplanned: "Unplanned leave", off: "Not a working day", upcoming: "Upcoming" };
+const SLABEL = { present: "Present", late: "Late", absent: "Not arrived", planned: "Planned leave", unplanned: "Unplanned leave", off: "Not tracked", upcoming: "Upcoming" };
 const ORDER = ["present", "late", "absent", "planned", "unplanned"];
 
-// ── Demo data — kept in this browser only ───────────────────────────────────
-const KEY = "ops-demo-v1";
-let DB = null;
+// ── Data — shared through Supabase ─────────────────────────────────────────
+// Nothing before this day was ever recorded here, so it is not scored as absence.
+const LAUNCH = "2026-11-17";
+const HISTORY_DAYS = 120;
+let ACCESS = null;           // { email, role: admin | lead | viewer, groups: [] }
+let DB = null;               // { people, leaves, daily } built from the tables
 let NOW_ISO = "";
 
-function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-const hash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+const canEditGroup = g => !!ACCESS && (ACCESS.role === "admin" || (ACCESS.role === "lead" && ACCESS.groups.includes(g)));
+const canEdit = p => !!p && canEditGroup(p.group);
+const personOf = name => DB.people.find(p => p.name === name);
 
-function seedDB() {
-  const today = isoToday();
+function buildPeople() {
   const people = [];
   (typeof SALES_TEAM_MEMBERS !== "undefined" ? SALES_TEAM_MEMBERS : []).filter(m => !m.leftOn)
     .forEach(m => people.push({ name: m.name, team: "Sales", group: "Team " + m.team, role: m.role }));
@@ -486,57 +493,43 @@ function seedDB() {
   // him apart from the Sales closer of the same name.
   (typeof BD_TEAM_MEMBERS !== "undefined" ? BD_TEAM_MEMBERS : []).filter(m => !m.leftOn)
     .forEach(m => people.push({ name: m.name, team: "BD", group: "Team " + m.team, role: m.role }));
-
-  DB = { seedDay: today, updated: Date.now(), people, leaves: [], daily: {} };
-  const rnd = mulberry(hash("ops-demo|" + today));
-  const used = new Set();
-  const take = () => { for (let i = 0; i < 60; i++) { const p = people[Math.floor(rnd() * people.length)]; if (!used.has(p.name)) { used.add(p.name); return p; } } return people[0]; };
-  const any = () => people[Math.floor(rnd() * people.length)];
-  const add = (p, from, to, kind, reason) => DB.leaves.push({
-    id: "L" + DB.leaves.length, name: p.name, from, to, kind, reason,
-    applied: kind === "planned" ? addDays(from, -(2 + Math.floor(rnd() * 8))) : from,
-  });
-  const nextWork = d => { for (let i = 0; i < 10 && !isWorking(d); i++) d = addDays(d, 1); return d; };
-
-  add(take(), today, today, "planned", "Medical appointment");
-  add(take(), addDays(today, -1), addDays(today, 1), "planned", "Family function");
-  add(take(), today, today, "unplanned", "Not well");
-  add(take(), today, addDays(today, 1), "unplanned", "Family emergency");
-  add(take(), today, today, "unplanned", "");
-  const why = ["Vacation", "Family function", "Travel", "Personal work", "Medical", "Festival"];
-  for (let i = 0; i < 9; i++) {
-    const from = nextWork(addDays(today, 1 + Math.floor(rnd() * 12))), len = 1 + Math.floor(rnd() * 4);
-    add(take(), from, addDays(from, len - 1), "planned", why[Math.floor(rnd() * why.length)]);
-  }
-  for (let i = 0; i < 14; i++) {
-    const from = addDays(today, -(2 + Math.floor(rnd() * 24))), un = rnd() < 0.55;
-    add(any(), from, un ? from : addDays(from, Math.floor(rnd() * 3)), un ? "unplanned" : "planned", un ? "Not well" : why[Math.floor(rnd() * why.length)]);
-  }
-
-  for (let k = 30; k >= 0; k--) {
-    const day = addDays(today, -k);
-    if (!isWorking(day)) continue;
-    DB.daily[day] = {};
-    people.forEach(p => {
-      if (leaveOn(p.name, day)) return;
-      const r = mulberry(hash(p.name + day))();
-      const presentCut = k === 0 ? 0.72 : 0.88, lateCut = k === 0 ? 0.82 : 0.96;
-      if (r < presentCut) DB.daily[day][p.name] = { status: "present", arrival: "" };
-      else if (r < lateCut) {
-        const mins = lateAfter(p.team) + 1 + Math.floor(mulberry(hash(day + p.name))() * 50);
-        DB.daily[day][p.name] = { status: "late", arrival: min2hm(mins) };
-      }
-    });
-  }
-  return DB;
+  // A lead is only ever sent their own people; the database holds the same line.
+  return people.filter(p => ACCESS.role !== "lead" || ACCESS.groups.includes(p.group));
 }
-function persist() { DB.updated = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) {} }
-function loadDB() {
-  let d = null;
-  try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-  // Saved data from an earlier layout (a team that no longer exists) is dropped, not trusted.
-  if (d && d.seedDay === isoToday() && d.updated && d.people && d.people.every(p => TEAMS[p.team])) { DB = d; return; }
-  seedDB(); persist();
+
+// Supabase returns at most 1000 rows a call, so read in pages.
+async function fetchAll(table, cols, since, dateCol) {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const r = await _supabase.from(table).select(cols).gte(dateCol, since)
+      .order(dateCol).order(table === "ops_daily" ? "person" : "id").range(from, from + 999);
+    if (r.error) throw r.error;
+    out.push(...r.data);
+    if (r.data.length < 1000) break;
+  }
+  return out;
+}
+async function loadRows() {
+  const since = addDays(isoToday(), -HISTORY_DAYS);
+  const [daily, leaves] = await Promise.all([
+    fetchAll("ops_daily", "day,person,status,arrival,updated_at", since, "day"),
+    fetchAll("ops_leaves", "id,person,from_date,to_date,kind,reason,applied_on", since, "to_date"),
+  ]);
+  const byDay = {};
+  daily.forEach(r => { (byDay[r.day] = byDay[r.day] || {})[r.person] = { status: r.status, arrival: r.arrival || "" }; });
+  DB.daily = byDay;
+  DB.updated = daily.reduce((m, x) => Math.max(m, Date.parse(x.updated_at) || 0), 0);
+  DB.leaves = leaves.map(r => ({ id: r.id, name: r.person, from: r.from_date, to: r.to_date, kind: r.kind, reason: r.reason || "", applied: r.applied_on || r.from_date }));
+}
+async function loadDB() {
+  DB = { people: buildPeople(), leaves: [], daily: {} };
+  await loadRows();
+}
+function modalOpen() { return !!document.querySelector(".modal-bg.show"); }
+async function refresh(manual) {
+  if (!DB || (manual !== true && (modalOpen() || document.hidden))) return;
+  try { await loadRows(); render(); if (manual === true) toast("Up to date"); }
+  catch (e) { if (manual === true) toast("Could not refresh — check your connection"); }
 }
 
 // ── Status of one person on one day ─────────────────────────────────────────
@@ -549,6 +542,7 @@ function statusOf(p, date) {
   if (!isWorking(date)) return { key: "off" };
   const lv = leaveOn(p.name, date);
   if (lv) return { key: lv.kind, leave: lv };
+  if (date < LAUNCH) return { key: "off" };
   if (date > NOW_ISO) return { key: "upcoming" };
   const d = DB.daily[date] && DB.daily[date][p.name];
   if (d) return { key: d.status, arrival: d.arrival };
@@ -659,7 +653,7 @@ function renderToolbar() {
     label = "<b>" + fmt(r.start, { month: "long", year: "numeric" }) + "</b> · " + rel;
   }
   $("d-label").innerHTML = label;
-  $("team-chips").innerHTML = ["All"].concat(Object.keys(TEAMS)).map(t => {
+  $("team-chips").innerHTML = ["All"].concat(Object.keys(TEAMS).filter(k => DB.people.some(p => p.team === k))).map(t => {
     const n = t === "All" ? DB.people.length : DB.people.filter(p => p.team === t).length;
     return '<button type="button" class="chip' + (STATE.team === t ? " on" : "") + '" data-t="' + t + '" aria-pressed="' + (STATE.team === t) + '">' + t + "<span>" + n + "</span></button>";
   }).join("");
@@ -680,12 +674,12 @@ function renderGlance(scope) {
 
   // how fresh is this? it is typed in by hand, so say when it was last touched
   const covers = period ? (r.start <= NOW_ISO && NOW_ISO <= r.end) : STATE.date === NOW_ISO;
-  const ageMin = Math.round((Date.now() - (DB.updated || Date.now())) / 60000);
+  const ageMin = Math.round((Date.now() - (DB.updated || 0)) / 60000);
   const stale = covers && isWorking(NOW_ISO) && ageMin > 90;
   const ageTxt = ageMin >= 60 ? Math.floor(ageMin / 60) + "h " + (ageMin % 60) + "m" : ageMin + " min";
-  const when = new Date(DB.updated).toLocaleTimeString("en-US", { timeZone: ET, hour: "numeric", minute: "2-digit" });
+  const when = !DB.updated ? "" : new Date(DB.updated).toLocaleTimeString("en-US", { timeZone: ET, hour: "numeric", minute: "2-digit" });
   $("updated").className = stale ? "stale" : "";
-  $("updated").textContent = stale ? "Last marked " + ageTxt + " ago — may be out of date" : "Updated " + when + " ET";
+  $("updated").textContent = !DB.updated ? "Nothing marked yet" : stale ? "Last marked " + ageTxt + " ago — may be out of date" : "Updated " + when + " ET";
 
   const one = (n, a, b) => n === 1 ? a : b;
   const btn = (n, label, k) => n ? '<button type="button" class="hl" data-s="' + k + '"><span style="color:' + SCOLOR[k] + '">' + n + "</span> " + label + "</button>" : "";
@@ -734,7 +728,7 @@ function renderGlance(scope) {
 const fmtShortDay = iso => fmt(iso, { day: "numeric", month: "short" });
 
 function renderTeams() {
-  const keys = STATE.team === "All" ? Object.keys(TEAMS) : [STATE.team];
+  const keys = STATE.team === "All" ? Object.keys(TEAMS).filter(k => DB.people.some(p => p.team === k)) : [STATE.team];
   $("teams").innerHTML = keys.map(k => {
     const ppl = DB.people.filter(p => p.team === k), S = summaryFor(ppl), t = S.t;
     const show = ORDER.filter(s => S.live || s === "planned" || s === "unplanned");
@@ -965,10 +959,20 @@ function showTrendTip(btn) {
 // ── Actions ─────────────────────────────────────────────────────────────────
 let toastT = 0;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 1900); }
-function setDaily(name, date, v) {
+async function setDaily(name, date, v) {
+  const p = personOf(name);
+  if (!canEdit(p)) { toast("You can only update your own team"); return; }
   DB.daily[date] = DB.daily[date] || {};
+  const prev = DB.daily[date][name];
   if (v) DB.daily[date][name] = v; else delete DB.daily[date][name];
-  persist(); render();
+  render();
+  const r = v
+    ? await _supabase.from("ops_daily").upsert({ day: date, person: name, group_name: p.group, team: p.team, status: v.status, arrival: v.arrival || null, updated_by: ACCESS.email, updated_at: new Date().toISOString() }, { onConflict: "day,person" })
+    : await _supabase.from("ops_daily").delete().eq("day", date).eq("person", name);
+  if (r.error) {
+    if (prev) DB.daily[date][name] = prev; else delete DB.daily[date][name];
+    render(); toast("Not saved — " + r.error.message);
+  }
 }
 function openModal(id, focusId) { $(id).classList.add("show"); setTimeout(() => { const f = $(focusId); if (f) f.focus(); }, 30); }
 
@@ -1000,10 +1004,13 @@ let ML = null;
 const kindFor = (applied, from) => applied < from ? "planned" : "unplanned";
 function openLeave(o) {
   const ex = o.id ? DB.leaves.find(l => l.id === o.id) : null;
+  if (ex && !canEdit(personOf(ex.name))) { toast("Only that team's lead can change this leave"); return; }
+  const editable = DB.people.filter(canEdit);
+  if (!editable.length) { toast("You have no team to update"); return; }
   const sel = $("ml-person");
-  sel.innerHTML = Object.keys(TEAMS).map(t => '<optgroup label="' + t + '">' + DB.people.filter(p => p.team === t)
+  sel.innerHTML = Object.keys(TEAMS).map(t => '<optgroup label="' + t + '">' + editable.filter(p => p.team === t)
     .map(p => '<option value="' + esc(p.name) + '">' + esc(p.name) + "</option>").join("") + "</optgroup>").join("");
-  const base = ex || { name: o.name || DB.people[0].name, from: STATE.date, to: STATE.date, applied: NOW_ISO, reason: "" };
+  const base = ex || { name: (o.name && editable.some(p => p.name === o.name)) ? o.name : editable[0].name, from: STATE.date, to: STATE.date, applied: NOW_ISO, reason: "" };
   sel.value = base.name; $("ml-from").value = base.from; $("ml-to").value = base.to; $("ml-applied").value = base.applied || NOW_ISO; $("ml-reason").value = base.reason || "";
   ML = { id: ex ? ex.id : null, kind: ex ? ex.kind : kindFor($("ml-applied").value, base.from), touched: !!ex };
   $("ml-title").textContent = ex ? "Edit leave" : "Add leave";
@@ -1020,14 +1027,28 @@ $("ml-from").onchange = () => { if ($("ml-to").value < $("ml-from").value) $("ml
 $("ml-applied").onchange = leaveAuto;
 document.querySelectorAll("#ml-kind button").forEach(b => b.onclick = () => { ML.kind = b.dataset.k; ML.touched = true; paintKind(); });
 $("ml-cancel").onclick = () => $("m-leave").classList.remove("show");
-$("ml-del").onclick = () => { DB.leaves = DB.leaves.filter(l => l.id !== ML.id); persist(); $("m-leave").classList.remove("show"); render(); toast("Leave deleted"); };
-$("ml-save").onclick = () => {
+$("ml-del").onclick = async () => {
+  const id = ML.id, was = DB.leaves.find(l => l.id === id);
+  DB.leaves = DB.leaves.filter(l => l.id !== id); $("m-leave").classList.remove("show"); render();
+  const r = await _supabase.from("ops_leaves").delete().eq("id", id);
+  if (r.error) { DB.leaves.push(was); render(); toast("Not deleted — " + r.error.message); } else toast("Leave deleted");
+};
+$("ml-save").onclick = async () => {
   const rec = { name: $("ml-person").value, from: $("ml-from").value, to: $("ml-to").value, applied: $("ml-applied").value, reason: $("ml-reason").value.trim(), kind: ML.kind };
   if (!rec.name || !rec.from || !rec.to) { $("ml-err").textContent = "Pick a person and both dates."; return; }
   if (rec.to < rec.from) { $("ml-err").textContent = "The end date is before the start date."; return; }
+  const per = personOf(rec.name);
+  if (!canEdit(per)) { $("ml-err").textContent = "You can only update your own team."; return; }
+  const row = { person: rec.name, group_name: per.group, team: per.team, from_date: rec.from, to_date: rec.to, kind: rec.kind, reason: rec.reason || null, applied_on: rec.applied || null, updated_by: ACCESS.email, updated_at: new Date().toISOString() };
+  $("ml-save").disabled = true;
+  const r = ML.id
+    ? await _supabase.from("ops_leaves").update(row).eq("id", ML.id).select("id").single()
+    : await _supabase.from("ops_leaves").insert(row).select("id").single();
+  $("ml-save").disabled = false;
+  if (r.error) { $("ml-err").textContent = "Not saved — " + r.error.message; return; }
   if (ML.id) Object.assign(DB.leaves.find(l => l.id === ML.id), rec);
-  else DB.leaves.push(Object.assign({ id: "L" + Date.now() + Math.random().toString(36).slice(2, 6) }, rec));
-  persist(); $("m-leave").classList.remove("show"); render(); toast("Leave saved");
+  else DB.leaves.push(Object.assign({ id: r.data.id }, rec));
+  $("m-leave").classList.remove("show"); render(); toast("Leave saved");
 };
 document.querySelectorAll(".modal-bg").forEach(m => m.addEventListener("mousedown", e => { if (e.target === m) m.classList.remove("show"); }));
 document.addEventListener("keydown", e => { if (e.key === "Escape") { document.querySelectorAll(".modal-bg").forEach(m => m.classList.remove("show")); hideTip(); } });
@@ -1076,12 +1097,19 @@ function wire() {
     else if (a === "edit") openLeave({ id: b.dataset.l });
   };
   $("btn-add-leave").onclick = () => openLeave({});
-  $("btn-reset").onclick = () => { try { localStorage.removeItem(KEY); } catch (e) {} seedDB(); persist(); render(); toast("Demo data reset"); };
+  $("btn-refresh").onclick = () => refresh(true);
+  setInterval(refresh, 60000);
 }
 
 async function init() {
   await HOLIDAYS_READY;
-  loadDB();
+  try { await loadDB(); }
+  catch (e) { $("main-content").insertAdjacentHTML("afterbegin", '<div class="role-band" style="color:#ff8fa3">Could not load the Ops View data (' + esc(e.message || e) + '). Refresh the page; if it keeps failing, the Ops View tables may not be set up yet.</div>'); return; }
+  document.body.classList.toggle("readonly", !DB.people.some(canEdit));
+  const mine = ACCESS.role === "lead" ? ACCESS.groups.join(", ") : "";
+  $("role-text").innerHTML = ACCESS.role === "admin" ? "<b>You can update every team.</b> Mark who is late and add leaves; changes show for everyone straight away."
+    : ACCESS.role === "lead" ? "<b>You update " + esc(mine) + ".</b> Mark who has arrived, who is late, and add leaves; anyone you do not mark shows as not arrived."
+    : "<b>View only.</b> You can see every team but not change anything.";
   STATE.date = isoToday();
   wire();
   render();
@@ -1106,10 +1134,13 @@ function denied(msg) {
 async function gate(session) {
   await APP_USERS_READY;
   if (!session || !session.user) { showAuthOverlay(); return; }
-  const email = session.user.email || "";
-  if (!ALLOWED_EMAILS.includes(email) || !OPS_VIEW_EMAILS.includes(email) || !isPageAllowed(email, window.location.pathname)) {
-    denied("Access denied. The Ops View is limited to a few named people.");
-  } else showApp(session.user);
+  const email = (session.user.email || "").toLowerCase();
+  if (!isPageAllowed(email, window.location.pathname)) { denied("Access denied. The Ops View is limited to a few named people."); return; }
+  // The database decides who this is; no row there means no access.
+  const r = await _supabase.from("ops_access").select("email,role,groups").eq("email", email).maybeSingle();
+  if (r.error || !r.data) { denied("Access denied. The Ops View is limited to a few named people."); return; }
+  ACCESS = { email, role: r.data.role, groups: r.data.groups || [] };
+  showApp(session.user);
 }
 _supabase.auth.getSession().then(r => gate(r.data.session));
 _supabase.auth.onAuthStateChange((_e, session) => gate(session));
