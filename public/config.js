@@ -372,8 +372,9 @@ const SALES_TEAM_MEMBERS = [
 const BD_PERSON_KEY_OVERRIDES = { "Meet Patel": "Meet Patel (BD)" };
 const bdPersonKey = m => BD_PERSON_KEY_OVERRIDES[m] || m;
 // `team` is the lead this BDE reports to; `kpiTeam` is the KPI structure they
-// are scored against. The two cross over deliberately — Ajay Darbar reports to
-// Prem but is measured on the Portal KPIs — so both are recorded per person
+// are scored against. The two cross over deliberately — Ajay Darbar leads his
+// own team (Sunil) but is measured on the Portal KPIs; Prem Thakar has left and
+// his team moved to Dhanraj — so both are recorded per person
 // rather than inferred from one another.
 //
 // `name` must match the BDE Name field in Zoho exactly, or the person renders
@@ -385,11 +386,11 @@ const BD_TEAM_MEMBERS = [
   { name: "Dhiraj Prajapati",      team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
   { name: "Manish Sonagara",       team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
   { name: "Piyush Vala",           team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
-  { name: "Sunil Patel",           team: "Dhanraj Solanki", kpiTeam: "Portal Team",   role: "BD" },
+  { name: "Sunil Patel",           team: "Ajay Darbar",     kpiTeam: "Portal Team",   role: "BD" },
   { name: "Meet Patel (BD)", display: "Meet Patel", team: "Dhanraj Solanki", kpiTeam: "Referral Team", role: "BD" },
-  { name: "Ujjaval Karangiya",     team: "Prem Thakar",     kpiTeam: "LinkedIn Team", role: "BD" },
-  { name: "Rakesh Prajapati",      team: "Prem Thakar",     kpiTeam: "LinkedIn Team", role: "BD" },
-  { name: "Ajay Darbar",           team: "Prem Thakar",     kpiTeam: "Portal Team",   role: "BD" },
+  { name: "Ujjaval Karangiya",     team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
+  { name: "Rakesh Prajapati",      team: "Dhanraj Solanki", kpiTeam: "LinkedIn Team", role: "BD" },
+  { name: "Ajay Darbar",           team: "Ajay Darbar",     kpiTeam: "Portal Team",   role: "BD" },
 ];
 
 // Derived so the BD pages stop keeping their own copies of the roster. All of
