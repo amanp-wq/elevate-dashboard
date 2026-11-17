@@ -338,7 +338,7 @@ const SALES_TEAM_MEMBERS = [
   { name: "Nupur Vyas",        team: "Tejasvi",   role: "Builder", leftOn: "2026-11-16" },
   { name: "Hemant Rathore",    team: "Tejasvi",   role: "Builder" },
   { name: "Jatin Bhavsar",     team: "Tejasvi",   role: "Builder" },
-  { name: "Aditya Pipaliya",   team: "Tejasvi",   role: "Builder" },
+  { name: "Aditya Pipaliya",   team: "Tejasvi",   role: "Builder", leftOn: "2026-11-16" },
   { name: "Varsha Mahto",      team: "Tejasvi",   role: "Builder" },
   { name: "Mr Aadil Thim",     team: "Tejasvi",   role: "Builder" },
   { name: "Sarim Mohammed",    team: "Tejasvi",   role: "Builder", leftOn: "2026-11-16" },
