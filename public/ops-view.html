@@ -482,8 +482,8 @@ const workDays = (from, to) => { let n = 0; for (let d = from; d <= to; d = addD
 
 // Each team's shift start and how long after it still counts as on time.
 const TEAMS = {
-  Sales: { shift: "19:30", grace: 15 },   // 7:30 PM IST
-  BD:    { shift: "19:30", grace: 15 },
+  Sales: { shift: "19:30", grace: 0 },    // 7:30 PM IST; no grace, one minute past is late
+  BD:    { shift: "19:30", grace: 0 },
 };
 const lateAfter = team => hm2min(TEAMS[team].shift) + TEAMS[team].grace;
 
@@ -1001,14 +1001,14 @@ function openLate(i) {
   const p = DB.people[i];
   LATE = { name: p.name, team: p.team };
   $("mt-title").textContent = p.name;
-  $("mt-sub").textContent = fmtDay(STATE.date) + " · shift starts " + fmtTime(TEAMS[p.team].shift) + " IST, " + TEAMS[p.team].grace + " minutes grace";
+  $("mt-sub").textContent = fmtDay(STATE.date) + " · shift starts " + fmtTime(TEAMS[p.team].shift) + " IST" + (TEAMS[p.team].grace ? ", " + TEAMS[p.team].grace + " minutes grace" : ", no grace time");
   $("mt-time").value = STATE.date === NOW_ISO ? nowHM() : min2hm(lateAfter(p.team) + 10);
   lateHint(); openModal("m-late", "mt-time");
 }
 function lateHint() {
   if (!LATE || !$("mt-time").value) return;
   const m = hm2min($("mt-time").value), after = m - hm2min(TEAMS[LATE.team].shift);
-  $("mt-hint").textContent = m > lateAfter(LATE.team) ? "Counted as late — " + after + " minutes after shift start." : "Within the grace time, so this is counted as on time.";
+  $("mt-hint").textContent = m > lateAfter(LATE.team) ? "Counted as late — " + after + " minutes after shift start." : (TEAMS[LATE.team].grace ? "Within the grace time, so this is counted as on time." : "On or before shift start, so this is counted as on time.");
 }
 $("mt-time").oninput = lateHint;
 $("mt-cancel").onclick = () => $("m-late").classList.remove("show");
