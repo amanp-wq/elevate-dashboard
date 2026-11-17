@@ -91,7 +91,10 @@
   .donut-center .big { font-size: 38px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
   .donut-center .cap { font-size: 11.5px; color: var(--muted); margin-top: 6px; max-width: 110px; line-height: 1.3; }
   .dlegend { list-style: none; flex: 1; min-width: 210px; display: grid; gap: 7px; }
-  .dlegend li { display: grid; grid-template-columns: 12px 1fr auto 44px; gap: 9px; align-items: center; font-size: 13.5px; }
+  .dlegend li { display: block; }
+  .lrow { display: grid; grid-template-columns: 12px 1fr auto 44px; gap: 9px; align-items: center; font-size: 13.5px; width: 100%; background: none; border: 1px solid transparent; border-radius: var(--r-sm); padding: 5px 8px; cursor: pointer; text-align: left; color: var(--text); }
+  .lrow:hover { background: var(--surface-2); }
+  .lrow.on { border-color: var(--k); background: color-mix(in srgb, var(--k) 12%, transparent); }
   .dlegend .sw { width: 10px; height: 10px; border-radius: 3px; }
   .dlegend .n { font-weight: 800; font-variant-numeric: tabular-nums; }
   .dlegend .p { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; }
@@ -214,6 +217,62 @@
   .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); background: #1b2340; border: 1px solid var(--border-strong); color: var(--text); padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; opacity: 0; pointer-events: none; transition: .25s; z-index: 900; }
   .toast.show { opacity: 1; transform: translateX(-50%); }
 
+  .panel, .hero { scroll-margin-top: 84px; }
+
+  /* Day / Week / Month */
+  .vsw { display: flex; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+  .vsw button { padding: 6px 16px; border-radius: 999px; border: none; background: none; color: var(--muted); font-size: 12.5px; font-weight: 800; cursor: pointer; }
+  .vsw button:hover { color: var(--text); }
+  .vsw button.on { background: var(--surface-3); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+
+  /* Everything that shows a number can be clicked to filter by it */
+  .hl { background: none; border: none; font: inherit; color: inherit; cursor: pointer; padding: 1px 4px; margin: 0 -4px; border-radius: 6px; white-space: nowrap; letter-spacing: inherit; }
+  .hl:hover { background: var(--surface-2); }
+  .headline .sep { color: var(--faint); font-weight: 400; }
+  .dseg { cursor: pointer; transition: stroke-width .15s; pointer-events: stroke; }
+  .dseg:hover { stroke-width: 19; }
+  .cnt-btn { background: none; border: 1px solid transparent; border-radius: 6px; padding: 2px 7px; margin: 0 -7px 0 0; color: var(--muted); font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; }
+  .cnt-btn:hover { background: var(--surface-2); color: var(--text); }
+  .cnt-btn.on { border-color: var(--k); color: var(--text); background: color-mix(in srgb, var(--k) 12%, transparent); }
+  .bar > i[data-s] { cursor: pointer; }
+  .bar > i[data-s]:hover { filter: brightness(1.25); }
+  button.ms { text-align: left; cursor: pointer; color: inherit; font: inherit; }
+  button.ms:hover { background: var(--surface-3); }
+  button.ms.on { box-shadow: 0 0 0 1px var(--k) inset; }
+  .top .nrow { display: flex; justify-content: space-between; gap: 8px; width: 100%; background: none; border: none; border-top: 1px solid var(--border); padding: 4px 0; font: inherit; font-size: 13px; color: inherit; cursor: pointer; text-align: left; }
+  .top .nrow:hover span:first-child { text-decoration: underline; }
+  .top .nrow span:last-child { color: var(--muted); font-weight: 700; white-space: nowrap; }
+
+  /* Week and month: who was where, day by day */
+  .trend { display: grid; gap: 3px; height: 118px; align-items: stretch; margin: 2px 0 16px; }
+  .tcol { display: flex; flex-direction: column; background: none; border: 1px solid transparent; border-radius: 6px; padding: 2px 0 3px; cursor: pointer; min-width: 0; }
+  .tcol:hover { background: var(--surface-2); }
+  .tcol .tbar { flex: 1; display: flex; flex-direction: column-reverse; border-radius: 4px; overflow: hidden; width: 74%; margin: 0 auto; gap: 1px; background: transparent; }
+  .tcol .tbar i { display: block; width: 100%; }
+  .tcol.off .tbar { background: repeating-linear-gradient(135deg, transparent 0 4px, rgba(255,255,255,0.05) 4px 5px); }
+  .tcol .tl { margin-top: 5px; font-size: 10.5px; color: var(--muted); font-weight: 700; text-align: center; line-height: 1.15; }
+  .tcol .tl small { display: block; font-size: 9px; font-weight: 600; }
+  .tcol.today .tl { color: var(--accent); }
+  .tcol.off .tl { opacity: .55; }
+  .gridwrap { overflow-x: auto; padding-bottom: 4px; }
+  .agrid { border-collapse: separate; border-spacing: 0; font-size: 12px; width: 100%; }
+  .agrid th, .agrid td { padding: 3px 2px; border: none; text-align: center; }
+  .agrid .nm { position: sticky; left: 0; z-index: 2; background: var(--surface); text-align: left; padding-right: 14px; white-space: nowrap; min-width: 160px; }
+  .agrid th.dh { font-size: 10px; color: var(--muted); font-weight: 700; line-height: 1.15; letter-spacing: 0; text-transform: none; padding-bottom: 6px; min-width: 25px; }
+  .agrid th.dh.off { opacity: .5; }
+  .agrid th.dh.today { color: var(--accent); }
+  .agrid th.sum, .agrid td.sum { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; padding-left: 12px; white-space: nowrap; font-weight: 700; letter-spacing: 0; }
+  .agrid tr.tg td { text-align: left; padding: 16px 0 6px; font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); position: static; }
+  .agrid .who2 { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; }
+  .agrid .who2 .av { width: 22px; height: 22px; font-size: 9px; }
+  .cell { width: 24px; height: 24px; border-radius: 6px; padding: 0; display: grid; place-items: center; font-size: 9.5px; font-weight: 800; color: var(--k); background: color-mix(in srgb, var(--k) 16%, transparent); border: 1px solid color-mix(in srgb, var(--k) 45%, transparent); cursor: pointer; margin: 0 auto; }
+  .cell:hover { outline: 2px solid var(--k); outline-offset: 0; }
+  .cell.blank { background: repeating-linear-gradient(135deg, transparent 0 4px, rgba(255,255,255,0.05) 4px 5px); border-color: transparent; cursor: default; }
+  .cell.dim { opacity: 0.16; }
+  #grid-panel.week .cell { width: 40px; height: 32px; font-size: 11px; }
+  #grid-panel.week .agrid th.dh { font-size: 11px; min-width: 46px; }
+  .grid2.wide { grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 1021px) { .grid2.wide .stack { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; } }
   @media (max-width: 1180px) { .hero { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 1020px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 560px) {
@@ -225,7 +284,8 @@
     .mstats, .tops { grid-template-columns: minmax(0, 1fr); }
     .upi { grid-template-columns: 46px minmax(0, 1fr); }
     .upi .pill { grid-column: 2; justify-self: start; }
-    .search { min-width: 0; flex: 1; }
+    .search { min-width: 0; flex: 1 1 100%; order: 9; }
+    .btn { order: 8; }
   }
 </style>
 <link rel="stylesheet" href="/app-header.css">
@@ -275,6 +335,9 @@
         <button id="d-next" title="Next day" aria-label="Next day">&#9654;</button>
         <button class="today-btn" id="d-today">Today</button>
       </div>
+      <div class="vsw" id="view-sw" role="group" aria-label="View">
+        <button type="button" data-v="day">Day</button><button type="button" data-v="week">Week</button><button type="button" data-v="month">Month</button>
+      </div>
       <div class="datelabel" id="d-label"></div>
       <div class="chips" id="team-chips" role="group" aria-label="Team"></div>
       <div class="spacer"></div>
@@ -284,9 +347,9 @@
 
     <div id="offday"></div>
 
-    <section class="hero" aria-label="Today at a glance">
+    <section class="hero" id="hero" aria-label="At a glance">
       <div class="panel">
-        <h2><span>Today at a glance</span><small id="updated"></small></h2>
+        <h2><span id="g-title">Today at a glance</span><small id="updated"></small></h2>
         <p class="headline" id="headline"></p>
         <div class="glance-body">
           <div class="donut-wrap">
@@ -303,7 +366,7 @@
     </section>
 
     <div class="grid2">
-      <div class="panel">
+      <div class="panel" id="people-panel">
         <h2><span>People</span><small id="list-note"></small></h2>
         <div class="tabs" id="tabs" role="group" aria-label="Filter by status"></div>
         <div class="tablewrap"><table>
@@ -311,6 +374,15 @@
           <tbody id="rows"></tbody>
         </table></div>
         <div class="empty" id="empty" style="display:none">Nobody matches this filter.</div>
+      </div>
+
+      <div class="panel" id="grid-panel" style="display:none">
+        <h2><span id="grid-title">Attendance</span><small id="grid-note"></small></h2>
+        <div class="tabs" id="tabs2" role="group" aria-label="Filter by status"></div>
+        <div class="trend" id="trend" role="group" aria-label="Attendance by day"></div>
+        <div class="gridwrap"><table class="agrid" id="agrid"></table></div>
+        <div class="empty" id="gempty" style="display:none">Nobody matches this filter.</div>
+        <div class="key"><span><b>P</b> Present</span><span><b>L</b> Late</span><span><b>A</b> Not arrived</span><span><b>PL</b> Planned leave</span><span><b>UL</b> Unplanned leave</span><span>Hatched = not a working day</span></div>
       </div>
 
       <div class="stack">
@@ -324,7 +396,7 @@
           <div class="up" id="upcoming"></div>
         </div>
         <div class="panel">
-          <h2><span>This month so far</span><small id="m-note"></small></h2>
+          <h2><span id="m-title">This month so far</span><small id="m-note"></small></h2>
           <div class="mstats" id="mstats"></div>
           <div class="tops" id="mtop"></div>
         </div>
@@ -489,18 +561,77 @@ function tally(people, date) {
 }
 
 // ── UI state ────────────────────────────────────────────────────────────────
-const STATE = { date: "", team: "All", status: "all", q: "", showPresent: false };
+const STATE = { view: "day", date: "", team: "All", status: "all", q: "", showPresent: false };
 const $ = id => document.getElementById(id);
 let STRIP = {};
+
+// ── Views: day, week, month ─────────────────────────────────────────────────
+const addMonths = (iso, n) => {
+  const p = iso.split("-").map(Number);
+  const first = new Date(Date.UTC(p[0], p[1] - 1 + n, 1, 12));
+  const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0, 12)).getUTCDate();
+  first.setUTCDate(Math.min(p[2], last));
+  return first.toISOString().slice(0, 10);
+};
+const mondayOf = iso => addDays(iso, -((new Date(iso + "T12:00:00Z").getUTCDay() || 7) - 1));
+const lastOfMonth = iso => { const p = iso.split("-").map(Number); return new Date(Date.UTC(p[0], p[1], 0, 12)).toISOString().slice(0, 10); };
+const shiftDate = dir => STATE.view === "week" ? addDays(STATE.date, 7 * dir) : STATE.view === "month" ? addMonths(STATE.date, dir) : addDays(STATE.date, dir);
+function rangeOf() {
+  if (STATE.view === "week") { const s = mondayOf(STATE.date); return { start: s, end: addDays(s, 6) }; }
+  if (STATE.view === "month") return { start: STATE.date.slice(0, 8) + "01", end: lastOfMonth(STATE.date) };
+  return { start: STATE.date, end: STATE.date };
+}
+// Person-days over a stretch: each person on each working day counts once, in
+// whichever state they were in. Days that have not happened yet only carry leave.
+function periodTally(people, start, end) {
+  const t = { total: 0, present: 0, late: 0, absent: 0, planned: 0, unplanned: 0, days: 0 };
+  for (let d = start; d <= end; d = addDays(d, 1)) {
+    if (!isWorking(d)) continue;
+    t.days++;
+    people.forEach(p => { const k = statusOf(p, d).key; if (ORDER.includes(k)) { t[k]++; t.total++; } });
+  }
+  return t;
+}
+function summaryFor(people) {
+  if (STATE.view === "day") {
+    const t = tally(people, STATE.date);
+    return { t: t, live: isWorking(STATE.date) && STATE.date <= NOW_ISO, period: false };
+  }
+  const r = rangeOf(), t = periodTally(people, r.start, r.end);
+  return { t: t, live: t.present + t.late + t.absent > 0, period: true, range: r };
+}
+
+function jumpToList() {
+  const el = $(STATE.view === "day" ? "people-panel" : "grid-panel");
+  const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  el.scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" });
+}
+// Click a number anywhere to see exactly those people. Clicking it again clears it.
+function applyFilter(st, team) {
+  if (st === "all") { STATE.status = "all"; }
+  else if (STATE.status === st && (!team || STATE.team === team)) { STATE.status = "all"; if (team) STATE.team = "All"; }
+  else { STATE.status = st; if (team) STATE.team = team; }
+  render(); jumpToList();
+}
+function openDay(d, name) {
+  STATE.view = "day"; STATE.date = d; STATE.status = "all";
+  if (name) { STATE.q = name.toLowerCase(); $("q").value = name; }
+  render();
+  if (name) jumpToList(); else window.scrollTo({ top: 0 });
+}
 
 function render() {
   NOW_ISO = isoToday();
   const scope = DB.people.filter(p => STATE.team === "All" || p.team === STATE.team);
+  const day = STATE.view === "day";
+  $("people-panel").style.display = day ? "" : "none";
+  $("grid-panel").style.display = day ? "none" : "";
+  document.querySelector(".grid2").classList.toggle("wide", STATE.view === "month");
   renderToolbar();
   renderGlance(scope);
   renderTeams();
   renderTabs(scope);
-  renderTable(scope);
+  if (day) renderTable(scope); else renderPeriod(scope);
   renderStrip(scope);
   renderUpcoming(scope);
   renderMonth(scope);
@@ -508,88 +639,128 @@ function render() {
 
 function renderToolbar() {
   $("d-pick").value = STATE.date;
-  const diff = daysBetween(NOW_ISO, STATE.date);
-  const rel = diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : diff === -1 ? "Yesterday" : diff > 0 ? diff + " days from now" : -diff + " days ago";
-  $("d-label").innerHTML = "<b>" + fmt(STATE.date, { weekday: "long", day: "numeric", month: "long" }) + "</b> · " + rel;
+  document.querySelectorAll("#view-sw button").forEach(b => { const on = b.dataset.v === STATE.view; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+  const unit = STATE.view;
+  $("d-prev").title = $("d-prev").ariaLabel = "Previous " + unit;
+  $("d-next").title = $("d-next").ariaLabel = "Next " + unit;
+  const r = rangeOf();
+  let label;
+  if (STATE.view === "day") {
+    const diff = daysBetween(NOW_ISO, STATE.date);
+    const rel = diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : diff === -1 ? "Yesterday" : diff > 0 ? diff + " days from now" : -diff + " days ago";
+    label = "<b>" + fmt(STATE.date, { weekday: "long", day: "numeric", month: "long" }) + "</b> · " + rel;
+  } else if (STATE.view === "week") {
+    const w = Math.round(daysBetween(mondayOf(NOW_ISO), r.start) / 7);
+    const rel = w === 0 ? "This week" : w === 1 ? "Next week" : w === -1 ? "Last week" : w > 0 ? w + " weeks ahead" : -w + " weeks ago";
+    label = "<b>" + fmtDay(r.start) + " – " + fmtDay(r.end) + "</b> · " + rel;
+  } else {
+    const a = NOW_ISO.split("-").map(Number), b = r.start.split("-").map(Number), m = (b[0] - a[0]) * 12 + b[1] - a[1];
+    const rel = m === 0 ? "This month" : m === 1 ? "Next month" : m === -1 ? "Last month" : m > 0 ? m + " months ahead" : -m + " months ago";
+    label = "<b>" + fmt(r.start, { month: "long", year: "numeric" }) + "</b> · " + rel;
+  }
+  $("d-label").innerHTML = label;
   $("team-chips").innerHTML = ["All"].concat(Object.keys(TEAMS)).map(t => {
     const n = t === "All" ? DB.people.length : DB.people.filter(p => p.team === t).length;
     return '<button type="button" class="chip' + (STATE.team === t ? " on" : "") + '" data-t="' + t + '" aria-pressed="' + (STATE.team === t) + '">' + t + "<span>" + n + "</span></button>";
   }).join("");
-  $("offday").innerHTML = isWorking(STATE.date) ? "" :
+  $("offday").innerHTML = STATE.view !== "day" || isWorking(STATE.date) ? "" :
     '<div class="offday">' + fmt(STATE.date, { weekday: "long" }) + " is not a working day (weekend or a day the floor is closed), so nobody is expected in.</div>";
 }
 
-// The day in one sentence, one ring and one legend.
+// The stretch in one sentence, one ring and one legend. Every number is a button.
 function renderGlance(scope) {
-  const t = tally(scope, STATE.date);
-  const live = isWorking(STATE.date) && STATE.date <= NOW_ISO;
-  const expected = t.total - t.planned - t.unplanned;
+  const S = summaryFor(scope), t = S.t, live = S.live, period = S.period;
+  const r = rangeOf();
+  const expected = period ? t.present + t.late + t.absent : t.total - t.planned - t.unplanned;
   const inNow = t.present + t.late;
 
+  $("g-title").textContent = !period
+    ? (STATE.date === NOW_ISO ? "Today at a glance" : fmtDay(STATE.date) + " at a glance")
+    : (STATE.view === "week" ? "Week of " + fmtShortDay(r.start) : fmt(r.start, { month: "long", year: "numeric" })) + " at a glance";
+
   // how fresh is this? it is typed in by hand, so say when it was last touched
+  const covers = period ? (r.start <= NOW_ISO && NOW_ISO <= r.end) : STATE.date === NOW_ISO;
   const ageMin = Math.round((Date.now() - (DB.updated || Date.now())) / 60000);
-  const stale = STATE.date === NOW_ISO && isWorking(NOW_ISO) && ageMin > 90;
+  const stale = covers && isWorking(NOW_ISO) && ageMin > 90;
   const ageTxt = ageMin >= 60 ? Math.floor(ageMin / 60) + "h " + (ageMin % 60) + "m" : ageMin + " min";
   const when = new Date(DB.updated).toLocaleTimeString("en-US", { timeZone: ET, hour: "numeric", minute: "2-digit" });
   $("updated").className = stale ? "stale" : "";
   $("updated").textContent = stale ? "Last marked " + ageTxt + " ago — may be out of date" : "Updated " + when + " ET";
 
-  const part = (n, label, k) => n ? '<em><span style="color:' + SCOLOR[k] + '">' + n + "</span> " + label + "</em>" : "";
+  const one = (n, a, b) => n === 1 ? a : b;
+  const btn = (n, label, k) => n ? '<button type="button" class="hl" data-s="' + k + '"><span style="color:' + SCOLOR[k] + '">' + n + "</span> " + label + "</button>" : "";
+  const join = bits => bits.join('<span class="sep"> · </span>');
   let head;
-  if (!isWorking(STATE.date)) head = "Not a working day.";
-  else if (!live) head = t.planned + t.unplanned ? '<em><span style="color:var(--c-planned)">' + (t.planned + t.unplanned) + "</span> already on leave</em>" : "Nobody on leave yet.";
-  else {
-    const bits = [part(t.absent, "not arrived", "absent"), part(t.late, "late", "late"), part(t.unplanned, "on unplanned leave", "unplanned")].filter(Boolean);
-    head = (t.absent || t.late) ? bits.join(" · ")
-      : '<span class="ok">Everyone expected is in</span>' + (bits.length ? " · " + bits.join(" · ") : ".");
+  if (!period) {
+    if (!isWorking(STATE.date)) head = "Not a working day.";
+    else if (!live) head = t.planned + t.unplanned ? btn(t.planned + t.unplanned, "already on leave", "planned") : "Nobody on leave yet.";
+    else {
+      const bits = [btn(t.absent, "not arrived", "absent"), btn(t.late, "late", "late"), btn(t.unplanned, "on unplanned leave", "unplanned")].filter(Boolean);
+      head = (t.absent || t.late) ? join(bits)
+        : '<span class="ok">Everyone expected is in</span>' + (bits.length ? '<span class="sep"> · </span>' + join(bits) : ".");
+    }
+  } else {
+    const bits = [btn(t.late, one(t.late, "late arrival", "late arrivals"), "late"), btn(t.absent, one(t.absent, "day not arrived", "days not arrived"), "absent"),
+                  btn(t.unplanned, one(t.unplanned, "unplanned leave day", "unplanned leave days"), "unplanned"), btn(t.planned, one(t.planned, "planned leave day", "planned leave days"), "planned")].filter(Boolean);
+    head = bits.length ? join(bits) : '<span class="ok">Nothing to flag in this period.</span>';
   }
   $("headline").innerHTML = head;
 
-  // ring
+  // ring — every segment opens its people
   const keys = live ? ORDER : ["planned", "unplanned"];
   const R = 56, C = 2 * Math.PI * R, GAP = 3;
   const used = keys.reduce((a, k) => a + t[k], 0), rest = t.total - used;
   let off = 0, segs = '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="#1a2140" stroke-width="15"/>';
-  const seg = (n, color) => {
+  const seg = (n, color, k) => {
     if (!n || !t.total) return;
     const len = Math.max(0.5, n / t.total * C - GAP);
-    segs += '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="' + color + '" stroke-width="15" stroke-dasharray="' + len.toFixed(2) + " " + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '"/>';
+    segs += '<circle class="' + (k ? "dseg" : "") + '"' + (k ? ' data-s="' + k + '"' : "") + ' cx="70" cy="70" r="' + R + '" fill="none" stroke="' + color + '" stroke-width="15" stroke-dasharray="' + len.toFixed(2) + " " + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '"><title>' + (k ? SLABEL[k] + ": " + n : "") + "</title></circle>";
     off += n / t.total * C;
   };
-  keys.forEach(k => seg(t[k], SHEX[k]));
-  if (!live) seg(rest, "#2a3150");
+  keys.forEach(k => seg(t[k], SHEX[k], k));
+  if (!live) seg(rest, "#2a3150", "");
   $("donut").innerHTML = segs;
   $("dn-big").textContent = live && expected > 0 ? Math.round(inNow / expected * 100) + "%" : "—";
-  $("dn-cap").textContent = live ? (expected > 0 ? "in — " + inNow + " of " + expected + " expected" : "nobody expected") : (isWorking(STATE.date) ? "day not started" : "not a working day");
+  $("dn-cap").textContent = !live
+    ? (period ? "nothing to measure yet" : (isWorking(STATE.date) ? "day not started" : "not a working day"))
+    : (expected > 0 ? (period ? "in — " + inNow + " of " + expected + " days" : "in — " + inNow + " of " + expected + " expected") : "nobody expected");
 
-  $("dlegend").innerHTML = keys.map(k => '<li><span class="sw" style="background:' + SCOLOR[k] + '"></span><span>' + SLABEL[k] + '</span><span class="n">' + t[k] + '</span><span class="p">' + (t.total ? Math.round(t[k] / t.total * 100) : 0) + "%</span></li>").join("");
-  $("donut").setAttribute("aria-label", (live ? "Attendance: " : "Leave: ") + keys.map(k => t[k] + " " + SLABEL[k].toLowerCase()).join(", ") + " of " + t.total + " people");
+  $("dlegend").innerHTML = keys.map(k => {
+    const on = STATE.status === k;
+    return '<li><button type="button" class="lrow' + (on ? " on" : "") + '" data-s="' + k + '" aria-pressed="' + on + '" style="--k:' + SCOLOR[k] + '"><span class="sw" style="background:' + SCOLOR[k] + '"></span><span>' + SLABEL[k] + '</span><span class="n">' + t[k] + '</span><span class="p">' + (t.total ? Math.round(t[k] / t.total * 100) : 0) + "%</span></button></li>";
+  }).join("");
+  $("donut").setAttribute("aria-label", (live ? "Attendance: " : "Leave: ") + keys.map(k => t[k] + " " + SLABEL[k].toLowerCase()).join(", ") + " of " + t.total + (period ? " person-days" : " people"));
 }
+const fmtShortDay = iso => fmt(iso, { day: "numeric", month: "short" });
 
 function renderTeams() {
   const keys = STATE.team === "All" ? Object.keys(TEAMS) : [STATE.team];
-  const live = isWorking(STATE.date) && STATE.date <= NOW_ISO;
   $("teams").innerHTML = keys.map(k => {
-    const ppl = DB.people.filter(p => p.team === k), t = tally(ppl, STATE.date);
-    const show = ORDER.filter(s => live || s === "planned" || s === "unplanned");
+    const ppl = DB.people.filter(p => p.team === k), S = summaryFor(ppl), t = S.t;
+    const show = ORDER.filter(s => S.live || s === "planned" || s === "unplanned");
     const segs = show.filter(s => t[s]);
     const rest = t.total - segs.reduce((a, s) => a + t[s], 0);
-    const bar = segs.map(s => '<i style="flex:' + t[s] + ';background:' + SCOLOR[s] + '"></i>').join("") + (rest > 0 ? '<i style="flex:' + rest + ';background:#2a3150"></i>' : "");
-    const counts = show.map(s => '<span><span class="dot" style="background:' + SCOLOR[s] + '"></span>' + SLABEL[s].replace(" leave", "") + (s === "planned" || s === "unplanned" ? " leave" : "") + "<b>" + t[s] + "</b></span>").join("");
-    return '<div class="trow"><div class="top"><span class="name">' + k + '</span><span class="meta">' + t.total + " people · shift " + fmtTime(TEAMS[k].shift) + " ET</span></div>" +
+    const bar = segs.map(s => '<i data-s="' + s + '" data-team="' + k + '" title="' + SLABEL[s] + ": " + t[s] + '" style="flex:' + t[s] + ";background:" + SCOLOR[s] + '"></i>').join("") + (rest > 0 ? '<i style="flex:' + rest + ';background:#2a3150"></i>' : "");
+    const counts = show.map(s => {
+      const on = STATE.status === s && STATE.team === k;
+      return '<button type="button" class="cnt-btn' + (on ? " on" : "") + '" data-s="' + s + '" data-team="' + k + '" aria-pressed="' + on + '" style="--k:' + SCOLOR[s] + '"><span class="dot" style="background:' + SCOLOR[s] + '"></span>' + SLABEL[s].replace(" leave", "") + (s === "planned" || s === "unplanned" ? " leave" : "") + "<b>" + t[s] + "</b></button>";
+    }).join("");
+    const meta = S.period ? ppl.length + " people · " + t.days + " working day" + (t.days === 1 ? "" : "s") : t.total + " people · shift " + fmtTime(TEAMS[k].shift) + " ET";
+    return '<div class="trow"><div class="top"><span class="name">' + k + '</span><span class="meta">' + meta + "</span></div>" +
       '<div class="bar" role="img" aria-label="' + k + ": " + show.map(s => t[s] + " " + SLABEL[s].toLowerCase()).join(", ") + '">' + bar + '</div><div class="counts">' + counts + "</div></div>";
   }).join("");
 }
 
 function renderTabs(scope) {
-  const t = tally(scope, STATE.date);
-  const live = isWorking(STATE.date) && STATE.date <= NOW_ISO;
-  const defs = [["all", "All", t.total, true], ["present", "Present", t.present, live], ["late", "Late", t.late, live], ["absent", "Not arrived", t.absent, live], ["planned", "Planned leave", t.planned, true], ["unplanned", "Unplanned leave", t.unplanned, true]];
-  $("tabs").innerHTML = defs.map(d => {
+  const S = summaryFor(scope), t = S.t, live = S.live;
+  const defs = [["all", "All", S.period ? scope.length : t.total, true], ["present", "Present", t.present, live], ["late", "Late", t.late, live], ["absent", "Not arrived", t.absent, live], ["planned", "Planned leave", t.planned, true], ["unplanned", "Unplanned leave", t.unplanned, true]];
+  const html = defs.map(d => {
     const on = STATE.status === d[0];
     return '<button type="button" class="tab' + (on ? " on" : "") + '" data-s="' + d[0] + '" aria-pressed="' + on + '" style="--k:' + (SCOLOR[d[0]] || "#fff") + '">' +
       (d[0] === "all" ? "" : "<i></i>") + d[1] + " <b>" + (d[3] ? d[2] : "–") + "</b></button>";
   }).join("");
+  $("tabs").innerHTML = html;
+  $("tabs2").innerHTML = html;
 }
 
 function renderTable(scope) {
@@ -700,11 +871,14 @@ function renderUpcoming(scope) {
   }).join("") : '<div class="empty">No leaves in the next 14 days.</div>';
 }
 
+// The numbers for the stretch in view (this month so far, when looking at a day).
 function renderMonth(scope) {
-  const first = NOW_ISO.slice(0, 8) + "01";
+  const period = STATE.view !== "day";
+  const r = period ? rangeOf() : { start: NOW_ISO.slice(0, 8) + "01", end: NOW_ISO };
+  const end = r.end > NOW_ISO ? NOW_ISO : r.end;
   const pl = {}, un = {}, late = {};
   let tPl = 0, tUn = 0, tLate = 0;
-  for (let d = first; d <= NOW_ISO; d = addDays(d, 1)) {
+  for (let d = r.start; d <= end; d = addDays(d, 1)) {
     if (!isWorking(d)) continue;
     scope.forEach(p => {
       const k = statusOf(p, d).key;
@@ -713,14 +887,79 @@ function renderMonth(scope) {
       else if (k === "late") { tLate++; late[p.name] = (late[p.name] || 0) + 1; }
     });
   }
-  $("m-note").textContent = fmt(first, { month: "long" }) + " · person-days";
-  $("mstats").innerHTML =
-    '<div class="ms" style="--k:var(--c-planned)"><div class="v">' + tPl + '</div><div class="l">Planned leave</div></div>' +
-    '<div class="ms" style="--k:var(--c-unplanned)"><div class="v">' + tUn + '</div><div class="l">Unplanned leave</div></div>' +
-    '<div class="ms" style="--k:var(--c-late)"><div class="v">' + tLate + '</div><div class="l">Late arrivals</div></div>';
+  $("m-title").textContent = !period ? "This month so far" : STATE.view === "week" ? "This week in numbers" : "This month in numbers";
+  $("m-note").textContent = (period ? (STATE.view === "week" ? fmtShortDay(r.start) + " – " + fmtShortDay(r.end) : fmt(r.start, { month: "long" })) : fmt(r.start, { month: "long" })) + " · person-days";
+  const tile = (n, label, k) => '<button type="button" class="ms' + (period && STATE.status === k ? " on" : "") + '" data-s="' + k + '" style="--k:' + SCOLOR[k] + '"><div class="v">' + n + '</div><div class="l">' + label + "</div></button>";
+  $("mstats").innerHTML = tile(tPl, "Planned leave", "planned") + tile(tUn, "Unplanned leave", "unplanned") + tile(tLate, "Late arrivals", "late");
   const top = (o, unit) => Object.entries(o).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 3)
-    .map(e => "<div><span>" + esc(e[0]) + "</span><span>" + e[1] + " " + unit + (e[1] === 1 ? "" : "s") + "</span></div>").join("") || '<div><span class="muted">None so far</span></div>';
+    .map(e => '<button type="button" class="nrow" data-name="' + esc(e[0]) + '"><span>' + esc(e[0]) + "</span><span>" + e[1] + " " + unit + (e[1] === 1 ? "" : "s") + "</span></button>").join("") || '<div><span class="muted">None so far</span></div>';
   $("mtop").innerHTML = '<div class="top"><h3>Most unplanned leave</h3>' + top(un, "day") + '</div><div class="top"><h3>Most late arrivals</h3>' + top(late, "time") + "</div>";
+}
+
+// ── Week and month: a grid of who was where, each day ───────────────────────
+const LET = { present: "P", late: "L", absent: "A", planned: "PL", unplanned: "UL" };
+function renderPeriod(scope) {
+  const r = rangeOf(), week = STATE.view === "week";
+  const days = [];
+  for (let d = r.start; d <= r.end; d = addDays(d, 1)) days.push(d);
+  $("grid-panel").classList.toggle("week", week);
+  $("grid-title").textContent = (week ? "Week" : "Month") + " attendance";
+  $("grid-note").textContent = "click a day or a cell to open it";
+
+  // one column per day: the whole team, split by state
+  const total = scope.length || 1;
+  $("trend").style.gridTemplateColumns = "repeat(" + days.length + ", minmax(0, 1fr))";
+  $("trend").innerHTML = days.map(d => {
+    const t = tally(scope, d), working = isWorking(d), live = working && d <= NOW_ISO;
+    const keys = live ? ORDER : ["planned", "unplanned"];
+    const onLeave = t.planned + t.unplanned;
+    let segs = "";
+    if (working) {
+      segs = keys.filter(k => t[k]).map(k => '<i style="flex:' + t[k] + ";background:" + SCOLOR[k] + '"></i>').join("");
+      if (!live && total - onLeave > 0) segs += '<i style="flex:' + (total - onLeave) + ';background:#232b4a"></i>';
+    }
+    const label = fmtDay(d) + ": " + (working ? keys.map(k => t[k] + " " + SLABEL[k].toLowerCase()).join(", ") : "not a working day");
+    return '<button type="button" class="tcol' + (!working ? " off" : "") + (d === NOW_ISO ? " today" : "") + '" data-d="' + d + '" aria-label="' + label + '"><div class="tbar">' + segs + "</div>" +
+      '<div class="tl">' + fmt(d, { day: "numeric" }) + (week ? "<small>" + fmt(d, { weekday: "short" }) + "</small>" : "") + "</div></button>";
+  }).join("");
+
+  // one row per person
+  const q = STATE.q, st = STATE.status;
+  const rows = scope.filter(p => !q || p.name.toLowerCase().includes(q)).map(p => {
+    const cells = days.map(d => ({ d: d, k: statusOf(p, d).key }));
+    const c = { present: 0, late: 0, absent: 0, planned: 0, unplanned: 0 };
+    cells.forEach(x => { if (x.k in c) c[x.k]++; });
+    return { p: p, i: DB.people.indexOf(p), cells: cells, c: c };
+  }).filter(x => st === "all" || x.c[st] > 0);
+  rows.sort((a, b) => a.p.team.localeCompare(b.p.team) || a.p.name.localeCompare(b.p.name));
+
+  const head = '<thead><tr><th class="nm">Person</th>' + days.map(d => '<th class="dh' + (!isWorking(d) ? " off" : "") + (d === NOW_ISO ? " today" : "") + '">' + fmt(d, { day: "numeric" }) + "<br>" + fmt(d, { weekday: "short" }).slice(0, week ? 3 : 1) + "</th>").join("") +
+    '<th class="sum">Late</th><th class="sum">Leave</th><th class="sum">In</th></tr></thead>';
+  let body = "", last = "";
+  rows.forEach(x => {
+    if (x.p.team !== last) { last = x.p.team; body += '<tr class="tg"><td colspan="' + (days.length + 4) + '">' + last + "</td></tr>"; }
+    const den = x.c.present + x.c.late + x.c.absent;
+    body += '<tr><td class="nm"><div class="who2"><span class="av" aria-hidden="true">' + esc(initials(x.p.name)) + "</span>" + esc(x.p.name) + "</div></td>" +
+      x.cells.map(cell => cell.k in LET
+        ? '<td><button type="button" class="cell k-' + cell.k + (st !== "all" && st !== cell.k ? " dim" : "") + '" data-d="' + cell.d + '" data-i="' + x.i + '" aria-label="' + esc(x.p.name) + ", " + fmtDay(cell.d) + ": " + SLABEL[cell.k] + '" title="' + esc(x.p.name) + " · " + fmtDay(cell.d) + " · " + SLABEL[cell.k] + '">' + LET[cell.k] + "</button></td>"
+        : '<td><span class="cell blank" aria-hidden="true"></span></td>').join("") +
+      '<td class="sum">' + x.c.late + '</td><td class="sum">' + (x.c.planned + x.c.unplanned) + '</td><td class="sum">' + (den ? Math.round((x.c.present + x.c.late) / den * 100) + "%" : "—") + "</td></tr>";
+  });
+  $("agrid").innerHTML = head + "<tbody>" + body + "</tbody>";
+  $("gempty").style.display = rows.length ? "none" : "block";
+}
+
+function showTrendTip(btn) {
+  const d = btn.dataset.d, tip = $("tip");
+  const scope = DB.people.filter(p => STATE.team === "All" || p.team === STATE.team);
+  const t = tally(scope, d), working = isWorking(d), live = working && d <= NOW_ISO;
+  const keys = live ? ORDER : ["planned", "unplanned"];
+  tip.innerHTML = "<b>" + fmtDay(d) + "</b>" + (!working ? "<div>Not a working day</div>"
+    : keys.map(k => '<div><span class="dot" style="background:' + SCOLOR[k] + '"></span>' + SLABEL[k] + ": " + t[k] + "</div>").join(""));
+  tip.classList.add("show");
+  const r = btn.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8) + "px";
+  tip.style.top = (r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8) + "px";
 }
 
 // ── Actions ─────────────────────────────────────────────────────────────────
@@ -795,18 +1034,35 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") { document.q
 
 // ── Wiring ──────────────────────────────────────────────────────────────────
 function wire() {
-  $("d-prev").onclick = () => { STATE.date = addDays(STATE.date, -1); render(); };
-  $("d-next").onclick = () => { STATE.date = addDays(STATE.date, 1); render(); };
+  $("d-prev").onclick = () => { STATE.date = shiftDate(-1); render(); };
+  $("d-next").onclick = () => { STATE.date = shiftDate(1); render(); };
   $("d-today").onclick = () => { STATE.date = isoToday(); render(); };
   $("d-pick").onchange = e => { if (e.target.value) { STATE.date = e.target.value; render(); } };
+  $("view-sw").onclick = e => { const b = e.target.closest("[data-v]"); if (b) { STATE.view = b.dataset.v; render(); } };
   $("q").oninput = e => { STATE.q = e.target.value.trim().toLowerCase(); render(); };
   $("team-chips").onclick = e => { const b = e.target.closest("[data-t]"); if (b) { STATE.team = b.dataset.t; render(); } };
-  $("tabs").onclick = e => { const b = e.target.closest("[data-s]"); if (b) { STATE.status = (b.dataset.s === "all" || STATE.status === b.dataset.s) ? "all" : b.dataset.s; render(); } };
-  $("strip").onclick = e => { const b = e.target.closest("[data-d]"); if (b) { hideTip(); STATE.date = b.dataset.d; render(); } };
+  const tabsClick = e => { const b = e.target.closest("[data-s]"); if (b) { STATE.status = (b.dataset.s === "all" || STATE.status === b.dataset.s) ? "all" : b.dataset.s; render(); } };
+  $("tabs").onclick = tabsClick; $("tabs2").onclick = tabsClick;
+  // the headline, the ring, its legend and the team bars all filter
+  $("hero").onclick = e => { const b = e.target.closest("[data-s]"); if (b) applyFilter(b.dataset.s, b.dataset.team || ""); };
+  $("strip").onclick = e => { const b = e.target.closest("[data-d]"); if (b) { hideTip(); openDay(b.dataset.d); } };
   $("strip").addEventListener("mouseover", e => { const b = e.target.closest("[data-d]"); if (b) showTip(b); });
   $("strip").addEventListener("focusin", e => { const b = e.target.closest("[data-d]"); if (b) showTip(b); });
   $("strip").addEventListener("mouseleave", hideTip);
   $("strip").addEventListener("focusout", hideTip);
+  $("trend").onclick = e => { const b = e.target.closest("[data-d]"); if (b) { hideTip(); openDay(b.dataset.d); } };
+  $("trend").addEventListener("mouseover", e => { const b = e.target.closest("[data-d]"); if (b) showTrendTip(b); });
+  $("trend").addEventListener("focusin", e => { const b = e.target.closest("[data-d]"); if (b) showTrendTip(b); });
+  $("trend").addEventListener("mouseleave", hideTip);
+  $("trend").addEventListener("focusout", hideTip);
+  $("agrid").onclick = e => { const b = e.target.closest(".cell[data-d]"); if (b) openDay(b.dataset.d, DB.people[b.dataset.i].name); };
+  // from a day, the month's numbers open the month, already filtered; elsewhere they filter in place
+  $("mstats").onclick = e => {
+    const b = e.target.closest("[data-s]"); if (!b) return;
+    if (STATE.view === "day") { STATE.view = "month"; STATE.status = b.dataset.s; render(); jumpToList(); }
+    else applyFilter(b.dataset.s, "");
+  };
+  $("mtop").onclick = e => { const b = e.target.closest("[data-name]"); if (b) { STATE.q = b.dataset.name.toLowerCase(); $("q").value = b.dataset.name; render(); jumpToList(); } };
   $("upcoming").onclick = e => { const b = e.target.closest("[data-l]"); if (b) openLeave({ id: b.dataset.l }); };
   $("upcoming").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { const b = e.target.closest("[data-l]"); if (b) { e.preventDefault(); openLeave({ id: b.dataset.l }); } } };
   $("rows").onclick = e => {
