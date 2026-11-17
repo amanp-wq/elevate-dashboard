@@ -238,6 +238,8 @@
   /* Everything that shows a number can be clicked to filter by it */
   .hl { background: none; border: none; font: inherit; color: inherit; cursor: pointer; padding: 1px 4px; margin: 0 -4px; border-radius: 6px; white-space: nowrap; letter-spacing: inherit; }
   .hl:hover { background: var(--surface-2); }
+  .how { font-size: 12.5px; line-height: 1.55; color: var(--muted); margin: -8px 0 16px; max-width: 62ch; }
+  .how b { color: var(--text); }
   .headline .sep { color: var(--faint); font-weight: 400; }
   .dseg { cursor: pointer; transition: stroke-width .15s; pointer-events: stroke; }
   .dseg:hover { stroke-width: 19; }
@@ -361,6 +363,7 @@
       <div class="panel">
         <h2><span id="g-title">Today at a glance</span><small id="updated"></small></h2>
         <p class="headline" id="headline"></p>
+        <p class="how" id="how"></p>
         <div class="glance-body">
           <div class="donut-wrap">
             <svg id="donut" viewBox="0 0 140 140" role="img" aria-label=""></svg>
@@ -606,8 +609,9 @@ function periodTally(people, start, end) {
   const t = { total: 0, present: 0, late: 0, absent: 0, planned: 0, unplanned: 0, days: 0 };
   for (let d = start; d <= end; d = addDays(d, 1)) {
     if (!isWorking(d)) continue;
-    t.days++;
-    people.forEach(p => { const k = statusOf(p, d).key; if (ORDER.includes(k)) { t[k]++; t.total++; } });
+    let any = false;
+    people.forEach(p => { const k = statusOf(p, d).key; if (ORDER.includes(k)) { t[k]++; t.total++; any = true; } });
+    if (any) t.days++;   // only days that really count for these people
   }
   return t;
 }
@@ -723,6 +727,12 @@ function renderGlance(scope) {
     head = bits.length ? join(bits) : '<span class="ok">Nothing to flag in this period.</span>';
   }
   $("headline").innerHTML = head;
+  // say in plain words what the numbers are made of
+  const inPart = t.present + t.late;
+  $("how").innerHTML = !period ? "" :
+    "Each person on each working day counts as <b>1 day</b>. This period has <b>" + t.total + " days</b> (people × days with attendance entered): <b>" + t.present + "</b> on time + <b>" + t.late + "</b> late + <b>" + t.absent + "</b> not arrived" + (t.planned + t.unplanned ? " (leave days are counted separately)" : "") +
+    ". In = (" + t.present + " + " + t.late + ") ÷ " + t.total + " = <b>" + (t.total ? Math.round(100 * inPart / t.total) : 0) + "%</b>. " +
+    "<b>Not arrived</b> means nobody marked that person in and no leave was added for the day, so add the leave to move it. A day nobody on a team was marked is not counted for that team.";
 
   // ring — every segment opens its people
   const keys = live ? ORDER : ["planned", "unplanned"];
@@ -763,7 +773,7 @@ function renderTeams() {
       const on = STATE.status === s && STATE.team === k;
       return '<button type="button" class="cnt-btn' + (on ? " on" : "") + '" data-s="' + s + '" data-team="' + k + '" aria-pressed="' + on + '" style="--k:' + SCOLOR[s] + '"><span class="dot" style="background:' + SCOLOR[s] + '"></span>' + SLABEL[s].replace(" leave", "") + (s === "planned" || s === "unplanned" ? " leave" : "") + "<b>" + t[s] + "</b></button>";
     }).join("");
-    const meta = S.period ? ppl.length + " people · " + t.days + " working day" + (t.days === 1 ? "" : "s") : t.total + " people · shift " + fmtTime(TEAMS[k].shift) + " IST";
+    const meta = S.period ? ppl.length + " people · " + t.days + " counted day" + (t.days === 1 ? "" : "s") : t.total + " people · shift " + fmtTime(TEAMS[k].shift) + " IST";
     return '<div class="trow"><div class="top"><span class="name">' + k + '</span><span class="meta">' + meta + "</span></div>" +
       '<div class="bar" role="img" aria-label="' + k + ": " + show.map(s => t[s] + " " + SLABEL[s].toLowerCase()).join(", ") + '">' + bar + '</div><div class="counts">' + counts + "</div></div>";
   }).join("");
