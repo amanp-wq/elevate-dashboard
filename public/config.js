@@ -347,15 +347,15 @@ const SALES_TEAM_MEMBERS = [
   // Team Mamta Das
   { name: "Shivam Rathi",      team: "Mamta Das", role: "Builder" },
   { name: "Nishant Sharma",    team: "Mamta Das", role: "Builder" },
-  { name: "Talha Shaikh",      team: "Mamta Das", role: "Builder" },
+  { name: "Talha Shaikh",      team: "Mamta Das", role: "Builder", leftOn: "2026-11-16" },
   { name: "Yash Parikh",       team: "Mamta Das", role: "Builder" },
   // Resigned. 3 Sep is his last day with any recorded activity — confirm the
   // real last working day if it differs, since it decides which weeks he is
   // scored in.
   { name: "Dev Sompura",       team: "Mamta Das", role: "Builder", leftOn: "2026-09-03" },
-  // Joined recently: present in Zoho as Builders, no activity recorded yet.
-  { name: "Ankit Kumar",       team: "Mamta Das", role: "Builder" },
-  { name: "Hetraj Sarvaiya",   team: "Mamta Das", role: "Builder" },
+  // Ankit and Hetraj left (leftOn 16 Nov is approximate; confirm the real last day).
+  { name: "Ankit Kumar",       team: "Mamta Das", role: "Builder", leftOn: "2026-11-16" },
+  { name: "Hetraj Sarvaiya",   team: "Mamta Das", role: "Builder", leftOn: "2026-11-16" },
   { name: "Surjeet Singh",     team: "Soham",     role: "Builder" },
   { name: "Pranali Mishra",    team: "Mamta Das", role: "Closer"  },
   { name: "Meet Patel",        team: "Mamta Das", role: "Closer"  },
