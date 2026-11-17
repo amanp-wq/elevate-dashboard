@@ -120,8 +120,8 @@
   .counts b { color: var(--text); font-weight: 800; margin-left: 4px; font-variant-numeric: tabular-nums; }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
 
-  .grid2 { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-  .stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+  .stack { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; margin-bottom: 16px; }
 
   /* Status filter tabs */
   .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
@@ -281,10 +281,8 @@
   .cell.dim { opacity: 0.16; }
   #grid-panel.week .cell { width: 40px; height: 32px; font-size: 11px; }
   #grid-panel.week .agrid th.dh { font-size: 11px; min-width: 46px; }
-  .grid2.wide { grid-template-columns: minmax(0, 1fr); }
-  @media (min-width: 1021px) { .grid2.wide .stack { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; } }
   @media (max-width: 1180px) { .hero { grid-template-columns: minmax(0, 1fr); } }
-  @media (max-width: 1020px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 1020px) { .stack { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 560px) {
     main { padding: 14px 12px 50px; }
     .headline { font-size: 18px; }
@@ -377,6 +375,23 @@
       </div>
     </section>
 
+    <div class="stack">
+      <div class="panel">
+        <h2><span>Who is off — next 14 days</span><small>hover or tap a day</small></h2>
+        <div class="strip" id="strip"></div>
+        <div class="key"><span><span class="dot" style="background:var(--c-planned)"></span>Planned</span><span><span class="dot" style="background:var(--c-unplanned)"></span>Unplanned</span><span>Hatched = not a working day</span></div>
+      </div>
+      <div class="panel">
+        <h2><span>Upcoming leaves</span><small id="up-note"></small></h2>
+        <div class="up" id="upcoming"></div>
+      </div>
+      <div class="panel">
+        <h2><span id="m-title">This month so far</span><small id="m-note"></small></h2>
+        <div class="mstats" id="mstats"></div>
+        <div class="tops" id="mtop"></div>
+      </div>
+    </div>
+
     <div class="grid2">
       <div class="panel" id="people-panel">
         <h2><span>People</span><small id="list-note"></small></h2>
@@ -395,23 +410,6 @@
         <div class="gridwrap"><table class="agrid" id="agrid"></table></div>
         <div class="empty" id="gempty" style="display:none">Nobody matches this filter.</div>
         <div class="key"><span><b>P</b> Present</span><span><b>L</b> Late</span><span><b>A</b> Not arrived</span><span><b>PL</b> Planned leave</span><span><b>UL</b> Unplanned leave</span><span>Hatched = not a working day</span></div>
-      </div>
-
-      <div class="stack">
-        <div class="panel">
-          <h2><span>Who is off — next 14 days</span><small>hover or tap a day</small></h2>
-          <div class="strip" id="strip"></div>
-          <div class="key"><span><span class="dot" style="background:var(--c-planned)"></span>Planned</span><span><span class="dot" style="background:var(--c-unplanned)"></span>Unplanned</span><span>Hatched = not a working day</span></div>
-        </div>
-        <div class="panel">
-          <h2><span>Upcoming leaves</span><small id="up-note"></small></h2>
-          <div class="up" id="upcoming"></div>
-        </div>
-        <div class="panel">
-          <h2><span id="m-title">This month so far</span><small id="m-note"></small></h2>
-          <div class="mstats" id="mstats"></div>
-          <div class="tops" id="mtop"></div>
-        </div>
       </div>
     </div>
   </main>
@@ -647,7 +645,6 @@ function render() {
   const day = STATE.view === "day";
   $("people-panel").style.display = day ? "" : "none";
   $("grid-panel").style.display = day ? "none" : "";
-  document.querySelector(".grid2").classList.toggle("wide", STATE.view === "month");
   renderToolbar();
   renderGlance(scope);
   renderTeams();
