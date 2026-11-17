@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ElevateMe — Ops View</title>
-<meta name="description" content="Who is in, late, out or on leave across the Sales and CSC teams today, and who is off in the next two weeks.">
+<meta name="description" content="Who is in, late, out or on leave across the Sales and BD teams today, and who is off in the next two weeks.">
 <meta name="robots" content="noindex, nofollow">
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -317,7 +317,7 @@ const workDays = (from, to) => { let n = 0; for (let d = from; d <= to; d = addD
 // Each team's shift start and how long after it still counts as on time.
 const TEAMS = {
   Sales: { shift: "10:30", grace: 15 },
-  CSC:   { shift: "10:00", grace: 15 },
+  BD:    { shift: "10:30", grace: 15 },
 };
 const lateAfter = team => hm2min(TEAMS[team].shift) + TEAMS[team].grace;
 
@@ -338,7 +338,10 @@ function seedDB() {
   const people = [];
   (typeof SALES_TEAM_MEMBERS !== "undefined" ? SALES_TEAM_MEMBERS : []).filter(m => !m.leftOn)
     .forEach(m => people.push({ name: m.name, team: "Sales", group: "Team " + m.team, role: m.role }));
-  for (let i = 1; i <= 14; i++) people.push({ name: "CSC Executive " + String(i).padStart(2, "0"), team: "CSC", group: i % 2 ? "CSC A" : "CSC B", role: "Executive" });
+  // The BD roster is keyed by its stored name ("Meet Patel (BD)"), which keeps
+  // him apart from the Sales closer of the same name.
+  (typeof BD_TEAM_MEMBERS !== "undefined" ? BD_TEAM_MEMBERS : []).filter(m => !m.leftOn)
+    .forEach(m => people.push({ name: m.name, team: "BD", group: "Team " + m.team, role: m.role }));
 
   DB = { seedDay: today, people, leaves: [], daily: {} };
   const rnd = mulberry(hash("ops-demo|" + today));
@@ -387,7 +390,8 @@ function persist() { try { localStorage.setItem(KEY, JSON.stringify(DB)); } catc
 function loadDB() {
   let d = null;
   try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-  if (d && d.seedDay === isoToday() && d.people) { DB = d; return; }
+  // Saved data from an earlier layout (a team that no longer exists) is dropped, not trusted.
+  if (d && d.seedDay === isoToday() && d.people && d.people.every(p => TEAMS[p.team])) { DB = d; return; }
   seedDB(); persist();
 }
 
