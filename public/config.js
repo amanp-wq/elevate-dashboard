@@ -335,13 +335,13 @@ const SALES_TEAM_MEMBERS = [
   { name: "Nikunj Patel",      team: "Soham",     role: "Closer"  },
   // Team Tejasvi
   { name: "Lekhraj Prajapati", team: "Tejasvi",   role: "Builder" },
-  { name: "Nupur Vyas",        team: "Tejasvi",   role: "Builder" },
+  { name: "Nupur Vyas",        team: "Tejasvi",   role: "Builder", leftOn: "2026-11-16" },
   { name: "Hemant Rathore",    team: "Tejasvi",   role: "Builder" },
   { name: "Jatin Bhavsar",     team: "Tejasvi",   role: "Builder" },
   { name: "Aditya Pipaliya",   team: "Tejasvi",   role: "Builder" },
   { name: "Varsha Mahto",      team: "Tejasvi",   role: "Builder" },
   { name: "Mr Aadil Thim",     team: "Tejasvi",   role: "Builder" },
-  { name: "Sarim Mohammed",    team: "Tejasvi",   role: "Builder" },
+  { name: "Sarim Mohammed",    team: "Tejasvi",   role: "Builder", leftOn: "2026-11-16" },
   { name: "Kartik Deshawar",   team: "Tejasvi",   role: "Closer"  },
   { name: "Abhijeet Das",      team: "Tejasvi",   role: "Closer"  },
   // Team Mamta Das
@@ -356,7 +356,7 @@ const SALES_TEAM_MEMBERS = [
   // Ankit and Hetraj left (leftOn 16 Nov is approximate; confirm the real last day).
   { name: "Ankit Kumar",       team: "Mamta Das", role: "Builder", leftOn: "2026-11-16" },
   { name: "Hetraj Sarvaiya",   team: "Mamta Das", role: "Builder", leftOn: "2026-11-16" },
-  { name: "Surjeet Singh",     team: "Soham",     role: "Builder" },
+  { name: "Surjeet Singh",     team: "Soham",     role: "Builder", leftOn: "2026-11-16" },
   { name: "Pranali Mishra",    team: "Mamta Das", role: "Closer"  },
   { name: "Meet Patel",        team: "Mamta Das", role: "Closer"  },
   { name: "Vidhi Patel",       team: "Mamta Das", role: "Closer"  },
