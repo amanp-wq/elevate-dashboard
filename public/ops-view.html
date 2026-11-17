@@ -10,19 +10,28 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #080b14; --surface: #0f1322; --surface-2: #141a2e; --border: #1e2640;
-    --text: #e8eaf6; --muted: #6b7499; --accent: #ff4d3a;
-    /* One colour per state, used the same way everywhere on the page. */
+    --bg: #080b14; --surface: #0f1322; --surface-2: #151b30; --surface-3: #1c2442;
+    --border: #1e2640; --border-strong: #2d3760;
+    --text: #e8eaf6;
+    --muted: #8f99bd;     /* 6:1 on the card colour — the old #6b7499 was 4:1 */
+    --faint: #5d678c;     /* decoration only, never for text that has to be read */
+    --accent: #ff4d3a;
+    /* One colour per state, used the same way everywhere on the page. The
+       colour is never the only cue: every state also has its name beside it. */
     --c-present: #00e676; --c-late: #ffab00; --c-absent: #ff5c7a;
     --c-planned: #22d3ee; --c-unplanned: #e879f9;
+    --r-sm: 8px; --r-md: 12px; --r-lg: 16px;
   }
   html { scrollbar-gutter: stable; }
   body {
     background: var(--bg); color: var(--text); font-family: 'Nunito Sans', sans-serif; min-height: 100vh;
-    background-image: radial-gradient(ellipse at 20% 10%, rgba(196,72,56,0.06) 0%, transparent 50%),
-                      radial-gradient(ellipse at 80% 80%, rgba(0,230,118,0.04) 0%, transparent 50%);
+    font-size: 14px; line-height: 1.45;
+    background-image: radial-gradient(ellipse at 15% 0%, rgba(255,77,58,0.07) 0%, transparent 45%),
+                      radial-gradient(ellipse at 90% 90%, rgba(34,211,238,0.04) 0%, transparent 50%);
   }
-  button { font-family: inherit; }
+  button { font-family: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: 6px; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
 
   /* Auth overlay — same gate as every other page */
   #auth-overlay { position: fixed; inset: 0; z-index: 9999; background: #080b14; display: flex; align-items: center; justify-content: center; }
@@ -34,75 +43,94 @@
   .auth-google-btn img { width: 20px; height: 20px; }
   .auth-error { margin-top: 14px; font-size: 13px; color: #ff4d6a; min-height: 18px; }
 
-  main { max-width: 1480px; margin: 0 auto; padding: 22px 24px 60px; }
+  main { max-width: 1480px; margin: 0 auto; padding: 20px 24px 64px; }
 
-  .demo-band { background: rgba(255,171,0,0.08); border: 1px solid rgba(255,171,0,0.35); color: #ffc65c; border-radius: 10px; padding: 9px 14px; font-size: 12.5px; margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .demo-band { background: rgba(255,171,0,0.08); border: 1px solid rgba(255,171,0,0.35); color: #ffc65c; border-radius: var(--r-md); padding: 9px 14px; font-size: 12.5px; margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   .demo-band b { color: #ffd98a; }
-  .demo-band button { margin-left: auto; background: none; border: 1px solid rgba(255,171,0,0.45); color: #ffc65c; border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+  .demo-band button { margin-left: auto; background: none; border: 1px solid rgba(255,171,0,0.45); color: #ffc65c; border-radius: var(--r-sm); padding: 5px 11px; font-size: 12px; cursor: pointer; }
 
   /* Toolbar */
   .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
-  .datenav { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; }
-  .datenav button { background: none; border: none; color: var(--muted); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 15px; }
+  .datenav { display: flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 3px; }
+  .datenav button { background: none; border: none; color: var(--muted); min-width: 34px; height: 34px; border-radius: var(--r-sm); cursor: pointer; font-size: 14px; }
   .datenav button:hover { background: var(--surface-2); color: var(--text); }
-  .datenav .today-btn { width: auto; padding: 0 12px; font-size: 12px; font-weight: 700; }
+  .datenav .today-btn { padding: 0 12px; font-size: 12px; font-weight: 800; }
   .datenav input[type=date] { background: none; border: none; color: var(--text); font-family: inherit; font-size: 14px; font-weight: 700; padding: 4px 6px; color-scheme: dark; }
   .datelabel { font-size: 13px; color: var(--muted); }
-  .datelabel b { color: var(--text); }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .chip { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid var(--border); color: var(--muted); background: none; cursor: pointer; }
-  .chip:hover { border-color: var(--accent); color: var(--accent); }
-  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .chip span { opacity: .75; margin-left: 4px; }
-  .search { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 8px 12px; font-family: inherit; font-size: 13px; min-width: 190px; }
+  .datelabel b { color: var(--text); font-size: 15px; }
+  .chips { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+  .chip { padding: 6px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 700; border: none; color: var(--muted); background: none; cursor: pointer; }
+  .chip:hover { color: var(--text); }
+  .chip.on { background: var(--accent); color: #fff; }
+  .chip span { opacity: .8; margin-left: 5px; font-weight: 600; }
+  .search { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); color: var(--text); padding: 9px 12px; font-family: inherit; font-size: 13px; min-width: 200px; }
   .search:focus { outline: none; border-color: var(--accent); }
   .spacer { flex: 1; }
-  .btn { background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 800; cursor: pointer; }
+  .btn { background: var(--accent); color: #fff; border: none; border-radius: var(--r-md); padding: 10px 18px; font-size: 13px; font-weight: 800; cursor: pointer; min-height: 40px; }
   .btn:hover { filter: brightness(1.08); }
-  .btn.ghost { background: none; border: 1px solid var(--border); color: var(--muted); font-weight: 700; }
-  .btn.ghost:hover { border-color: var(--accent); color: var(--accent); filter: none; }
+  .btn.ghost { background: none; border: 1px solid var(--border-strong); color: var(--muted); font-weight: 700; }
+  .btn.ghost:hover { border-color: var(--accent); color: var(--text); filter: none; }
   .btn.danger { background: none; border: 1px solid rgba(255,92,122,0.5); color: var(--c-absent); }
 
-  .offday { background: var(--surface); border: 1px dashed var(--border); border-radius: 10px; padding: 9px 14px; color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .offday { background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--r-md); padding: 10px 14px; color: var(--muted); font-size: 13px; margin-bottom: 14px; }
 
-  /* Stat cards */
-  .cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .stat { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 16px 14px; cursor: pointer; text-align: left; color: inherit; transition: border-color .15s, transform .15s; overflow: hidden; }
-  .stat::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--k, var(--border)); }
-  .stat:hover { transform: translateY(-1px); border-color: var(--k, var(--accent)); }
-  .stat.on { border-color: var(--k, var(--accent)); box-shadow: 0 0 0 1px var(--k, var(--accent)) inset; background: var(--surface-2); }
-  .stat .lbl { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
-  .stat .num { font-size: 40px; font-weight: 800; line-height: 1.1; margin-top: 6px; color: var(--k, var(--text)); font-variant-numeric: tabular-nums; }
-  .stat .pct { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .stat .split { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
-  .stat .split b { color: var(--text); font-weight: 700; }
-
-  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
-  .panel h2 { font-size: 11px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 20px; }
+  .panel h2 { font-size: 11.5px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
   .panel h2 small { text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 12px; }
-  .grid2 { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-  .stack { display: grid; gap: 16px; }
+  small.stale { color: var(--c-late); font-weight: 800; }
 
-  /* Team bars */
-  .teams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .team { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
-  .team .row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-  .team .name { font-size: 15px; font-weight: 800; }
-  .team .meta { font-size: 12px; color: var(--muted); }
+  /* Hero: the day at a glance */
+  .hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; }
+  .headline { font-size: 21px; font-weight: 800; line-height: 1.3; margin: 2px 0 16px; letter-spacing: -0.2px; }
+  .headline .ok { color: var(--c-present); }
+  .headline em { font-style: normal; white-space: nowrap; }
+  .glance-body { display: flex; gap: 26px; align-items: center; flex-wrap: wrap; }
+  .donut-wrap { position: relative; width: 168px; height: 168px; flex: none; }
+  .donut-wrap svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
+  .donut-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+  .donut-center .big { font-size: 38px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  .donut-center .cap { font-size: 11.5px; color: var(--muted); margin-top: 6px; max-width: 110px; line-height: 1.3; }
+  .dlegend { list-style: none; flex: 1; min-width: 210px; display: grid; gap: 7px; }
+  .dlegend li { display: grid; grid-template-columns: 12px 1fr auto 44px; gap: 9px; align-items: center; font-size: 13.5px; }
+  .dlegend .sw { width: 10px; height: 10px; border-radius: 3px; }
+  .dlegend .n { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .dlegend .p { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+
+  .trow { padding: 12px 0; border-top: 1px solid var(--border); }
+  .trow:first-of-type { border-top: none; padding-top: 0; }
+  .trow .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .trow .name { font-size: 15px; font-weight: 800; }
+  .trow .meta { font-size: 12px; color: var(--muted); }
   .bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--surface-2); gap: 2px; }
   .bar > i { display: block; height: 100%; min-width: 3px; }
-  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-size: 12px; color: var(--muted); }
-  .legend b { color: var(--text); font-weight: 800; margin-left: 3px; }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+  .counts { display: flex; flex-wrap: wrap; gap: 3px 16px; margin-top: 9px; font-size: 12.5px; color: var(--muted); }
+  .counts b { color: var(--text); font-weight: 800; margin-left: 4px; font-variant-numeric: tabular-nums; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+
+  /* Status filter tabs */
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .tab { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 700; color: var(--muted); background: none; border: 1px solid var(--border-strong); cursor: pointer; }
+  .tab i { width: 8px; height: 8px; border-radius: 50%; background: var(--k); }
+  .tab b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .tab:hover { border-color: var(--k, var(--accent)); color: var(--text); }
+  .tab.on { background: color-mix(in srgb, var(--k, #fff) 16%, transparent); border-color: var(--k, #fff); color: var(--text); }
 
   /* People table */
   .tablewrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: left; font-size: 10.5px; font-weight: 800; letter-spacing: 1.1px; text-transform: uppercase; color: var(--muted); padding: 0 10px 8px; white-space: nowrap; }
-  td { padding: 9px 10px; border-top: 1px solid var(--border); vertical-align: middle; }
-  tr:hover td { background: rgba(255,255,255,0.02); }
-  .who { display: flex; align-items: center; gap: 10px; min-width: 190px; }
-  .av { width: 32px; height: 32px; border-radius: 50%; background: var(--surface-2); border: 1.5px solid var(--border); display: grid; place-items: center; font-size: 11px; font-weight: 800; color: var(--muted); flex: none; }
+  td { padding: 8px 10px; border-top: 1px solid var(--border); vertical-align: middle; }
+  tr.r:hover td, tr.r:focus-within td { background: rgba(255,255,255,0.025); }
+  tr.r.attn td:first-child { box-shadow: inset 3px 0 0 var(--k); }
+  tr.grp td { border-top: none; padding: 18px 10px 6px; font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+  tr.grp:first-child td { padding-top: 2px; }
+  .grp-btn { background: none; border: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 3px 0; }
+  .grp-n { background: var(--surface-3); border-radius: 999px; padding: 1px 9px; color: var(--text); letter-spacing: 0; }
+  .who { display: flex; align-items: center; gap: 10px; min-width: 200px; }
+  .av { width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2); border: 1.5px solid var(--border-strong); display: grid; place-items: center; font-size: 10.5px; font-weight: 800; color: var(--muted); flex: none; }
   .who .n { font-weight: 700; }
   .who .s { font-size: 11.5px; color: var(--muted); }
   .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 800; white-space: nowrap; color: var(--k); background: color-mix(in srgb, var(--k) 14%, transparent); border: 1px solid color-mix(in srgb, var(--k) 40%, transparent); }
@@ -111,56 +139,71 @@
   .k-planned { --k: var(--c-planned); } .k-unplanned { --k: var(--c-unplanned); } .k-off, .k-upcoming { --k: #8892b8; }
   .muted { color: var(--muted); }
   td.arr { white-space: nowrap; }
-  .det { font-size: 11.5px; color: var(--muted); margin-top: 4px; line-height: 1.35; max-width: 260px; }
-  .acts { display: flex; gap: 5px; justify-content: flex-end; flex-wrap: nowrap; }
-  .act { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 4px 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .det { font-size: 11.5px; color: var(--muted); margin-top: 4px; line-height: 1.35; max-width: 270px; }
+  /* Quick actions stay out of the way until the row is pointed at — except on the
+     rows that need acting on, and on touch screens, which cannot hover. */
+  .acts { display: flex; gap: 5px; justify-content: flex-end; flex-wrap: nowrap; opacity: 0; transition: opacity .15s; }
+  tr.r:hover .acts, tr.r:focus-within .acts, tr.r.attn .acts { opacity: 1; }
+  @media (hover: none) { .acts { opacity: 1; } }
+  .act { background: none; border: 1px solid var(--border-strong); color: var(--muted); border-radius: var(--r-sm); padding: 5px 9px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
   .act:hover { color: var(--text); border-color: var(--k, var(--accent)); }
   .act.a-present { --k: var(--c-present); } .act.a-late { --k: var(--c-late); } .act.a-absent { --k: var(--c-absent); } .act.a-leave { --k: var(--c-planned); }
-  .empty { color: var(--muted); font-size: 13px; padding: 22px 0; text-align: center; }
+  .empty { color: var(--muted); font-size: 13px; padding: 26px 0; text-align: center; }
 
-  /* 14-day strip */
-  .strip { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 5px; align-items: end; height: 140px; }
-  .day { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; cursor: pointer; border-radius: 8px; padding: 2px 0; }
+  /* 14-day outlook */
+  .strip { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 4px; align-items: end; height: 156px; }
+  .day { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; cursor: pointer; border-radius: var(--r-sm); padding: 3px 0 4px; background: none; border: 1px solid transparent; }
   .day:hover { background: var(--surface-2); }
-  .day.sel { outline: 1px solid var(--accent); }
-  .day .col { width: 70%; display: flex; flex-direction: column-reverse; border-radius: 4px; overflow: hidden; }
+  .day[aria-pressed=true] { border-color: var(--accent); background: var(--surface-2); }
+  .day .col { width: 66%; display: flex; flex-direction: column-reverse; border-radius: 4px; overflow: hidden; }
   .day .col i { display: block; width: 100%; }
-  .day .cnt { font-size: 11px; font-weight: 800; margin-bottom: 3px; color: var(--text); }
-  .day .dd { font-size: 10.5px; margin-top: 5px; color: var(--muted); font-weight: 700; line-height: 1.15; text-align: center; }
-  .day .dd small { display: block; font-size: 9px; font-weight: 600; opacity: .75; }
-  .day.off .dd { opacity: .4; }
+  .day .cnt { font-size: 11.5px; font-weight: 800; margin-bottom: 4px; color: var(--text); min-height: 14px; font-variant-numeric: tabular-nums; }
+  .day .dd { font-size: 11px; margin-top: 6px; color: var(--muted); font-weight: 700; line-height: 1.15; text-align: center; }
+  .day .dd small { display: block; font-size: 9.5px; font-weight: 600; }
+  .day.off { background: repeating-linear-gradient(135deg, transparent 0 5px, rgba(255,255,255,0.035) 5px 6px); }
+  .day.off .dd { opacity: .55; }
   .day.today .dd { color: var(--accent); }
-  .key { display: flex; gap: 14px; font-size: 11.5px; color: var(--muted); margin-top: 12px; flex-wrap: wrap; }
+  .day.today .dd::before { content: ""; display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); margin: 0 auto 3px; }
+  .key { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin-top: 12px; flex-wrap: wrap; }
+  .tip { position: fixed; z-index: 800; background: #1b2340; border: 1px solid var(--border-strong); border-radius: var(--r-md); padding: 10px 12px; font-size: 12px; max-width: 280px; line-height: 1.45; box-shadow: 0 10px 28px rgba(0,0,0,.55); pointer-events: none; opacity: 0; transition: opacity .12s; }
+  .tip.show { opacity: 1; }
+  .tip b { display: block; margin-bottom: 4px; font-size: 12.5px; }
+  .tip div { margin-top: 3px; color: var(--muted); }
 
-  .up { display: grid; gap: 10px; margin-top: 4px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
-  .upi { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); cursor: pointer; }
-  .upi:hover { border-color: var(--k); }
+  /* Upcoming leaves */
+  .up { display: grid; gap: 8px; max-height: 360px; overflow-y: auto; padding-right: 4px; }
+  .upi { display: grid; grid-template-columns: 46px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); cursor: pointer; border-left: 3px solid var(--k); }
+  .upi:hover { background: var(--surface-3); }
+  .dateblk { text-align: center; line-height: 1.1; }
+  .dateblk b { display: block; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .dateblk span { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
   .upi .nm { font-weight: 700; font-size: 13px; }
-  .upi .dt { font-size: 12px; color: var(--muted); grid-column: 1; }
-  .upi .rs { font-size: 11.5px; color: var(--muted); grid-column: 1 / -1; font-style: italic; }
-  .tag { font-size: 10.5px; color: var(--muted); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; margin-left: 6px; font-weight: 700; }
+  .upi .dt { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .upi .rs { font-size: 11.5px; color: var(--muted); margin-top: 2px; font-style: italic; }
+  .tag { font-size: 10.5px; color: var(--muted); border: 1px solid var(--border-strong); border-radius: 6px; padding: 1px 6px; margin-left: 6px; font-weight: 700; white-space: nowrap; }
 
-  .mstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
-  .ms { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
-  .ms .v { font-size: 24px; font-weight: 800; color: var(--k, var(--text)); }
-  .ms .l { font-size: 11px; color: var(--muted); }
-  .top h3 { font-size: 11px; color: var(--muted); font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin: 12px 0 6px; }
-  .top div { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
-  .top div span:last-child { color: var(--muted); font-weight: 700; }
+  .mstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 4px; }
+  .ms { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 11px 13px; border-top: 3px solid var(--k); }
+  .ms .v { font-size: 26px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .ms .l { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .tops { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+  .top h3 { font-size: 11px; color: var(--muted); font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin: 6px 0 6px; }
+  .top div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 4px 0; border-top: 1px solid var(--border); }
+  .top div span:last-child { color: var(--muted); font-weight: 700; white-space: nowrap; }
 
   /* Modal */
   .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 500; display: none; align-items: center; justify-content: center; padding: 16px; }
   .modal-bg.show { display: flex; }
-  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; width: 100%; max-width: 440px; max-height: 92vh; overflow-y: auto; }
-  .modal h3 { font-size: 17px; margin-bottom: 4px; }
+  .modal { background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-lg); padding: 24px; width: 100%; max-width: 440px; max-height: 92vh; overflow-y: auto; }
+  .modal h3 { font-size: 18px; margin-bottom: 4px; }
   .modal .sub { font-size: 12.5px; color: var(--muted); margin-bottom: 16px; }
   .fld { margin-bottom: 13px; }
   .fld label { display: block; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
-  .fld input, .fld select { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 9px; padding: 9px 11px; font-family: inherit; font-size: 14px; color-scheme: dark; }
+  .fld input, .fld select { width: 100%; background: var(--bg); border: 1px solid var(--border-strong); color: var(--text); border-radius: 9px; padding: 10px 11px; font-family: inherit; font-size: 14px; color-scheme: dark; }
   .fld input:focus, .fld select:focus { outline: none; border-color: var(--accent); }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .seg button { padding: 10px; border-radius: 9px; border: 1px solid var(--border); background: none; color: var(--muted); font-weight: 800; font-size: 13px; cursor: pointer; }
+  .seg button { padding: 11px; border-radius: 9px; border: 1px solid var(--border-strong); background: none; color: var(--muted); font-weight: 800; font-size: 13px; cursor: pointer; }
   .seg button.on.planned { background: color-mix(in srgb, var(--c-planned) 16%, transparent); border-color: var(--c-planned); color: var(--c-planned); }
   .seg button.on.unplanned { background: color-mix(in srgb, var(--c-unplanned) 16%, transparent); border-color: var(--c-unplanned); color: var(--c-unplanned); }
   .hint { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
@@ -168,12 +211,22 @@
   .modal .foot .left { margin-right: auto; }
   .err { color: var(--c-absent); font-size: 12.5px; min-height: 16px; margin-top: 4px; }
 
-  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); background: #1b2340; border: 1px solid var(--border); color: var(--text); padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; opacity: 0; pointer-events: none; transition: .25s; z-index: 900; }
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); background: #1b2340; border: 1px solid var(--border-strong); color: var(--text); padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; opacity: 0; pointer-events: none; transition: .25s; z-index: 900; }
   .toast.show { opacity: 1; transform: translateX(-50%); }
 
-  @media (max-width: 1180px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  @media (max-width: 1020px) { .grid2 { grid-template-columns: minmax(0, 1fr); } .teams { grid-template-columns: minmax(0, 1fr); } }
-  @media (max-width: 560px) { main { padding: 16px 12px 50px; } .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stat .num { font-size: 32px; } .strip { height: 120px; } .day .dd small { display: none; } .mstats { grid-template-columns: 1fr; } }
+  @media (max-width: 1180px) { .hero { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 1020px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 560px) {
+    main { padding: 14px 12px 50px; }
+    .headline { font-size: 18px; }
+    .donut-wrap { width: 150px; height: 150px; }
+    .strip { height: 132px; }
+    .day .dd small { display: none; }
+    .mstats, .tops { grid-template-columns: minmax(0, 1fr); }
+    .upi { grid-template-columns: 46px minmax(0, 1fr); }
+    .upi .pill { grid-column: 2; justify-self: start; }
+    .search { min-width: 0; flex: 1; }
+  }
 </style>
 <link rel="stylesheet" href="/app-header.css">
 </head>
@@ -217,25 +270,42 @@
 
     <div class="toolbar">
       <div class="datenav">
-        <button id="d-prev" title="Previous day">&#9664;</button>
-        <input type="date" id="d-pick">
-        <button id="d-next" title="Next day">&#9654;</button>
+        <button id="d-prev" title="Previous day" aria-label="Previous day">&#9664;</button>
+        <input type="date" id="d-pick" aria-label="Date">
+        <button id="d-next" title="Next day" aria-label="Next day">&#9654;</button>
         <button class="today-btn" id="d-today">Today</button>
       </div>
       <div class="datelabel" id="d-label"></div>
-      <div class="chips" id="team-chips"></div>
-      <input class="search" id="q" type="search" placeholder="Search a name…">
+      <div class="chips" id="team-chips" role="group" aria-label="Team"></div>
       <div class="spacer"></div>
+      <input class="search" id="q" type="search" placeholder="Search a name…" aria-label="Search a name">
       <button class="btn" id="btn-add-leave">+ Add leave</button>
     </div>
 
     <div id="offday"></div>
-    <div class="cards" id="cards"></div>
-    <div class="teams" id="teams"></div>
+
+    <section class="hero" aria-label="Today at a glance">
+      <div class="panel">
+        <h2><span>Today at a glance</span><small id="updated"></small></h2>
+        <p class="headline" id="headline"></p>
+        <div class="glance-body">
+          <div class="donut-wrap">
+            <svg id="donut" viewBox="0 0 140 140" role="img" aria-label=""></svg>
+            <div class="donut-center"><div class="big" id="dn-big"></div><div class="cap" id="dn-cap"></div></div>
+          </div>
+          <ul class="dlegend" id="dlegend"></ul>
+        </div>
+      </div>
+      <div class="panel">
+        <h2><span>By team</span></h2>
+        <div id="teams"></div>
+      </div>
+    </section>
 
     <div class="grid2">
       <div class="panel">
         <h2><span>People</span><small id="list-note"></small></h2>
+        <div class="tabs" id="tabs" role="group" aria-label="Filter by status"></div>
         <div class="tablewrap"><table>
           <thead><tr><th>Person</th><th>Status</th><th>Arrived</th><th></th></tr></thead>
           <tbody id="rows"></tbody>
@@ -245,9 +315,9 @@
 
       <div class="stack">
         <div class="panel">
-          <h2><span>Who is off — next 14 days</span><small>click a day to open it</small></h2>
+          <h2><span>Who is off — next 14 days</span><small>hover or tap a day</small></h2>
           <div class="strip" id="strip"></div>
-          <div class="key"><span><span class="dot" style="background:var(--c-planned)"></span>Planned</span><span><span class="dot" style="background:var(--c-unplanned)"></span>Unplanned</span></div>
+          <div class="key"><span><span class="dot" style="background:var(--c-planned)"></span>Planned</span><span><span class="dot" style="background:var(--c-unplanned)"></span>Unplanned</span><span>Hatched = not a working day</span></div>
         </div>
         <div class="panel">
           <h2><span>Upcoming leaves</span><small id="up-note"></small></h2>
@@ -256,42 +326,44 @@
         <div class="panel">
           <h2><span>This month so far</span><small id="m-note"></small></h2>
           <div class="mstats" id="mstats"></div>
-          <div class="top" id="mtop"></div>
+          <div class="tops" id="mtop"></div>
         </div>
       </div>
     </div>
   </main>
 </div>
 
-<div class="modal-bg" id="m-leave"><div class="modal">
+<div class="tip" id="tip" role="tooltip"></div>
+
+<div class="modal-bg" id="m-leave"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="ml-title">
   <h3 id="ml-title">Add leave</h3>
   <div class="sub">One entry covers the whole stretch, whether it is one day or several.</div>
-  <div class="fld"><label>Person</label><select id="ml-person"></select></div>
+  <div class="fld"><label for="ml-person">Person</label><select id="ml-person"></select></div>
   <div class="two">
-    <div class="fld"><label>From</label><input type="date" id="ml-from"></div>
-    <div class="fld"><label>To</label><input type="date" id="ml-to"></div>
+    <div class="fld"><label for="ml-from">From</label><input type="date" id="ml-from"></div>
+    <div class="fld"><label for="ml-to">To</label><input type="date" id="ml-to"></div>
   </div>
   <div class="fld"><label>Type</label>
     <div class="seg" id="ml-kind"><button type="button" data-k="planned" class="planned">Planned</button><button type="button" data-k="unplanned" class="unplanned">Unplanned</button></div>
     <div class="hint" id="ml-hint"></div>
   </div>
   <div class="two">
-    <div class="fld"><label>Applied on</label><input type="date" id="ml-applied"></div>
-    <div class="fld"><label>Reason (optional)</label><input type="text" id="ml-reason" maxlength="80" placeholder="e.g. Family function"></div>
+    <div class="fld"><label for="ml-applied">Applied on</label><input type="date" id="ml-applied"></div>
+    <div class="fld"><label for="ml-reason">Reason (optional)</label><input type="text" id="ml-reason" maxlength="80" placeholder="e.g. Family function"></div>
   </div>
-  <div class="err" id="ml-err"></div>
+  <div class="err" id="ml-err" role="alert"></div>
   <div class="foot"><button class="btn danger left" id="ml-del" style="display:none">Delete</button><button class="btn ghost" id="ml-cancel">Cancel</button><button class="btn" id="ml-save">Save</button></div>
 </div></div>
 
-<div class="modal-bg" id="m-late"><div class="modal">
+<div class="modal-bg" id="m-late"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt-title">
   <h3 id="mt-title">Arrival time</h3>
   <div class="sub" id="mt-sub"></div>
-  <div class="fld"><label>Arrived at</label><input type="time" id="mt-time"></div>
+  <div class="fld"><label for="mt-time">Arrived at</label><input type="time" id="mt-time"></div>
   <div class="hint" id="mt-hint"></div>
   <div class="foot"><button class="btn ghost" id="mt-cancel">Cancel</button><button class="btn" id="mt-save">Save</button></div>
 </div></div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -304,7 +376,6 @@ const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDa
 const daysBetween = (a, b) => Math.round((new Date(b + "T12:00:00Z") - new Date(a + "T12:00:00Z")) / 86400000);
 const fmt = (iso, o) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-US", Object.assign({ timeZone: "UTC" }, o));
 const fmtDay = iso => fmt(iso, { weekday: "short", day: "numeric", month: "short" });
-const fmtShort = iso => fmt(iso, { day: "numeric", month: "short" });
 const hm2min = s => { const a = s.split(":").map(Number); return a[0] * 60 + a[1]; };
 const min2hm = m => String(Math.floor(m / 60) % 24).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
 const fmtTime = hm => { const a = hm.split(":").map(Number); const h = a[0] % 12 || 12; return h + ":" + String(a[1]).padStart(2, "0") + (a[0] >= 12 ? " PM" : " AM"); };
@@ -322,6 +393,7 @@ const TEAMS = {
 const lateAfter = team => hm2min(TEAMS[team].shift) + TEAMS[team].grace;
 
 const SCOLOR = { present: "var(--c-present)", late: "var(--c-late)", absent: "var(--c-absent)", planned: "var(--c-planned)", unplanned: "var(--c-unplanned)" };
+const SHEX = { present: "#00e676", late: "#ffab00", absent: "#ff5c7a", planned: "#22d3ee", unplanned: "#e879f9" };
 const SLABEL = { present: "Present", late: "Late", absent: "Not arrived", planned: "Planned leave", unplanned: "Unplanned leave", off: "Not a working day", upcoming: "Upcoming" };
 const ORDER = ["present", "late", "absent", "planned", "unplanned"];
 
@@ -343,7 +415,7 @@ function seedDB() {
   (typeof BD_TEAM_MEMBERS !== "undefined" ? BD_TEAM_MEMBERS : []).filter(m => !m.leftOn)
     .forEach(m => people.push({ name: m.name, team: "BD", group: "Team " + m.team, role: m.role }));
 
-  DB = { seedDay: today, people, leaves: [], daily: {} };
+  DB = { seedDay: today, updated: Date.now(), people, leaves: [], daily: {} };
   const rnd = mulberry(hash("ops-demo|" + today));
   const used = new Set();
   const take = () => { for (let i = 0; i < 60; i++) { const p = people[Math.floor(rnd() * people.length)]; if (!used.has(p.name)) { used.add(p.name); return p; } } return people[0]; };
@@ -386,12 +458,12 @@ function seedDB() {
   }
   return DB;
 }
-function persist() { try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) {} }
+function persist() { DB.updated = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) {} }
 function loadDB() {
   let d = null;
   try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
   // Saved data from an earlier layout (a team that no longer exists) is dropped, not trusted.
-  if (d && d.seedDay === isoToday() && d.people && d.people.every(p => TEAMS[p.team])) { DB = d; return; }
+  if (d && d.seedDay === isoToday() && d.updated && d.people && d.people.every(p => TEAMS[p.team])) { DB = d; return; }
   seedDB(); persist();
 }
 
@@ -417,15 +489,17 @@ function tally(people, date) {
 }
 
 // ── UI state ────────────────────────────────────────────────────────────────
-const STATE = { date: "", team: "All", status: "all", q: "" };
+const STATE = { date: "", team: "All", status: "all", q: "", showPresent: false };
 const $ = id => document.getElementById(id);
+let STRIP = {};
 
 function render() {
   NOW_ISO = isoToday();
   const scope = DB.people.filter(p => STATE.team === "All" || p.team === STATE.team);
   renderToolbar();
-  renderCards(scope);
+  renderGlance(scope);
   renderTeams();
+  renderTabs(scope);
   renderTable(scope);
   renderStrip(scope);
   renderUpcoming(scope);
@@ -439,60 +513,93 @@ function renderToolbar() {
   $("d-label").innerHTML = "<b>" + fmt(STATE.date, { weekday: "long", day: "numeric", month: "long" }) + "</b> · " + rel;
   $("team-chips").innerHTML = ["All"].concat(Object.keys(TEAMS)).map(t => {
     const n = t === "All" ? DB.people.length : DB.people.filter(p => p.team === t).length;
-    return '<button class="chip' + (STATE.team === t ? " on" : "") + '" data-t="' + t + '">' + t + "<span>" + n + "</span></button>";
+    return '<button type="button" class="chip' + (STATE.team === t ? " on" : "") + '" data-t="' + t + '" aria-pressed="' + (STATE.team === t) + '">' + t + "<span>" + n + "</span></button>";
   }).join("");
   $("offday").innerHTML = isWorking(STATE.date) ? "" :
     '<div class="offday">' + fmt(STATE.date, { weekday: "long" }) + " is not a working day (weekend or a day the floor is closed), so nobody is expected in.</div>";
 }
 
-function renderCards(scope) {
+// The day in one sentence, one ring and one legend.
+function renderGlance(scope) {
   const t = tally(scope, STATE.date);
   const live = isWorking(STATE.date) && STATE.date <= NOW_ISO;
-  const byTeam = Object.keys(TEAMS).map(k => ({ k, t: tally(scope.filter(p => p.team === k), STATE.date) })).filter(x => x.t.total);
-  const defs = [
-    ["all", "Team", t.total, "var(--text)", true],
-    ["present", "Present", t.present, SCOLOR.present, live],
-    ["late", "Late", t.late, SCOLOR.late, live],
-    ["absent", "Not arrived", t.absent, SCOLOR.absent, live],
-    ["planned", "Planned leave", t.planned, SCOLOR.planned, true],
-    ["unplanned", "Unplanned leave", t.unplanned, SCOLOR.unplanned, true],
-  ];
-  $("cards").innerHTML = defs.map(d => {
-    const n = d[2], show = d[4];
-    const pct = d[0] === "all" ? (byTeam.length > 1 ? "across " + byTeam.length + " teams" : "people") : show ? Math.round(n / (t.total || 1) * 100) + "% of team" : "not applicable";
-    const split = byTeam.length > 1 && show ? '<div class="split">' + byTeam.map(x => x.k + " <b>" + (d[0] === "all" ? x.t.total : x.t[d[0]]) + "</b>").join("") + "</div>" : "";
-    return '<button class="stat' + (STATE.status === d[0] ? " on" : "") + '" data-s="' + d[0] + '" style="--k:' + d[3] + '">' +
-      '<div class="lbl">' + d[1] + '</div><div class="num">' + (show ? n : "—") + '</div><div class="pct">' + pct + "</div>" + split + "</button>";
-  }).join("");
+  const expected = t.total - t.planned - t.unplanned;
+  const inNow = t.present + t.late;
+
+  // how fresh is this? it is typed in by hand, so say when it was last touched
+  const ageMin = Math.round((Date.now() - (DB.updated || Date.now())) / 60000);
+  const stale = STATE.date === NOW_ISO && isWorking(NOW_ISO) && ageMin > 90;
+  const ageTxt = ageMin >= 60 ? Math.floor(ageMin / 60) + "h " + (ageMin % 60) + "m" : ageMin + " min";
+  const when = new Date(DB.updated).toLocaleTimeString("en-US", { timeZone: ET, hour: "numeric", minute: "2-digit" });
+  $("updated").className = stale ? "stale" : "";
+  $("updated").textContent = stale ? "Last marked " + ageTxt + " ago — may be out of date" : "Updated " + when + " ET";
+
+  const part = (n, label, k) => n ? '<em><span style="color:' + SCOLOR[k] + '">' + n + "</span> " + label + "</em>" : "";
+  let head;
+  if (!isWorking(STATE.date)) head = "Not a working day.";
+  else if (!live) head = t.planned + t.unplanned ? '<em><span style="color:var(--c-planned)">' + (t.planned + t.unplanned) + "</span> already on leave</em>" : "Nobody on leave yet.";
+  else {
+    const bits = [part(t.absent, "not arrived", "absent"), part(t.late, "late", "late"), part(t.unplanned, "on unplanned leave", "unplanned")].filter(Boolean);
+    head = (t.absent || t.late) ? bits.join(" · ")
+      : '<span class="ok">Everyone expected is in</span>' + (bits.length ? " · " + bits.join(" · ") : ".");
+  }
+  $("headline").innerHTML = head;
+
+  // ring
+  const keys = live ? ORDER : ["planned", "unplanned"];
+  const R = 56, C = 2 * Math.PI * R, GAP = 3;
+  const used = keys.reduce((a, k) => a + t[k], 0), rest = t.total - used;
+  let off = 0, segs = '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="#1a2140" stroke-width="15"/>';
+  const seg = (n, color) => {
+    if (!n || !t.total) return;
+    const len = Math.max(0.5, n / t.total * C - GAP);
+    segs += '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="' + color + '" stroke-width="15" stroke-dasharray="' + len.toFixed(2) + " " + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '"/>';
+    off += n / t.total * C;
+  };
+  keys.forEach(k => seg(t[k], SHEX[k]));
+  if (!live) seg(rest, "#2a3150");
+  $("donut").innerHTML = segs;
+  $("dn-big").textContent = live && expected > 0 ? Math.round(inNow / expected * 100) + "%" : "—";
+  $("dn-cap").textContent = live ? (expected > 0 ? "in — " + inNow + " of " + expected + " expected" : "nobody expected") : (isWorking(STATE.date) ? "day not started" : "not a working day");
+
+  $("dlegend").innerHTML = keys.map(k => '<li><span class="sw" style="background:' + SCOLOR[k] + '"></span><span>' + SLABEL[k] + '</span><span class="n">' + t[k] + '</span><span class="p">' + (t.total ? Math.round(t[k] / t.total * 100) : 0) + "%</span></li>").join("");
+  $("donut").setAttribute("aria-label", (live ? "Attendance: " : "Leave: ") + keys.map(k => t[k] + " " + SLABEL[k].toLowerCase()).join(", ") + " of " + t.total + " people");
 }
 
 function renderTeams() {
   const keys = STATE.team === "All" ? Object.keys(TEAMS) : [STATE.team];
-  $("teams").style.gridTemplateColumns = keys.length === 1 ? "1fr" : "";
   const live = isWorking(STATE.date) && STATE.date <= NOW_ISO;
   $("teams").innerHTML = keys.map(k => {
     const ppl = DB.people.filter(p => p.team === k), t = tally(ppl, STATE.date);
-    const segs = ORDER.filter(s => t[s] && (live || s === "planned" || s === "unplanned"));
+    const show = ORDER.filter(s => live || s === "planned" || s === "unplanned");
+    const segs = show.filter(s => t[s]);
     const rest = t.total - segs.reduce((a, s) => a + t[s], 0);
-    const bar = segs.map(s => '<i style="flex:' + t[s] + ';background:' + SCOLOR[s] + '"></i>').join("") +
-      (rest > 0 ? '<i style="flex:' + rest + ';background:#2a3150"></i>' : "");
-    const legend = ORDER.filter(s => live || s === "planned" || s === "unplanned")
-      .map(s => '<span><span class="dot" style="background:' + SCOLOR[s] + '"></span>' + SLABEL[s].replace(" leave", "") + (s === "planned" || s === "unplanned" ? " leave" : "") + "<b>" + t[s] + "</b></span>").join("");
-    return '<div class="team"><div class="row"><span class="name">' + k + '</span><span class="meta">' + t.total + " people · shift " + TEAMS[k].shift + " ET</span></div>" +
-      '<div class="bar">' + bar + '</div><div class="legend">' + legend + "</div></div>";
+    const bar = segs.map(s => '<i style="flex:' + t[s] + ';background:' + SCOLOR[s] + '"></i>').join("") + (rest > 0 ? '<i style="flex:' + rest + ';background:#2a3150"></i>' : "");
+    const counts = show.map(s => '<span><span class="dot" style="background:' + SCOLOR[s] + '"></span>' + SLABEL[s].replace(" leave", "") + (s === "planned" || s === "unplanned" ? " leave" : "") + "<b>" + t[s] + "</b></span>").join("");
+    return '<div class="trow"><div class="top"><span class="name">' + k + '</span><span class="meta">' + t.total + " people · shift " + fmtTime(TEAMS[k].shift) + " ET</span></div>" +
+      '<div class="bar" role="img" aria-label="' + k + ": " + show.map(s => t[s] + " " + SLABEL[s].toLowerCase()).join(", ") + '">' + bar + '</div><div class="counts">' + counts + "</div></div>";
+  }).join("");
+}
+
+function renderTabs(scope) {
+  const t = tally(scope, STATE.date);
+  const live = isWorking(STATE.date) && STATE.date <= NOW_ISO;
+  const defs = [["all", "All", t.total, true], ["present", "Present", t.present, live], ["late", "Late", t.late, live], ["absent", "Not arrived", t.absent, live], ["planned", "Planned leave", t.planned, true], ["unplanned", "Unplanned leave", t.unplanned, true]];
+  $("tabs").innerHTML = defs.map(d => {
+    const on = STATE.status === d[0];
+    return '<button type="button" class="tab' + (on ? " on" : "") + '" data-s="' + d[0] + '" aria-pressed="' + on + '" style="--k:' + (SCOLOR[d[0]] || "#fff") + '">' +
+      (d[0] === "all" ? "" : "<i></i>") + d[1] + " <b>" + (d[3] ? d[2] : "–") + "</b></button>";
   }).join("");
 }
 
 function renderTable(scope) {
   const q = STATE.q;
   let rows = scope.filter(p => !q || p.name.toLowerCase().includes(q)).map(p => ({ p: p, i: DB.people.indexOf(p), st: statusOf(p, STATE.date) }));
-  if (STATE.status !== "all") rows = rows.filter(r => r.st.key === STATE.status);
   const sev = { unplanned: 0, absent: 1, late: 2, planned: 3, present: 4, off: 5, upcoming: 5 };
   rows.sort((a, b) => sev[a.st.key] - sev[b.st.key] || a.p.team.localeCompare(b.p.team) || a.p.name.localeCompare(b.p.name));
-  $("list-note").textContent = rows.length + " shown" + (STATE.status !== "all" ? " · filtered by " + (SLABEL[STATE.status] || "").toLowerCase() : "");
-  $("empty").style.display = rows.length ? "none" : "block";
   const workable = isWorking(STATE.date);
-  $("rows").innerHTML = rows.map(r => {
+
+  const rowHtml = r => {
     const p = r.p, st = r.st, k = st.key;
     let arrived = '<span class="muted">—</span>', detail = "";
     if (k === "late") { arrived = fmtTime(st.arrival); detail = (hm2min(st.arrival) - hm2min(TEAMS[p.team].shift)) + " min after shift start"; }
@@ -506,26 +613,75 @@ function renderTable(scope) {
       acts += '<button class="act a-present" data-a="present" data-i="' + r.i + '">On time</button><button class="act a-late" data-a="late" data-i="' + r.i + '">Late…</button><button class="act a-absent" data-a="absent" data-i="' + r.i + '">Not arrived</button>';
     if (k === "planned" || k === "unplanned") acts += '<button class="act a-leave" data-a="edit" data-l="' + st.leave.id + '">Edit leave</button>';
     else acts += '<button class="act a-leave" data-a="leave" data-i="' + r.i + '">Leave…</button>';
-    return "<tr><td><div class=\"who\"><div class=\"av\">" + esc(initials(p.name)) + '</div><div><div class="n">' + esc(p.name) + '</div><div class="s">' + p.team + " · " + esc(p.role) + " · " + esc(p.group) + "</div></div></div></td>" +
+    const attn = k === "unplanned" || k === "absent" || k === "late";
+    return '<tr class="r k-' + k + (attn ? " attn" : "") + '"><td><div class="who"><div class="av" aria-hidden="true">' + esc(initials(p.name)) + '</div><div><div class="n">' + esc(p.name) + '</div><div class="s">' + p.team + " · " + (p.role === p.team ? "" : esc(p.role) + " · ") + esc(p.group) + "</div></div></div></td>" +
       '<td><span class="pill k-' + k + '"><i></i>' + SLABEL[k] + "</span>" + (detail ? '<div class="det">' + detail + "</div>" : "") + '</td><td class="arr">' + arrived + '</td><td><div class="acts">' + acts + "</div></td></tr>";
-  }).join("");
+  };
+
+  let html = "", shown = 0;
+  if (STATE.status !== "all") {
+    const f = rows.filter(r => r.st.key === STATE.status);
+    shown = f.length; html = f.map(rowHtml).join("");
+    $("list-note").textContent = shown + " shown · " + SLABEL[STATE.status].toLowerCase();
+  } else {
+    // Exception-first: what needs a decision on top, the people who are simply in below, folded away.
+    const groups = [
+      { id: "attn", title: "Needs attention", keys: ["unplanned", "absent", "late"], fold: false },
+      { id: "leave", title: "On planned leave", keys: ["planned"], fold: false },
+      { id: "present", title: "Present", keys: ["present"], fold: true },
+      { id: "na", title: workable ? "Expected to work" : "Not a working day", keys: ["off", "upcoming"], fold: false },
+    ];
+    groups.forEach(g => {
+      const list = rows.filter(r => g.keys.includes(r.st.key));
+      if (!list.length) return;
+      shown += list.length;
+      const open = !g.fold || STATE.showPresent || !!q;
+      html += '<tr class="grp"><td colspan="4">' + (g.fold
+        ? '<button type="button" class="grp-btn" data-g="' + g.id + '" aria-expanded="' + open + '">' + (open ? "▾" : "▸") + " " + g.title + ' <span class="grp-n">' + list.length + "</span></button>"
+        : g.title + ' <span class="grp-n">' + list.length + "</span>") + "</td></tr>";
+      if (open) html += list.map(rowHtml).join("");
+    });
+    $("list-note").textContent = shown + " people" + (q ? " matching “" + esc(q) + "”" : "");
+  }
+  $("rows").innerHTML = html;
+  $("empty").style.display = shown ? "none" : "block";
 }
 
 function renderStrip(scope) {
+  STRIP = {};
   const data = Array.from({ length: 14 }, (_, i) => addDays(NOW_ISO, i)).map(d => {
-    let pl = 0, un = 0;
-    if (isWorking(d)) scope.forEach(p => { const l = leaveOn(p.name, d); if (l) { if (l.kind === "planned") pl++; else un++; } });
-    return { d: d, pl: pl, un: un };
+    const pl = [], un = [];
+    if (isWorking(d)) scope.forEach(p => { const l = leaveOn(p.name, d); if (l) (l.kind === "planned" ? pl : un).push(p.name); });
+    STRIP[d] = { pl: pl, un: un };
+    return { d: d, pl: pl.length, un: un.length };
   });
   const max = Math.max(1, Math.max.apply(null, data.map(x => x.pl + x.un)));
   $("strip").innerHTML = data.map(x => {
-    const n = x.pl + x.un, h = n ? Math.max(8, Math.round(n / max * 78)) : 0;
-    return '<div class="day' + (!isWorking(x.d) ? " off" : "") + (x.d === NOW_ISO ? " today" : "") + (x.d === STATE.date ? " sel" : "") + '" data-d="' + x.d + '" title="' + fmtDay(x.d) + ": " + n + ' on leave">' +
+    const n = x.pl + x.un, h = n ? Math.max(8, Math.round(n / max * 84)) : 0;
+    const label = fmtDay(x.d) + ": " + (isWorking(x.d) ? n + " on leave (" + x.pl + " planned, " + x.un + " unplanned)" : "not a working day");
+    return '<button type="button" class="day' + (!isWorking(x.d) ? " off" : "") + (x.d === NOW_ISO ? " today" : "") + '" data-d="' + x.d + '" aria-pressed="' + (x.d === STATE.date) + '" aria-label="' + label + '">' +
       '<div class="cnt">' + (n || "") + '</div><div class="col" style="height:' + h + 'px">' +
       (x.pl ? '<i style="flex:' + x.pl + ';background:var(--c-planned)"></i>' : "") + (x.un ? '<i style="flex:' + x.un + ';background:var(--c-unplanned)"></i>' : "") + "</div>" +
-      '<div class="dd">' + fmt(x.d, { day: "numeric" }) + "<small>" + fmt(x.d, { weekday: "short" }) + "</small></div></div>";
+      '<div class="dd">' + fmt(x.d, { day: "numeric" }) + "<small>" + fmt(x.d, { weekday: "short" }) + "</small></div></button>";
   }).join("");
 }
+
+function showTip(btn) {
+  const d = btn.dataset.d, x = STRIP[d], tip = $("tip");
+  if (!x) return;
+  const names = a => a.slice(0, 8).map(esc).join(", ") + (a.length > 8 ? " +" + (a.length - 8) + " more" : "");
+  let body;
+  if (!isWorking(d)) body = "<div>Not a working day</div>";
+  else if (!x.pl.length && !x.un.length) body = "<div>Nobody on leave</div>";
+  else body = (x.pl.length ? '<div><span class="dot" style="background:var(--c-planned)"></span>Planned (' + x.pl.length + "): " + names(x.pl) + "</div>" : "") +
+              (x.un.length ? '<div><span class="dot" style="background:var(--c-unplanned)"></span>Unplanned (' + x.un.length + "): " + names(x.un) + "</div>" : "");
+  tip.innerHTML = "<b>" + fmtDay(d) + "</b>" + body;
+  tip.classList.add("show");
+  const r = btn.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8) + "px";
+  tip.style.top = (r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8) + "px";
+}
+const hideTip = () => $("tip").classList.remove("show");
 
 function renderUpcoming(scope) {
   const names = new Set(scope.map(p => p.name)), end = addDays(NOW_ISO, 14), q = STATE.q;
@@ -534,11 +690,13 @@ function renderUpcoming(scope) {
     .sort((a, b) => a.from.localeCompare(b.from) || a.name.localeCompare(b.name));
   $("up-note").textContent = list.length + " in the next 14 days";
   $("upcoming").innerHTML = list.length ? list.map(l => {
-    const n = workDays(l.from, l.to), now = l.from <= NOW_ISO;
-    return '<div class="upi k-' + l.kind + '" data-l="' + l.id + '"><div class="nm">' + esc(l.name) + '<span class="tag">' + team(l.name) + "</span>" + (now ? '<span class="tag">on leave now</span>' : "") + "</div>" +
-      '<span class="pill k-' + l.kind + '"><i></i>' + (l.kind === "planned" ? "Planned" : "Unplanned") + "</span>" +
+    const n = workDays(l.from, l.to), now = l.from <= NOW_ISO, shownFrom = now ? NOW_ISO : l.from;
+    return '<div class="upi k-' + l.kind + '" role="button" tabindex="0" data-l="' + l.id + '">' +
+      '<div class="dateblk"><b>' + fmt(shownFrom, { day: "numeric" }) + "</b><span>" + fmt(shownFrom, { month: "short" }) + "</span></div>" +
+      '<div><div class="nm">' + esc(l.name) + '<span class="tag">' + team(l.name) + "</span>" + (now ? '<span class="tag">on leave now</span>' : "") + "</div>" +
       '<div class="dt">' + (l.from === l.to ? fmtDay(l.from) : fmtDay(l.from) + " – " + fmtDay(l.to)) + " · " + n + " working day" + (n === 1 ? "" : "s") + "</div>" +
-      (l.reason ? '<div class="rs">' + esc(l.reason) + "</div>" : "") + "</div>";
+      (l.reason ? '<div class="rs">' + esc(l.reason) + "</div>" : "") + "</div>" +
+      '<span class="pill k-' + l.kind + '"><i></i>' + (l.kind === "planned" ? "Planned" : "Unplanned") + "</span></div>";
   }).join("") : '<div class="empty">No leaves in the next 14 days.</div>';
 }
 
@@ -562,7 +720,7 @@ function renderMonth(scope) {
     '<div class="ms" style="--k:var(--c-late)"><div class="v">' + tLate + '</div><div class="l">Late arrivals</div></div>';
   const top = (o, unit) => Object.entries(o).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 3)
     .map(e => "<div><span>" + esc(e[0]) + "</span><span>" + e[1] + " " + unit + (e[1] === 1 ? "" : "s") + "</span></div>").join("") || '<div><span class="muted">None so far</span></div>';
-  $("mtop").innerHTML = "<h3>Most unplanned leave</h3>" + top(un, "day") + "<h3>Most late arrivals</h3>" + top(late, "time");
+  $("mtop").innerHTML = '<div class="top"><h3>Most unplanned leave</h3>' + top(un, "day") + '</div><div class="top"><h3>Most late arrivals</h3>' + top(late, "time") + "</div>";
 }
 
 // ── Actions ─────────────────────────────────────────────────────────────────
@@ -573,6 +731,7 @@ function setDaily(name, date, v) {
   if (v) DB.daily[date][name] = v; else delete DB.daily[date][name];
   persist(); render();
 }
+function openModal(id, focusId) { $(id).classList.add("show"); setTimeout(() => { const f = $(focusId); if (f) f.focus(); }, 30); }
 
 // Arrival time
 let LATE = null;
@@ -582,7 +741,7 @@ function openLate(i) {
   $("mt-title").textContent = p.name;
   $("mt-sub").textContent = fmtDay(STATE.date) + " · shift starts " + fmtTime(TEAMS[p.team].shift) + " ET, " + TEAMS[p.team].grace + " minutes grace";
   $("mt-time").value = STATE.date === NOW_ISO ? nowHM() : min2hm(lateAfter(p.team) + 10);
-  lateHint(); $("m-late").classList.add("show");
+  lateHint(); openModal("m-late", "mt-time");
 }
 function lateHint() {
   if (!LATE || !$("mt-time").value) return;
@@ -610,10 +769,10 @@ function openLeave(o) {
   ML = { id: ex ? ex.id : null, kind: ex ? ex.kind : kindFor($("ml-applied").value, base.from), touched: !!ex };
   $("ml-title").textContent = ex ? "Edit leave" : "Add leave";
   $("ml-del").style.display = ex ? "" : "none"; $("ml-err").textContent = "";
-  paintKind(); $("m-leave").classList.add("show");
+  paintKind(); openModal("m-leave", "ml-person");
 }
 function paintKind() {
-  document.querySelectorAll("#ml-kind button").forEach(b => b.classList.toggle("on", b.dataset.k === ML.kind));
+  document.querySelectorAll("#ml-kind button").forEach(b => { b.classList.toggle("on", b.dataset.k === ML.kind); b.setAttribute("aria-pressed", b.dataset.k === ML.kind); });
   const a = $("ml-applied").value, f = $("ml-from").value;
   $("ml-hint").textContent = (a && f ? (a < f ? "Applied before the leave starts, so it is normally planned." : "Applied on or after the first day, so it is normally unplanned.") : "") + " You can change it.";
 }
@@ -632,7 +791,7 @@ $("ml-save").onclick = () => {
   persist(); $("m-leave").classList.remove("show"); render(); toast("Leave saved");
 };
 document.querySelectorAll(".modal-bg").forEach(m => m.addEventListener("mousedown", e => { if (e.target === m) m.classList.remove("show"); }));
-document.addEventListener("keydown", e => { if (e.key === "Escape") document.querySelectorAll(".modal-bg").forEach(m => m.classList.remove("show")); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { document.querySelectorAll(".modal-bg").forEach(m => m.classList.remove("show")); hideTip(); } });
 
 // ── Wiring ──────────────────────────────────────────────────────────────────
 function wire() {
@@ -642,10 +801,16 @@ function wire() {
   $("d-pick").onchange = e => { if (e.target.value) { STATE.date = e.target.value; render(); } };
   $("q").oninput = e => { STATE.q = e.target.value.trim().toLowerCase(); render(); };
   $("team-chips").onclick = e => { const b = e.target.closest("[data-t]"); if (b) { STATE.team = b.dataset.t; render(); } };
-  $("cards").onclick = e => { const b = e.target.closest("[data-s]"); if (b) { STATE.status = (b.dataset.s === "all" || STATE.status === b.dataset.s) ? "all" : b.dataset.s; render(); } };
-  $("strip").onclick = e => { const b = e.target.closest("[data-d]"); if (b) { STATE.date = b.dataset.d; render(); } };
+  $("tabs").onclick = e => { const b = e.target.closest("[data-s]"); if (b) { STATE.status = (b.dataset.s === "all" || STATE.status === b.dataset.s) ? "all" : b.dataset.s; render(); } };
+  $("strip").onclick = e => { const b = e.target.closest("[data-d]"); if (b) { hideTip(); STATE.date = b.dataset.d; render(); } };
+  $("strip").addEventListener("mouseover", e => { const b = e.target.closest("[data-d]"); if (b) showTip(b); });
+  $("strip").addEventListener("focusin", e => { const b = e.target.closest("[data-d]"); if (b) showTip(b); });
+  $("strip").addEventListener("mouseleave", hideTip);
+  $("strip").addEventListener("focusout", hideTip);
   $("upcoming").onclick = e => { const b = e.target.closest("[data-l]"); if (b) openLeave({ id: b.dataset.l }); };
+  $("upcoming").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { const b = e.target.closest("[data-l]"); if (b) { e.preventDefault(); openLeave({ id: b.dataset.l }); } } };
   $("rows").onclick = e => {
+    const g = e.target.closest("[data-g]"); if (g) { STATE.showPresent = !STATE.showPresent; render(); return; }
     const b = e.target.closest("[data-a]"); if (!b) return;
     const a = b.dataset.a, p = DB.people[b.dataset.i];
     if (a === "present") { setDaily(p.name, STATE.date, { status: "present", arrival: "" }); toast(p.name + " marked on time"); }
