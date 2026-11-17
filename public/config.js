@@ -14,6 +14,9 @@ const ALLOWED_EMAILS = [
   "meet.t@elevateme.pro"
 ];
 const ADMIN_EMAILS = ["aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro", "prachit@elevateme.pro"];
+// Who can open /ops-view.html: a named list, not "all admins". The page shows who
+// is on leave or late across the company, which is not for every admin.
+const OPS_VIEW_EMAILS = ["aman.p@elevateme.pro", "shani@elevateme.pro", "prachit@elevateme.pro"];
 const SALES_TL_EMAILS = ["soham.b@elevateme.pro", "tejasvi.p@elevateme.pro", "mamta.d@elevateme.pro"];
 const BD_TL_EMAILS = ["dhanraj.s@elevateme.pro", "prem.t@elevateme.pro"];
 
@@ -242,6 +245,7 @@ function buildNav(email) {
     { group: "Attendance", items: [
       { label: "Sales Attendance", href: "/attendance.html" },
       ...(isAdmin || isBdTL ? [{ label: "BD Attendance", href: "/attendance-bd.html" }] : []),
+      ...(OPS_VIEW_EMAILS.includes(email) ? [{ label: "Ops View", href: "/ops-view.html" }] : []),
     ]},
     { group: "Targets", items: [
       ...(isAdmin || isSalesTL || isBdTL ? [{ label: "Targets & Weightage", href: "/manage-targets.html" }] : []),

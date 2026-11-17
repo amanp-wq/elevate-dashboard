@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElevateMe — Ops View</title>
+<meta name="description" content="Who is in, late, out or on leave across the Sales and CSC teams today, and who is off in the next two weeks.">
+<meta name="robots" content="noindex, nofollow">
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080b14; --surface: #0f1322; --surface-2: #141a2e; --border: #1e2640;
+    --text: #e8eaf6; --muted: #6b7499; --accent: #ff4d3a;
+    /* One colour per state, used the same way everywhere on the page. */
+    --c-present: #00e676; --c-late: #ffab00; --c-absent: #ff5c7a;
+    --c-planned: #22d3ee; --c-unplanned: #e879f9;
+  }
+  html { scrollbar-gutter: stable; }
+  body {
+    background: var(--bg); color: var(--text); font-family: 'Nunito Sans', sans-serif; min-height: 100vh;
+    background-image: radial-gradient(ellipse at 20% 10%, rgba(196,72,56,0.06) 0%, transparent 50%),
+                      radial-gradient(ellipse at 80% 80%, rgba(0,230,118,0.04) 0%, transparent 50%);
+  }
+  button { font-family: inherit; }
+
+  /* Auth overlay — same gate as every other page */
+  #auth-overlay { position: fixed; inset: 0; z-index: 9999; background: #080b14; display: flex; align-items: center; justify-content: center; }
+  .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 48px 40px; text-align: center; max-width: 380px; width: 90%; }
+  .auth-logo { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+  .auth-logo span { color: var(--accent); }
+  .auth-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+  .auth-google-btn { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; padding: 13px 20px; border-radius: 12px; background: #fff; color: #1a1a1a; font-size: 15px; font-weight: 700; border: none; cursor: pointer; }
+  .auth-google-btn img { width: 20px; height: 20px; }
+  .auth-error { margin-top: 14px; font-size: 13px; color: #ff4d6a; min-height: 18px; }
+
+  main { max-width: 1480px; margin: 0 auto; padding: 22px 24px 60px; }
+
+  .demo-band { background: rgba(255,171,0,0.08); border: 1px solid rgba(255,171,0,0.35); color: #ffc65c; border-radius: 10px; padding: 9px 14px; font-size: 12.5px; margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .demo-band b { color: #ffd98a; }
+  .demo-band button { margin-left: auto; background: none; border: 1px solid rgba(255,171,0,0.45); color: #ffc65c; border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+
+  /* Toolbar */
+  .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+  .datenav { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; }
+  .datenav button { background: none; border: none; color: var(--muted); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 15px; }
+  .datenav button:hover { background: var(--surface-2); color: var(--text); }
+  .datenav .today-btn { width: auto; padding: 0 12px; font-size: 12px; font-weight: 700; }
+  .datenav input[type=date] { background: none; border: none; color: var(--text); font-family: inherit; font-size: 14px; font-weight: 700; padding: 4px 6px; color-scheme: dark; }
+  .datelabel { font-size: 13px; color: var(--muted); }
+  .datelabel b { color: var(--text); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid var(--border); color: var(--muted); background: none; cursor: pointer; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip span { opacity: .75; margin-left: 4px; }
+  .search { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 8px 12px; font-family: inherit; font-size: 13px; min-width: 190px; }
+  .search:focus { outline: none; border-color: var(--accent); }
+  .spacer { flex: 1; }
+  .btn { background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 800; cursor: pointer; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.ghost { background: none; border: 1px solid var(--border); color: var(--muted); font-weight: 700; }
+  .btn.ghost:hover { border-color: var(--accent); color: var(--accent); filter: none; }
+  .btn.danger { background: none; border: 1px solid rgba(255,92,122,0.5); color: var(--c-absent); }
+
+  .offday { background: var(--surface); border: 1px dashed var(--border); border-radius: 10px; padding: 9px 14px; color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+
+  /* Stat cards */
+  .cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 16px 14px; cursor: pointer; text-align: left; color: inherit; transition: border-color .15s, transform .15s; overflow: hidden; }
+  .stat::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--k, var(--border)); }
+  .stat:hover { transform: translateY(-1px); border-color: var(--k, var(--accent)); }
+  .stat.on { border-color: var(--k, var(--accent)); box-shadow: 0 0 0 1px var(--k, var(--accent)) inset; background: var(--surface-2); }
+  .stat .lbl { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+  .stat .num { font-size: 40px; font-weight: 800; line-height: 1.1; margin-top: 6px; color: var(--k, var(--text)); font-variant-numeric: tabular-nums; }
+  .stat .pct { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .stat .split { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+  .stat .split b { color: var(--text); font-weight: 700; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
+  .panel h2 { font-size: 11px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .panel h2 small { text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 12px; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .stack { display: grid; gap: 16px; }
+
+  /* Team bars */
+  .teams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .team { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
+  .team .row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .team .name { font-size: 15px; font-weight: 800; }
+  .team .meta { font-size: 12px; color: var(--muted); }
+  .bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--surface-2); gap: 2px; }
+  .bar > i { display: block; height: 100%; min-width: 3px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .legend b { color: var(--text); font-weight: 800; margin-left: 3px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+
+  /* People table */
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 10.5px; font-weight: 800; letter-spacing: 1.1px; text-transform: uppercase; color: var(--muted); padding: 0 10px 8px; white-space: nowrap; }
+  td { padding: 9px 10px; border-top: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .who { display: flex; align-items: center; gap: 10px; min-width: 190px; }
+  .av { width: 32px; height: 32px; border-radius: 50%; background: var(--surface-2); border: 1.5px solid var(--border); display: grid; place-items: center; font-size: 11px; font-weight: 800; color: var(--muted); flex: none; }
+  .who .n { font-weight: 700; }
+  .who .s { font-size: 11.5px; color: var(--muted); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 800; white-space: nowrap; color: var(--k); background: color-mix(in srgb, var(--k) 14%, transparent); border: 1px solid color-mix(in srgb, var(--k) 40%, transparent); }
+  .pill i { width: 6px; height: 6px; border-radius: 50%; background: var(--k); }
+  .k-present { --k: var(--c-present); } .k-late { --k: var(--c-late); } .k-absent { --k: var(--c-absent); }
+  .k-planned { --k: var(--c-planned); } .k-unplanned { --k: var(--c-unplanned); } .k-off, .k-upcoming { --k: #8892b8; }
+  .muted { color: var(--muted); }
+  td.arr { white-space: nowrap; }
+  .det { font-size: 11.5px; color: var(--muted); margin-top: 4px; line-height: 1.35; max-width: 260px; }
+  .acts { display: flex; gap: 5px; justify-content: flex-end; flex-wrap: nowrap; }
+  .act { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 4px 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .act:hover { color: var(--text); border-color: var(--k, var(--accent)); }
+  .act.a-present { --k: var(--c-present); } .act.a-late { --k: var(--c-late); } .act.a-absent { --k: var(--c-absent); } .act.a-leave { --k: var(--c-planned); }
+  .empty { color: var(--muted); font-size: 13px; padding: 22px 0; text-align: center; }
+
+  /* 14-day strip */
+  .strip { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 5px; align-items: end; height: 140px; }
+  .day { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; cursor: pointer; border-radius: 8px; padding: 2px 0; }
+  .day:hover { background: var(--surface-2); }
+  .day.sel { outline: 1px solid var(--accent); }
+  .day .col { width: 70%; display: flex; flex-direction: column-reverse; border-radius: 4px; overflow: hidden; }
+  .day .col i { display: block; width: 100%; }
+  .day .cnt { font-size: 11px; font-weight: 800; margin-bottom: 3px; color: var(--text); }
+  .day .dd { font-size: 10.5px; margin-top: 5px; color: var(--muted); font-weight: 700; line-height: 1.15; text-align: center; }
+  .day .dd small { display: block; font-size: 9px; font-weight: 600; opacity: .75; }
+  .day.off .dd { opacity: .4; }
+  .day.today .dd { color: var(--accent); }
+  .key { display: flex; gap: 14px; font-size: 11.5px; color: var(--muted); margin-top: 12px; flex-wrap: wrap; }
+
+  .up { display: grid; gap: 10px; margin-top: 4px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
+  .upi { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); cursor: pointer; }
+  .upi:hover { border-color: var(--k); }
+  .upi .nm { font-weight: 700; font-size: 13px; }
+  .upi .dt { font-size: 12px; color: var(--muted); grid-column: 1; }
+  .upi .rs { font-size: 11.5px; color: var(--muted); grid-column: 1 / -1; font-style: italic; }
+  .tag { font-size: 10.5px; color: var(--muted); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; margin-left: 6px; font-weight: 700; }
+
+  .mstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  .ms { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .ms .v { font-size: 24px; font-weight: 800; color: var(--k, var(--text)); }
+  .ms .l { font-size: 11px; color: var(--muted); }
+  .top h3 { font-size: 11px; color: var(--muted); font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin: 12px 0 6px; }
+  .top div { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+  .top div span:last-child { color: var(--muted); font-weight: 700; }
+
+  /* Modal */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 500; display: none; align-items: center; justify-content: center; padding: 16px; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; width: 100%; max-width: 440px; max-height: 92vh; overflow-y: auto; }
+  .modal h3 { font-size: 17px; margin-bottom: 4px; }
+  .modal .sub { font-size: 12.5px; color: var(--muted); margin-bottom: 16px; }
+  .fld { margin-bottom: 13px; }
+  .fld label { display: block; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+  .fld input, .fld select { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 9px; padding: 9px 11px; font-family: inherit; font-size: 14px; color-scheme: dark; }
+  .fld input:focus, .fld select:focus { outline: none; border-color: var(--accent); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .seg button { padding: 10px; border-radius: 9px; border: 1px solid var(--border); background: none; color: var(--muted); font-weight: 800; font-size: 13px; cursor: pointer; }
+  .seg button.on.planned { background: color-mix(in srgb, var(--c-planned) 16%, transparent); border-color: var(--c-planned); color: var(--c-planned); }
+  .seg button.on.unplanned { background: color-mix(in srgb, var(--c-unplanned) 16%, transparent); border-color: var(--c-unplanned); color: var(--c-unplanned); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+  .modal .foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+  .modal .foot .left { margin-right: auto; }
+  .err { color: var(--c-absent); font-size: 12.5px; min-height: 16px; margin-top: 4px; }
+
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); background: #1b2340; border: 1px solid var(--border); color: var(--text); padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; opacity: 0; pointer-events: none; transition: .25s; z-index: 900; }
+  .toast.show { opacity: 1; transform: translateX(-50%); }
+
+  @media (max-width: 1180px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 1020px) { .grid2 { grid-template-columns: minmax(0, 1fr); } .teams { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 560px) { main { padding: 16px 12px 50px; } .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stat .num { font-size: 32px; } .strip { height: 120px; } .day .dd small { display: none; } .mstats { grid-template-columns: 1fr; } }
+</style>
+<link rel="stylesheet" href="/app-header.css">
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/config.js"></script>
+<script src="/scoring.js"></script>
+
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">Elevate<span>Me</span></div>
+    <div class="auth-sub">Sign in to open the Ops View</div>
+    <button class="auth-google-btn" id="btn-google-signin">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">
+      Sign in with Google
+    </button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<div id="main-content" style="display:none">
+  <header class="app-header">
+    <div class="logo">
+      <img src="/e92c4bab-2eb7-4e8f-bc76-e00992442f1f.png" alt="ElevateMe" class="logo-img">
+      <h1 class="logo-sub">Ops View</h1>
+    </div>
+    <div class="nav-links" id="nav-links"></div>
+    <div class="header-right" id="user-bar" style="display:none">
+      <img id="user-avatar" src="" alt="" style="display:none">
+      <span id="user-name"></span>
+      <button id="btn-signout">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="demo-band" id="demo-band">
+      <span><b>DEMO</b> — every status and leave on this page is made up, so the layout can be judged. Nothing is saved to the company database yet; your clicks are kept in this browser only.</span>
+      <button id="btn-reset">Reset demo data</button>
+    </div>
+
+    <div class="toolbar">
+      <div class="datenav">
+        <button id="d-prev" title="Previous day">&#9664;</button>
+        <input type="date" id="d-pick">
+        <button id="d-next" title="Next day">&#9654;</button>
+        <button class="today-btn" id="d-today">Today</button>
+      </div>
+      <div class="datelabel" id="d-label"></div>
+      <div class="chips" id="team-chips"></div>
+      <input class="search" id="q" type="search" placeholder="Search a name…">
+      <div class="spacer"></div>
+      <button class="btn" id="btn-add-leave">+ Add leave</button>
+    </div>
+
+    <div id="offday"></div>
+    <div class="cards" id="cards"></div>
+    <div class="teams" id="teams"></div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h2><span>People</span><small id="list-note"></small></h2>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Person</th><th>Status</th><th>Arrived</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <div class="empty" id="empty" style="display:none">Nobody matches this filter.</div>
+      </div>
+
+      <div class="stack">
+        <div class="panel">
+          <h2><span>Who is off — next 14 days</span><small>click a day to open it</small></h2>
+          <div class="strip" id="strip"></div>
+          <div class="key"><span><span class="dot" style="background:var(--c-planned)"></span>Planned</span><span><span class="dot" style="background:var(--c-unplanned)"></span>Unplanned</span></div>
+        </div>
+        <div class="panel">
+          <h2><span>Upcoming leaves</span><small id="up-note"></small></h2>
+          <div class="up" id="upcoming"></div>
+        </div>
+        <div class="panel">
+          <h2><span>This month so far</span><small id="m-note"></small></h2>
+          <div class="mstats" id="mstats"></div>
+          <div class="top" id="mtop"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-bg" id="m-leave"><div class="modal">
+  <h3 id="ml-title">Add leave</h3>
+  <div class="sub">One entry covers the whole stretch, whether it is one day or several.</div>
+  <div class="fld"><label>Person</label><select id="ml-person"></select></div>
+  <div class="two">
+    <div class="fld"><label>From</label><input type="date" id="ml-from"></div>
+    <div class="fld"><label>To</label><input type="date" id="ml-to"></div>
+  </div>
+  <div class="fld"><label>Type</label>
+    <div class="seg" id="ml-kind"><button type="button" data-k="planned" class="planned">Planned</button><button type="button" data-k="unplanned" class="unplanned">Unplanned</button></div>
+    <div class="hint" id="ml-hint"></div>
+  </div>
+  <div class="two">
+    <div class="fld"><label>Applied on</label><input type="date" id="ml-applied"></div>
+    <div class="fld"><label>Reason (optional)</label><input type="text" id="ml-reason" maxlength="80" placeholder="e.g. Family function"></div>
+  </div>
+  <div class="err" id="ml-err"></div>
+  <div class="foot"><button class="btn danger left" id="ml-del" style="display:none">Delete</button><button class="btn ghost" id="ml-cancel">Cancel</button><button class="btn" id="ml-save">Save</button></div>
+</div></div>
+
+<div class="modal-bg" id="m-late"><div class="modal">
+  <h3 id="mt-title">Arrival time</h3>
+  <div class="sub" id="mt-sub"></div>
+  <div class="fld"><label>Arrived at</label><input type="time" id="mt-time"></div>
+  <div class="hint" id="mt-hint"></div>
+  <div class="foot"><button class="btn ghost" id="mt-cancel">Cancel</button><button class="btn" id="mt-save">Save</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── Dates — the floor runs on Eastern time ──────────────────────────────────
+const ET = "America/New_York";
+const isoToday = () => new Date().toLocaleDateString("en-CA", { timeZone: ET });
+const nowHM = () => new Date().toLocaleTimeString("en-GB", { timeZone: ET, hour: "2-digit", minute: "2-digit" });
+const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const daysBetween = (a, b) => Math.round((new Date(b + "T12:00:00Z") - new Date(a + "T12:00:00Z")) / 86400000);
+const fmt = (iso, o) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-US", Object.assign({ timeZone: "UTC" }, o));
+const fmtDay = iso => fmt(iso, { weekday: "short", day: "numeric", month: "short" });
+const fmtShort = iso => fmt(iso, { day: "numeric", month: "short" });
+const hm2min = s => { const a = s.split(":").map(Number); return a[0] * 60 + a[1]; };
+const min2hm = m => String(Math.floor(m / 60) % 24).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+const fmtTime = hm => { const a = hm.split(":").map(Number); const h = a[0] % 12 || 12; return h + ":" + String(a[1]).padStart(2, "0") + (a[0] >= 12 ? " PM" : " AM"); };
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const initials = n => n.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+// Weekends and floor-closing holidays are not working days; a worked Saturday is.
+const isWorking = iso => !Scoring.isNonWorkingDay(iso);
+const workDays = (from, to) => { let n = 0; for (let d = from; d <= to; d = addDays(d, 1)) if (isWorking(d)) n++; return n; };
+
+// Each team's shift start and how long after it still counts as on time.
+const TEAMS = {
+  Sales: { shift: "10:30", grace: 15 },
+  CSC:   { shift: "10:00", grace: 15 },
+};
+const lateAfter = team => hm2min(TEAMS[team].shift) + TEAMS[team].grace;
+
+const SCOLOR = { present: "var(--c-present)", late: "var(--c-late)", absent: "var(--c-absent)", planned: "var(--c-planned)", unplanned: "var(--c-unplanned)" };
+const SLABEL = { present: "Present", late: "Late", absent: "Not arrived", planned: "Planned leave", unplanned: "Unplanned leave", off: "Not a working day", upcoming: "Upcoming" };
+const ORDER = ["present", "late", "absent", "planned", "unplanned"];
+
+// ── Demo data — kept in this browser only ───────────────────────────────────
+const KEY = "ops-demo-v1";
+let DB = null;
+let NOW_ISO = "";
+
+function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const hash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+
+function seedDB() {
+  const today = isoToday();
+  const people = [];
+  (typeof SALES_TEAM_MEMBERS !== "undefined" ? SALES_TEAM_MEMBERS : []).filter(m => !m.leftOn)
+    .forEach(m => people.push({ name: m.name, team: "Sales", group: "Team " + m.team, role: m.role }));
+  for (let i = 1; i <= 14; i++) people.push({ name: "CSC Executive " + String(i).padStart(2, "0"), team: "CSC", group: i % 2 ? "CSC A" : "CSC B", role: "Executive" });
+
+  DB = { seedDay: today, people, leaves: [], daily: {} };
+  const rnd = mulberry(hash("ops-demo|" + today));
+  const used = new Set();
+  const take = () => { for (let i = 0; i < 60; i++) { const p = people[Math.floor(rnd() * people.length)]; if (!used.has(p.name)) { used.add(p.name); return p; } } return people[0]; };
+  const any = () => people[Math.floor(rnd() * people.length)];
+  const add = (p, from, to, kind, reason) => DB.leaves.push({
+    id: "L" + DB.leaves.length, name: p.name, from, to, kind, reason,
+    applied: kind === "planned" ? addDays(from, -(2 + Math.floor(rnd() * 8))) : from,
+  });
+  const nextWork = d => { for (let i = 0; i < 10 && !isWorking(d); i++) d = addDays(d, 1); return d; };
+
+  add(take(), today, today, "planned", "Medical appointment");
+  add(take(), addDays(today, -1), addDays(today, 1), "planned", "Family function");
+  add(take(), today, today, "unplanned", "Not well");
+  add(take(), today, addDays(today, 1), "unplanned", "Family emergency");
+  add(take(), today, today, "unplanned", "");
+  const why = ["Vacation", "Family function", "Travel", "Personal work", "Medical", "Festival"];
+  for (let i = 0; i < 9; i++) {
+    const from = nextWork(addDays(today, 1 + Math.floor(rnd() * 12))), len = 1 + Math.floor(rnd() * 4);
+    add(take(), from, addDays(from, len - 1), "planned", why[Math.floor(rnd() * why.length)]);
+  }
+  for (let i = 0; i < 14; i++) {
+    const from = addDays(today, -(2 + Math.floor(rnd() * 24))), un = rnd() < 0.55;
+    add(any(), from, un ? from : addDays(from, Math.floor(rnd() * 3)), un ? "unplanned" : "planned", un ? "Not well" : why[Math.floor(rnd() * why.length)]);
+  }
+
+  for (let k = 30; k >= 0; k--) {
+    const day = addDays(today, -k);
+    if (!isWorking(day)) continue;
+    DB.daily[day] = {};
+    people.forEach(p => {
+      if (leaveOn(p.name, day)) return;
+      const r = mulberry(hash(p.name + day))();
+      const presentCut = k === 0 ? 0.72 : 0.88, lateCut = k === 0 ? 0.82 : 0.96;
+      if (r < presentCut) DB.daily[day][p.name] = { status: "present", arrival: "" };
+      else if (r < lateCut) {
+        const mins = lateAfter(p.team) + 1 + Math.floor(mulberry(hash(day + p.name))() * 50);
+        DB.daily[day][p.name] = { status: "late", arrival: min2hm(mins) };
+      }
+    });
+  }
+  return DB;
+}
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) {} }
+function loadDB() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+  if (d && d.seedDay === isoToday() && d.people) { DB = d; return; }
+  seedDB(); persist();
+}
+
+// ── Status of one person on one day ─────────────────────────────────────────
+function leaveOn(name, date) {
+  let hit = null;
+  for (const l of DB.leaves) if (l.name === name && l.from <= date && date <= l.to) { if (!hit || l.kind === "unplanned") hit = l; }
+  return hit;
+}
+function statusOf(p, date) {
+  if (!isWorking(date)) return { key: "off" };
+  const lv = leaveOn(p.name, date);
+  if (lv) return { key: lv.kind, leave: lv };
+  if (date > NOW_ISO) return { key: "upcoming" };
+  const d = DB.daily[date] && DB.daily[date][p.name];
+  if (d) return { key: d.status, arrival: d.arrival };
+  return { key: "absent" };
+}
+function tally(people, date) {
+  const t = { total: people.length, present: 0, late: 0, absent: 0, planned: 0, unplanned: 0 };
+  people.forEach(p => { const k = statusOf(p, date).key; if (k in t) t[k]++; });
+  return t;
+}
+
+// ── UI state ────────────────────────────────────────────────────────────────
+const STATE = { date: "", team: "All", status: "all", q: "" };
+const $ = id => document.getElementById(id);
+
+function render() {
+  NOW_ISO = isoToday();
+  const scope = DB.people.filter(p => STATE.team === "All" || p.team === STATE.team);
+  renderToolbar();
+  renderCards(scope);
+  renderTeams();
+  renderTable(scope);
+  renderStrip(scope);
+  renderUpcoming(scope);
+  renderMonth(scope);
+}
+
+function renderToolbar() {
+  $("d-pick").value = STATE.date;
+  const diff = daysBetween(NOW_ISO, STATE.date);
+  const rel = diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : diff === -1 ? "Yesterday" : diff > 0 ? diff + " days from now" : -diff + " days ago";
+  $("d-label").innerHTML = "<b>" + fmt(STATE.date, { weekday: "long", day: "numeric", month: "long" }) + "</b> · " + rel;
+  $("team-chips").innerHTML = ["All"].concat(Object.keys(TEAMS)).map(t => {
+    const n = t === "All" ? DB.people.length : DB.people.filter(p => p.team === t).length;
+    return '<button class="chip' + (STATE.team === t ? " on" : "") + '" data-t="' + t + '">' + t + "<span>" + n + "</span></button>";
+  }).join("");
+  $("offday").innerHTML = isWorking(STATE.date) ? "" :
+    '<div class="offday">' + fmt(STATE.date, { weekday: "long" }) + " is not a working day (weekend or a day the floor is closed), so nobody is expected in.</div>";
+}
+
+function renderCards(scope) {
+  const t = tally(scope, STATE.date);
+  const live = isWorking(STATE.date) && STATE.date <= NOW_ISO;
+  const byTeam = Object.keys(TEAMS).map(k => ({ k, t: tally(scope.filter(p => p.team === k), STATE.date) })).filter(x => x.t.total);
+  const defs = [
+    ["all", "Team", t.total, "var(--text)", true],
+    ["present", "Present", t.present, SCOLOR.present, live],
+    ["late", "Late", t.late, SCOLOR.late, live],
+    ["absent", "Not arrived", t.absent, SCOLOR.absent, live],
+    ["planned", "Planned leave", t.planned, SCOLOR.planned, true],
+    ["unplanned", "Unplanned leave", t.unplanned, SCOLOR.unplanned, true],
+  ];
+  $("cards").innerHTML = defs.map(d => {
+    const n = d[2], show = d[4];
+    const pct = d[0] === "all" ? (byTeam.length > 1 ? "across " + byTeam.length + " teams" : "people") : show ? Math.round(n / (t.total || 1) * 100) + "% of team" : "not applicable";
+    const split = byTeam.length > 1 && show ? '<div class="split">' + byTeam.map(x => x.k + " <b>" + (d[0] === "all" ? x.t.total : x.t[d[0]]) + "</b>").join("") + "</div>" : "";
+    return '<button class="stat' + (STATE.status === d[0] ? " on" : "") + '" data-s="' + d[0] + '" style="--k:' + d[3] + '">' +
+      '<div class="lbl">' + d[1] + '</div><div class="num">' + (show ? n : "—") + '</div><div class="pct">' + pct + "</div>" + split + "</button>";
+  }).join("");
+}
+
+function renderTeams() {
+  const keys = STATE.team === "All" ? Object.keys(TEAMS) : [STATE.team];
+  $("teams").style.gridTemplateColumns = keys.length === 1 ? "1fr" : "";
+  const live = isWorking(STATE.date) && STATE.date <= NOW_ISO;
+  $("teams").innerHTML = keys.map(k => {
+    const ppl = DB.people.filter(p => p.team === k), t = tally(ppl, STATE.date);
+    const segs = ORDER.filter(s => t[s] && (live || s === "planned" || s === "unplanned"));
+    const rest = t.total - segs.reduce((a, s) => a + t[s], 0);
+    const bar = segs.map(s => '<i style="flex:' + t[s] + ';background:' + SCOLOR[s] + '"></i>').join("") +
+      (rest > 0 ? '<i style="flex:' + rest + ';background:#2a3150"></i>' : "");
+    const legend = ORDER.filter(s => live || s === "planned" || s === "unplanned")
+      .map(s => '<span><span class="dot" style="background:' + SCOLOR[s] + '"></span>' + SLABEL[s].replace(" leave", "") + (s === "planned" || s === "unplanned" ? " leave" : "") + "<b>" + t[s] + "</b></span>").join("");
+    return '<div class="team"><div class="row"><span class="name">' + k + '</span><span class="meta">' + t.total + " people · shift " + TEAMS[k].shift + " ET</span></div>" +
+      '<div class="bar">' + bar + '</div><div class="legend">' + legend + "</div></div>";
+  }).join("");
+}
+
+function renderTable(scope) {
+  const q = STATE.q;
+  let rows = scope.filter(p => !q || p.name.toLowerCase().includes(q)).map(p => ({ p: p, i: DB.people.indexOf(p), st: statusOf(p, STATE.date) }));
+  if (STATE.status !== "all") rows = rows.filter(r => r.st.key === STATE.status);
+  const sev = { unplanned: 0, absent: 1, late: 2, planned: 3, present: 4, off: 5, upcoming: 5 };
+  rows.sort((a, b) => sev[a.st.key] - sev[b.st.key] || a.p.team.localeCompare(b.p.team) || a.p.name.localeCompare(b.p.name));
+  $("list-note").textContent = rows.length + " shown" + (STATE.status !== "all" ? " · filtered by " + (SLABEL[STATE.status] || "").toLowerCase() : "");
+  $("empty").style.display = rows.length ? "none" : "block";
+  const workable = isWorking(STATE.date);
+  $("rows").innerHTML = rows.map(r => {
+    const p = r.p, st = r.st, k = st.key;
+    let arrived = '<span class="muted">—</span>', detail = "";
+    if (k === "late") { arrived = fmtTime(st.arrival); detail = (hm2min(st.arrival) - hm2min(TEAMS[p.team].shift)) + " min after shift start"; }
+    else if (k === "present") { arrived = st.arrival ? fmtTime(st.arrival) : "On time"; }
+    else if (k === "planned" || k === "unplanned") {
+      const l = st.leave, n = workDays(l.from, l.to);
+      detail = (l.from === l.to ? fmtDay(l.from) : fmtDay(l.from) + " – " + fmtDay(l.to)) + " · " + n + " working day" + (n === 1 ? "" : "s") + (l.reason ? " · " + esc(l.reason) : "");
+    } else if (k === "absent" && STATE.date === NOW_ISO) detail = "Shift started " + fmtTime(TEAMS[p.team].shift);
+    let acts = "";
+    if (workable && k !== "planned" && k !== "unplanned" && STATE.date <= NOW_ISO)
+      acts += '<button class="act a-present" data-a="present" data-i="' + r.i + '">On time</button><button class="act a-late" data-a="late" data-i="' + r.i + '">Late…</button><button class="act a-absent" data-a="absent" data-i="' + r.i + '">Not arrived</button>';
+    if (k === "planned" || k === "unplanned") acts += '<button class="act a-leave" data-a="edit" data-l="' + st.leave.id + '">Edit leave</button>';
+    else acts += '<button class="act a-leave" data-a="leave" data-i="' + r.i + '">Leave…</button>';
+    return "<tr><td><div class=\"who\"><div class=\"av\">" + esc(initials(p.name)) + '</div><div><div class="n">' + esc(p.name) + '</div><div class="s">' + p.team + " · " + esc(p.role) + " · " + esc(p.group) + "</div></div></div></td>" +
+      '<td><span class="pill k-' + k + '"><i></i>' + SLABEL[k] + "</span>" + (detail ? '<div class="det">' + detail + "</div>" : "") + '</td><td class="arr">' + arrived + '</td><td><div class="acts">' + acts + "</div></td></tr>";
+  }).join("");
+}
+
+function renderStrip(scope) {
+  const data = Array.from({ length: 14 }, (_, i) => addDays(NOW_ISO, i)).map(d => {
+    let pl = 0, un = 0;
+    if (isWorking(d)) scope.forEach(p => { const l = leaveOn(p.name, d); if (l) { if (l.kind === "planned") pl++; else un++; } });
+    return { d: d, pl: pl, un: un };
+  });
+  const max = Math.max(1, Math.max.apply(null, data.map(x => x.pl + x.un)));
+  $("strip").innerHTML = data.map(x => {
+    const n = x.pl + x.un, h = n ? Math.max(8, Math.round(n / max * 78)) : 0;
+    return '<div class="day' + (!isWorking(x.d) ? " off" : "") + (x.d === NOW_ISO ? " today" : "") + (x.d === STATE.date ? " sel" : "") + '" data-d="' + x.d + '" title="' + fmtDay(x.d) + ": " + n + ' on leave">' +
+      '<div class="cnt">' + (n || "") + '</div><div class="col" style="height:' + h + 'px">' +
+      (x.pl ? '<i style="flex:' + x.pl + ';background:var(--c-planned)"></i>' : "") + (x.un ? '<i style="flex:' + x.un + ';background:var(--c-unplanned)"></i>' : "") + "</div>" +
+      '<div class="dd">' + fmt(x.d, { day: "numeric" }) + "<small>" + fmt(x.d, { weekday: "short" }) + "</small></div></div>";
+  }).join("");
+}
+
+function renderUpcoming(scope) {
+  const names = new Set(scope.map(p => p.name)), end = addDays(NOW_ISO, 14), q = STATE.q;
+  const team = n => (DB.people.find(p => p.name === n) || {}).team || "";
+  const list = DB.leaves.filter(l => names.has(l.name) && l.to >= NOW_ISO && l.from <= end && (!q || l.name.toLowerCase().includes(q)))
+    .sort((a, b) => a.from.localeCompare(b.from) || a.name.localeCompare(b.name));
+  $("up-note").textContent = list.length + " in the next 14 days";
+  $("upcoming").innerHTML = list.length ? list.map(l => {
+    const n = workDays(l.from, l.to), now = l.from <= NOW_ISO;
+    return '<div class="upi k-' + l.kind + '" data-l="' + l.id + '"><div class="nm">' + esc(l.name) + '<span class="tag">' + team(l.name) + "</span>" + (now ? '<span class="tag">on leave now</span>' : "") + "</div>" +
+      '<span class="pill k-' + l.kind + '"><i></i>' + (l.kind === "planned" ? "Planned" : "Unplanned") + "</span>" +
+      '<div class="dt">' + (l.from === l.to ? fmtDay(l.from) : fmtDay(l.from) + " – " + fmtDay(l.to)) + " · " + n + " working day" + (n === 1 ? "" : "s") + "</div>" +
+      (l.reason ? '<div class="rs">' + esc(l.reason) + "</div>" : "") + "</div>";
+  }).join("") : '<div class="empty">No leaves in the next 14 days.</div>';
+}
+
+function renderMonth(scope) {
+  const first = NOW_ISO.slice(0, 8) + "01";
+  const pl = {}, un = {}, late = {};
+  let tPl = 0, tUn = 0, tLate = 0;
+  for (let d = first; d <= NOW_ISO; d = addDays(d, 1)) {
+    if (!isWorking(d)) continue;
+    scope.forEach(p => {
+      const k = statusOf(p, d).key;
+      if (k === "planned") { tPl++; pl[p.name] = (pl[p.name] || 0) + 1; }
+      else if (k === "unplanned") { tUn++; un[p.name] = (un[p.name] || 0) + 1; }
+      else if (k === "late") { tLate++; late[p.name] = (late[p.name] || 0) + 1; }
+    });
+  }
+  $("m-note").textContent = fmt(first, { month: "long" }) + " · person-days";
+  $("mstats").innerHTML =
+    '<div class="ms" style="--k:var(--c-planned)"><div class="v">' + tPl + '</div><div class="l">Planned leave</div></div>' +
+    '<div class="ms" style="--k:var(--c-unplanned)"><div class="v">' + tUn + '</div><div class="l">Unplanned leave</div></div>' +
+    '<div class="ms" style="--k:var(--c-late)"><div class="v">' + tLate + '</div><div class="l">Late arrivals</div></div>';
+  const top = (o, unit) => Object.entries(o).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 3)
+    .map(e => "<div><span>" + esc(e[0]) + "</span><span>" + e[1] + " " + unit + (e[1] === 1 ? "" : "s") + "</span></div>").join("") || '<div><span class="muted">None so far</span></div>';
+  $("mtop").innerHTML = "<h3>Most unplanned leave</h3>" + top(un, "day") + "<h3>Most late arrivals</h3>" + top(late, "time");
+}
+
+// ── Actions ─────────────────────────────────────────────────────────────────
+let toastT = 0;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 1900); }
+function setDaily(name, date, v) {
+  DB.daily[date] = DB.daily[date] || {};
+  if (v) DB.daily[date][name] = v; else delete DB.daily[date][name];
+  persist(); render();
+}
+
+// Arrival time
+let LATE = null;
+function openLate(i) {
+  const p = DB.people[i];
+  LATE = { name: p.name, team: p.team };
+  $("mt-title").textContent = p.name;
+  $("mt-sub").textContent = fmtDay(STATE.date) + " · shift starts " + fmtTime(TEAMS[p.team].shift) + " ET, " + TEAMS[p.team].grace + " minutes grace";
+  $("mt-time").value = STATE.date === NOW_ISO ? nowHM() : min2hm(lateAfter(p.team) + 10);
+  lateHint(); $("m-late").classList.add("show");
+}
+function lateHint() {
+  if (!LATE || !$("mt-time").value) return;
+  const m = hm2min($("mt-time").value), after = m - hm2min(TEAMS[LATE.team].shift);
+  $("mt-hint").textContent = m > lateAfter(LATE.team) ? "Counted as late — " + after + " minutes after shift start." : "Within the grace time, so this is counted as on time.";
+}
+$("mt-time").oninput = lateHint;
+$("mt-cancel").onclick = () => $("m-late").classList.remove("show");
+$("mt-save").onclick = () => {
+  const t = $("mt-time").value; if (!t || !LATE) return;
+  setDaily(LATE.name, STATE.date, { status: hm2min(t) > lateAfter(LATE.team) ? "late" : "present", arrival: t });
+  $("m-late").classList.remove("show"); toast(LATE.name + " marked");
+};
+
+// Leave
+let ML = null;
+const kindFor = (applied, from) => applied < from ? "planned" : "unplanned";
+function openLeave(o) {
+  const ex = o.id ? DB.leaves.find(l => l.id === o.id) : null;
+  const sel = $("ml-person");
+  sel.innerHTML = Object.keys(TEAMS).map(t => '<optgroup label="' + t + '">' + DB.people.filter(p => p.team === t)
+    .map(p => '<option value="' + esc(p.name) + '">' + esc(p.name) + "</option>").join("") + "</optgroup>").join("");
+  const base = ex || { name: o.name || DB.people[0].name, from: STATE.date, to: STATE.date, applied: NOW_ISO, reason: "" };
+  sel.value = base.name; $("ml-from").value = base.from; $("ml-to").value = base.to; $("ml-applied").value = base.applied || NOW_ISO; $("ml-reason").value = base.reason || "";
+  ML = { id: ex ? ex.id : null, kind: ex ? ex.kind : kindFor($("ml-applied").value, base.from), touched: !!ex };
+  $("ml-title").textContent = ex ? "Edit leave" : "Add leave";
+  $("ml-del").style.display = ex ? "" : "none"; $("ml-err").textContent = "";
+  paintKind(); $("m-leave").classList.add("show");
+}
+function paintKind() {
+  document.querySelectorAll("#ml-kind button").forEach(b => b.classList.toggle("on", b.dataset.k === ML.kind));
+  const a = $("ml-applied").value, f = $("ml-from").value;
+  $("ml-hint").textContent = (a && f ? (a < f ? "Applied before the leave starts, so it is normally planned." : "Applied on or after the first day, so it is normally unplanned.") : "") + " You can change it.";
+}
+function leaveAuto() { if (ML && !ML.touched) { ML.kind = kindFor($("ml-applied").value, $("ml-from").value); } paintKind(); }
+$("ml-from").onchange = () => { if ($("ml-to").value < $("ml-from").value) $("ml-to").value = $("ml-from").value; leaveAuto(); };
+$("ml-applied").onchange = leaveAuto;
+document.querySelectorAll("#ml-kind button").forEach(b => b.onclick = () => { ML.kind = b.dataset.k; ML.touched = true; paintKind(); });
+$("ml-cancel").onclick = () => $("m-leave").classList.remove("show");
+$("ml-del").onclick = () => { DB.leaves = DB.leaves.filter(l => l.id !== ML.id); persist(); $("m-leave").classList.remove("show"); render(); toast("Leave deleted"); };
+$("ml-save").onclick = () => {
+  const rec = { name: $("ml-person").value, from: $("ml-from").value, to: $("ml-to").value, applied: $("ml-applied").value, reason: $("ml-reason").value.trim(), kind: ML.kind };
+  if (!rec.name || !rec.from || !rec.to) { $("ml-err").textContent = "Pick a person and both dates."; return; }
+  if (rec.to < rec.from) { $("ml-err").textContent = "The end date is before the start date."; return; }
+  if (ML.id) Object.assign(DB.leaves.find(l => l.id === ML.id), rec);
+  else DB.leaves.push(Object.assign({ id: "L" + Date.now() + Math.random().toString(36).slice(2, 6) }, rec));
+  persist(); $("m-leave").classList.remove("show"); render(); toast("Leave saved");
+};
+document.querySelectorAll(".modal-bg").forEach(m => m.addEventListener("mousedown", e => { if (e.target === m) m.classList.remove("show"); }));
+document.addEventListener("keydown", e => { if (e.key === "Escape") document.querySelectorAll(".modal-bg").forEach(m => m.classList.remove("show")); });
+
+// ── Wiring ──────────────────────────────────────────────────────────────────
+function wire() {
+  $("d-prev").onclick = () => { STATE.date = addDays(STATE.date, -1); render(); };
+  $("d-next").onclick = () => { STATE.date = addDays(STATE.date, 1); render(); };
+  $("d-today").onclick = () => { STATE.date = isoToday(); render(); };
+  $("d-pick").onchange = e => { if (e.target.value) { STATE.date = e.target.value; render(); } };
+  $("q").oninput = e => { STATE.q = e.target.value.trim().toLowerCase(); render(); };
+  $("team-chips").onclick = e => { const b = e.target.closest("[data-t]"); if (b) { STATE.team = b.dataset.t; render(); } };
+  $("cards").onclick = e => { const b = e.target.closest("[data-s]"); if (b) { STATE.status = (b.dataset.s === "all" || STATE.status === b.dataset.s) ? "all" : b.dataset.s; render(); } };
+  $("strip").onclick = e => { const b = e.target.closest("[data-d]"); if (b) { STATE.date = b.dataset.d; render(); } };
+  $("upcoming").onclick = e => { const b = e.target.closest("[data-l]"); if (b) openLeave({ id: b.dataset.l }); };
+  $("rows").onclick = e => {
+    const b = e.target.closest("[data-a]"); if (!b) return;
+    const a = b.dataset.a, p = DB.people[b.dataset.i];
+    if (a === "present") { setDaily(p.name, STATE.date, { status: "present", arrival: "" }); toast(p.name + " marked on time"); }
+    else if (a === "absent") { setDaily(p.name, STATE.date, null); toast(p.name + " marked not arrived"); }
+    else if (a === "late") openLate(b.dataset.i);
+    else if (a === "leave") openLeave({ name: p.name });
+    else if (a === "edit") openLeave({ id: b.dataset.l });
+  };
+  $("btn-add-leave").onclick = () => openLeave({});
+  $("btn-reset").onclick = () => { try { localStorage.removeItem(KEY); } catch (e) {} seedDB(); persist(); render(); toast("Demo data reset"); };
+}
+
+async function init() {
+  await HOLIDAYS_READY;
+  loadDB();
+  STATE.date = isoToday();
+  wire();
+  render();
+}
+
+// ── Auth gate ───────────────────────────────────────────────────────────────
+let _started = false;
+function showApp(user) {
+  if (_started) return;          // getSession() and onAuthStateChange() both fire
+  _started = true;
+  $("auth-overlay").style.display = "none";
+  $("main-content").style.display = "block";
+  buildNav(user.email);
+  mountUserBar(user, _supabase);
+  init();
+}
+function denied(msg) {
+  _supabase.auth.signOut();
+  showAuthOverlay();
+  $("auth-error").textContent = msg;
+}
+async function gate(session) {
+  await APP_USERS_READY;
+  if (!session || !session.user) { showAuthOverlay(); return; }
+  const email = session.user.email || "";
+  if (!ALLOWED_EMAILS.includes(email) || !OPS_VIEW_EMAILS.includes(email) || !isPageAllowed(email, window.location.pathname)) {
+    denied("Access denied. The Ops View is limited to a few named people.");
+  } else showApp(session.user);
+}
+_supabase.auth.getSession().then(r => gate(r.data.session));
+_supabase.auth.onAuthStateChange((_e, session) => gate(session));
+
+$("btn-google-signin").onclick = async () => {
+  $("auth-error").textContent = "";
+  const { error } = await _supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: "https://elevate-dashboard-iota.vercel.app/ops-view.html" }
+  });
+  if (error) $("auth-error").textContent = error.message;
+};
+</script>
+</body>
+</html>
