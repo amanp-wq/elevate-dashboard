@@ -503,6 +503,14 @@ let NOW_ISO = "";
 const canEditGroup = g => !!ACCESS && (ACCESS.role === "admin" || (ACCESS.role === "lead" && ACCESS.groups.includes(g)));
 const canEdit = p => !!p && canEditGroup(p.group);
 const personOf = name => DB.people.find(p => p.name === name);
+// Before launch a day only counts for a team once somebody on it has been marked
+// (for example by importing an earlier month from Keka); otherwise it is not tracked.
+const tracked = (date, group) => !!(DB.trk && DB.trk[date] && DB.trk[date][group]);
+function indexTracked() {
+  const g = {}; DB.people.forEach(p => { g[p.name] = p.group; });
+  DB.trk = {};
+  Object.keys(DB.daily).forEach(d => Object.keys(DB.daily[d]).forEach(n => { if (g[n]) (DB.trk[d] = DB.trk[d] || {})[g[n]] = true; }));
+}
 
 function buildPeople() {
   const people = [];
@@ -536,7 +544,7 @@ async function loadRows() {
   ]);
   const byDay = {};
   daily.forEach(r => { (byDay[r.day] = byDay[r.day] || {})[r.person] = { status: r.status, arrival: r.arrival || "" }; });
-  DB.daily = byDay;
+  DB.daily = byDay; indexTracked();
   DB.updated = daily.reduce((m, x) => Math.max(m, Date.parse(x.updated_at) || 0), 0);
   DB.leaves = leaves.map(r => ({ id: r.id, name: r.person, from: r.from_date, to: r.to_date, kind: r.kind, reason: r.reason || "", applied: r.applied_on || r.from_date }));
 }
@@ -561,7 +569,7 @@ function statusOf(p, date) {
   if (!isWorking(date)) return { key: "off" };
   const lv = leaveOn(p.name, date);
   if (lv) return { key: lv.kind, leave: lv };
-  if (date < LAUNCH) return { key: "off" };
+  if (date < LAUNCH && !tracked(date, p.group)) return { key: "off" };
   if (date > NOW_ISO) return { key: "upcoming" };
   const d = DB.daily[date] && DB.daily[date][p.name];
   if (d) return { key: d.status, arrival: d.arrival };
@@ -984,13 +992,13 @@ async function setDaily(name, date, v) {
   DB.daily[date] = DB.daily[date] || {};
   const prev = DB.daily[date][name];
   if (v) DB.daily[date][name] = v; else delete DB.daily[date][name];
-  render();
+  indexTracked(); render();
   const r = v
     ? await _supabase.from("ops_daily").upsert({ day: date, person: name, group_name: p.group, team: p.team, status: v.status, arrival: v.arrival || null, updated_by: ACCESS.email, updated_at: new Date().toISOString() }, { onConflict: "day,person" })
     : await _supabase.from("ops_daily").delete().eq("day", date).eq("person", name);
   if (r.error) {
     if (prev) DB.daily[date][name] = prev; else delete DB.daily[date][name];
-    render(); toast("Not saved — " + r.error.message);
+    indexTracked(); render(); toast("Not saved — " + r.error.message);
   }
 }
 function openModal(id, focusId) { $(id).classList.add("show"); setTimeout(() => { const f = $(focusId); if (f) f.focus(); }, 30); }
@@ -1147,7 +1155,7 @@ function renderImport() {
   const d0 = dates[0] || "";
   const missing = dates.length === 1 ? DB.people.filter(canEdit).filter(p => !rows.some(r => r.pick != null && DB.people[r.pick] === p && r.rec.inTime)).map(p => p.name) : [];
   html += '<div class="mi-note">' + (dates.length === 1 ? "Day: <b>" + fmtDay(d0) + "</b>. " : "") +
-    (missing.length ? missing.length + " of your people are not in the file and will stay as they are now: " + esc(missing.join(", ")) + "." : "Everyone on your team is in the file.") + "</div>";
+    (dates.length > 1 ? dates.length + " days in this file. Anyone not listed on a day counts as Not arrived that day, unless you add a leave for it." : missing.length ? missing.length + " of your people are not in the file and will stay as they are now: " + esc(missing.join(", ")) + "." : "Everyone on your team is in the file.") + "</div>";
   $("mi-body").innerHTML = html;
   const n = rows.filter(r => r.on && r.pick != null && r.rec.inTime).length;
   $("mi-go").disabled = n === 0; $("mi-go").textContent = n ? "Import " + n + (n === 1 ? " person" : " people") : "Import";
@@ -1162,7 +1170,7 @@ async function doImport() {
   const r = await _supabase.from("ops_daily").upsert(up, { onConflict: "day,person" });
   if (r.error) { $("mi-msg").textContent = "Not saved — " + r.error.message; $("mi-go").disabled = false; return; }
   up.forEach(u => { (DB.daily[u.day] = DB.daily[u.day] || {})[u.person] = { status: u.status, arrival: u.arrival }; });
-  DB.updated = Date.now();
+  DB.updated = Date.now(); indexTracked();
   $("m-import").classList.remove("show"); render(); toast(up.length + " people imported");
 }
 function openImport() {
