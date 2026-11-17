@@ -12,7 +12,7 @@ const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
 export const ALLOWED_EMAILS = [
   "aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro",
   "tejasvi.p@elevateme.pro", "soham.b@elevateme.pro", "mamta.d@elevateme.pro",
-  "prachit@elevateme.pro", "dhanraj.s@elevateme.pro", "prem.t@elevateme.pro",
+  "prachit@elevateme.pro", "dhanraj.s@elevateme.pro", "ajay@elevateme.pro",
   "meet.t@elevateme.pro",
 ];
 export const ADMIN_EMAILS = ["aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro", "prachit@elevateme.pro"];

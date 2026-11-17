@@ -10,7 +10,7 @@ const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const ALLOWED_EMAILS = [
   "aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro",
   "tejasvi.p@elevateme.pro", "soham.b@elevateme.pro", "mamta.d@elevateme.pro",
-  "prachit@elevateme.pro", "dhanraj.s@elevateme.pro", "prem.t@elevateme.pro",
+  "prachit@elevateme.pro", "dhanraj.s@elevateme.pro", "ajay@elevateme.pro",
   "meet.t@elevateme.pro"
 ];
 const ADMIN_EMAILS = ["aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@elevateme.pro", "prachit@elevateme.pro"];
@@ -19,7 +19,7 @@ const ADMIN_EMAILS = ["aman.p@elevateme.pro", "satish.r@elevateme.pro", "shani@e
 // is on leave or late across the company, which is not for every admin.
 const OPS_VIEW_EMAILS = ["aman.p@elevateme.pro", "shani@elevateme.pro", "prachit@elevateme.pro"];
 const SALES_TL_EMAILS = ["soham.b@elevateme.pro", "tejasvi.p@elevateme.pro", "mamta.d@elevateme.pro"];
-const BD_TL_EMAILS = ["dhanraj.s@elevateme.pro", "prem.t@elevateme.pro"];
+const BD_TL_EMAILS = ["dhanraj.s@elevateme.pro", "ajay@elevateme.pro"];
 
 // Users limited to a specific subset of pages (everyone else has no entry
 // here and gets the normal role-gated access). Checked both to hide nav
