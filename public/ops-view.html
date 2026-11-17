@@ -48,9 +48,15 @@
   .demo-band { background: rgba(255,171,0,0.08); border: 1px solid rgba(255,171,0,0.35); color: #ffc65c; border-radius: var(--r-md); padding: 9px 14px; font-size: 12.5px; margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   .demo-band b { color: #ffd98a; }
   .role-band { background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--muted); border-radius: var(--r-md); padding: 9px 14px; font-size: 12.5px; margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .mi-tbl { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+  .mi-tbl td, .mi-tbl th { padding: 7px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+  .mi-tbl tr.skip td { opacity: .5; }
+  .mi-tbl select { background: var(--bg); color: var(--text); border: 1px solid var(--border-strong); border-radius: 8px; padding: 5px 6px; font: inherit; max-width: 200px; }
+  .mi-late { color: var(--c-late); font-weight: 800; } .mi-ok { color: var(--c-present); font-weight: 800; }
+  .mi-note { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
   .role-band b { color: var(--text); }
   .role-band button { margin-left: auto; background: none; border: 1px solid var(--border); color: var(--muted); border-radius: var(--r-sm); padding: 5px 11px; font-size: 12px; cursor: pointer; }
-  body.readonly [data-a], body.readonly #btn-add-leave { display: none !important; }
+  body.readonly [data-a], body.readonly #btn-add-leave, body.readonly #btn-import { display: none !important; }
   .demo-band button { margin-left: auto; background: none; border: 1px solid rgba(255,171,0,0.45); color: #ffc65c; border-radius: var(--r-sm); padding: 5px 11px; font-size: 12px; cursor: pointer; }
 
   /* Toolbar */
@@ -297,6 +303,7 @@
 <body>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="/config.js"></script>
 <script src="/scoring.js"></script>
 
@@ -346,6 +353,7 @@
       <div class="chips" id="team-chips" role="group" aria-label="Team"></div>
       <div class="spacer"></div>
       <input class="search" id="q" type="search" placeholder="Search a name…" aria-label="Search a name">
+      <button class="btn ghost" id="btn-import" type="button">Import from Keka</button>
       <button class="btn" id="btn-add-leave">+ Add leave</button>
     </div>
 
@@ -439,15 +447,26 @@
   <div class="foot"><button class="btn ghost" id="mt-cancel">Cancel</button><button class="btn" id="mt-save">Save</button></div>
 </div></div>
 
+<div class="modal-bg" id="m-import"><div class="modal" style="max-width:760px" role="dialog" aria-modal="true" aria-labelledby="mi-title">
+  <h3 id="mi-title">Import from Keka</h3>
+  <div class="sub">In Keka open <b>Team Arrival Details</b>, download it, and choose the file here. It is read in your browser and nothing is saved until you press Import.</div>
+  <div class="fld"><label for="mi-file">Keka file (.xlsx or .csv)</label><input type="file" id="mi-file" accept=".xlsx,.xls,.csv"></div>
+  <div class="hint" id="mi-msg"></div>
+  <div id="mi-body"></div>
+  <div class="foot"><button class="btn ghost" id="mi-cancel" type="button">Cancel</button><button class="btn" id="mi-go" type="button" disabled>Import</button></div>
+</div></div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// ── Dates — the floor runs on Eastern time ──────────────────────────────────
+// ── Dates — the day is the US (Eastern) date, but the team keeps India time ──────────────────────────────────
 const ET = "America/New_York";
 const isoToday = () => new Date().toLocaleDateString("en-CA", { timeZone: ET });
-const nowHM = () => new Date().toLocaleTimeString("en-GB", { timeZone: ET, hour: "2-digit", minute: "2-digit" });
+const IST = "Asia/Kolkata";
+// Shifts and arrival times are in IST, the same clock Keka reports in.
+const nowHM = () => new Date().toLocaleTimeString("en-GB", { timeZone: IST, hour: "2-digit", minute: "2-digit" });
 const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T12:00:00Z") - new Date(a + "T12:00:00Z")) / 86400000);
 const fmt = (iso, o) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-US", Object.assign({ timeZone: "UTC" }, o));
@@ -463,8 +482,8 @@ const workDays = (from, to) => { let n = 0; for (let d = from; d <= to; d = addD
 
 // Each team's shift start and how long after it still counts as on time.
 const TEAMS = {
-  Sales: { shift: "10:30", grace: 15 },
-  BD:    { shift: "10:30", grace: 15 },
+  Sales: { shift: "19:30", grace: 15 },   // 7:30 PM IST
+  BD:    { shift: "19:30", grace: 15 },
 };
 const lateAfter = team => hm2min(TEAMS[team].shift) + TEAMS[team].grace;
 
@@ -677,9 +696,9 @@ function renderGlance(scope) {
   const ageMin = Math.round((Date.now() - (DB.updated || 0)) / 60000);
   const stale = covers && isWorking(NOW_ISO) && ageMin > 90;
   const ageTxt = ageMin >= 60 ? Math.floor(ageMin / 60) + "h " + (ageMin % 60) + "m" : ageMin + " min";
-  const when = !DB.updated ? "" : new Date(DB.updated).toLocaleTimeString("en-US", { timeZone: ET, hour: "numeric", minute: "2-digit" });
+  const when = !DB.updated ? "" : new Date(DB.updated).toLocaleTimeString("en-US", { timeZone: IST, hour: "numeric", minute: "2-digit" });
   $("updated").className = stale ? "stale" : "";
-  $("updated").textContent = !DB.updated ? "Nothing marked yet" : stale ? "Last marked " + ageTxt + " ago — may be out of date" : "Updated " + when + " ET";
+  $("updated").textContent = !DB.updated ? "Nothing marked yet" : stale ? "Last marked " + ageTxt + " ago — may be out of date" : "Updated " + when + " IST";
 
   const one = (n, a, b) => n === 1 ? a : b;
   const btn = (n, label, k) => n ? '<button type="button" class="hl" data-s="' + k + '"><span style="color:' + SCOLOR[k] + '">' + n + "</span> " + label + "</button>" : "";
@@ -739,7 +758,7 @@ function renderTeams() {
       const on = STATE.status === s && STATE.team === k;
       return '<button type="button" class="cnt-btn' + (on ? " on" : "") + '" data-s="' + s + '" data-team="' + k + '" aria-pressed="' + on + '" style="--k:' + SCOLOR[s] + '"><span class="dot" style="background:' + SCOLOR[s] + '"></span>' + SLABEL[s].replace(" leave", "") + (s === "planned" || s === "unplanned" ? " leave" : "") + "<b>" + t[s] + "</b></button>";
     }).join("");
-    const meta = S.period ? ppl.length + " people · " + t.days + " working day" + (t.days === 1 ? "" : "s") : t.total + " people · shift " + fmtTime(TEAMS[k].shift) + " ET";
+    const meta = S.period ? ppl.length + " people · " + t.days + " working day" + (t.days === 1 ? "" : "s") : t.total + " people · shift " + fmtTime(TEAMS[k].shift) + " IST";
     return '<div class="trow"><div class="top"><span class="name">' + k + '</span><span class="meta">' + meta + "</span></div>" +
       '<div class="bar" role="img" aria-label="' + k + ": " + show.map(s => t[s] + " " + SLABEL[s].toLowerCase()).join(", ") + '">' + bar + '</div><div class="counts">' + counts + "</div></div>";
   }).join("");
@@ -982,7 +1001,7 @@ function openLate(i) {
   const p = DB.people[i];
   LATE = { name: p.name, team: p.team };
   $("mt-title").textContent = p.name;
-  $("mt-sub").textContent = fmtDay(STATE.date) + " · shift starts " + fmtTime(TEAMS[p.team].shift) + " ET, " + TEAMS[p.team].grace + " minutes grace";
+  $("mt-sub").textContent = fmtDay(STATE.date) + " · shift starts " + fmtTime(TEAMS[p.team].shift) + " IST, " + TEAMS[p.team].grace + " minutes grace";
   $("mt-time").value = STATE.date === NOW_ISO ? nowHM() : min2hm(lateAfter(p.team) + 10);
   lateHint(); openModal("m-late", "mt-time");
 }
@@ -1053,6 +1072,122 @@ $("ml-save").onclick = async () => {
 document.querySelectorAll(".modal-bg").forEach(m => m.addEventListener("mousedown", e => { if (e.target === m) m.classList.remove("show"); }));
 document.addEventListener("keydown", e => { if (e.key === "Escape") { document.querySelectorAll(".modal-bg").forEach(m => m.classList.remove("show")); hideTip(); } });
 
+// ── Import from Keka ────────────────────────────────────────────────────────
+// Keka's "Team Arrival Details" lists who clocked in and when. Anyone missing from
+// it simply stays "Not arrived", which is also how this page treats them.
+let IMP = null;
+const impTokens = n => String(n).toLowerCase().replace(/\(.*?\)/g, " ").replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean);
+// every word of the roster name must start a word of the Keka name ("Sunil Patel" in "Sunil Kumar Patel")
+const impMatch = (rosterName, kekaName) => { const k = impTokens(kekaName); return impTokens(rosterName).every(t => k.some(w => w.startsWith(t))); };
+const MON = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+function impDate(v) {
+  const t = String(v || "").trim();
+  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return m[1] + "-" + m[2] + "-" + m[3];
+  m = t.match(/^(\d{1,2})[\s-]+([A-Za-z]{3})[a-z]*[\s-]+(\d{4})/);
+  if (m && MON[m[2].toLowerCase()]) return m[3] + "-" + String(MON[m[2].toLowerCase()]).padStart(2, "0") + "-" + m[1].padStart(2, "0");
+  return "";
+}
+function impTime(v) {
+  const m = String(v == null ? "" : v).trim().match(/^(\d{1,2}):(\d{2})/);
+  return m ? m[1].padStart(2, "0") + ":" + m[2] : "";
+}
+function parseKeka(buf) {
+  const wb = XLSX.read(buf, { type: "array" });
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: "" });
+  const h = rows.findIndex(r => r.some(c => /^employee name$/i.test(String(c).trim())) && r.some(c => /^in time$/i.test(String(c).trim())));
+  if (h < 0) throw new Error("This does not look like Keka's Team Arrival Details (no Employee Name / In Time columns).");
+  const col = re => rows[h].findIndex(c => re.test(String(c).trim()));
+  const cD = col(/^date$/i), cN = col(/^employee name$/i), cM = col(/^reporting manager$/i), cI = col(/^in time$/i);
+  const out = [];
+  rows.slice(h + 1).forEach(r => {
+    const date = impDate(r[cD]), name = String(r[cN] || "").trim();
+    if (!date || !name) return;
+    out.push({ date, keka: name, manager: cM >= 0 ? String(r[cM] || "") : "", inTime: impTime(r[cI]) });
+  });
+  return out;
+}
+function buildImport(recs) {
+  const scope = DB.people.map((p, i) => ({ p, i })).filter(x => canEdit(x.p));
+  const rows = recs.map(r => {
+    let c = scope.filter(x => impMatch(x.p.name, r.keka));
+    if (c.length > 1) {   // two people of the same name: the reporting manager tells them apart
+      const mg = impTokens(r.manager);
+      const byLead = c.filter(x => impTokens(x.p.group.replace(/^Team /, "")).every(t => mg.some(w => w.startsWith(t))));
+      if (byLead.length) c = byLead;
+    }
+    return { rec: r, cands: c.map(x => x.i), pick: c.length === 1 ? c[0].i : null, on: !!r.inTime && c.length >= 1 };
+  });
+  return rows;
+}
+function impResult(i, inTime) {
+  const p = DB.people[i], late = hm2min(inTime) > lateAfter(p.team);
+  return { status: late ? "late" : "present", mins: hm2min(inTime) - hm2min(TEAMS[p.team].shift) };
+}
+function renderImport() {
+  const rows = IMP.rows, picked = new Set(rows.filter(r => r.on && r.pick != null).map(r => r.rec.date + "|" + r.pick));
+  const dates = [...new Set(rows.map(r => r.rec.date))];
+  let html = '<table class="mi-tbl"><thead><tr><th></th><th>In Keka</th><th>Matched to</th><th>In (IST)</th><th>Result</th></tr></thead><tbody>';
+  rows.forEach((r, n) => {
+    const ok = r.cands.length > 0, noTime = !r.rec.inTime;
+    let who;
+    if (!ok) who = '<span class="mi-note">not in your team — ignored</span>';
+    else if (r.cands.length === 1) who = esc(DB.people[r.cands[0]].name);
+    else who = '<select data-n="' + n + '" aria-label="Who is ' + esc(r.rec.keka) + '"><option value="">Choose…</option>' + r.cands.map(i => '<option value="' + i + '"' + (r.pick === i ? " selected" : "") + ">" + esc(DB.people[i].name) + "</option>").join("") + "</select>";
+    let res = "";
+    if (ok && noTime) res = '<span class="mi-note">no in-time</span>';
+    else if (ok && r.pick != null) {
+      const x = impResult(r.pick, r.rec.inTime), was = DB.daily[r.rec.date] && DB.daily[r.rec.date][DB.people[r.pick].name];
+      res = x.status === "late" ? '<span class="mi-late">Late · ' + x.mins + " min</span>" : '<span class="mi-ok">On time</span>';
+      if (was && was.status !== x.status) res += ' <span class="mi-note">(was ' + was.status + ")</span>";
+    }
+    html += '<tr class="' + (r.on && r.pick != null ? "" : "skip") + '"><td><input type="checkbox" data-c="' + n + '"' + (r.on && r.pick != null ? " checked" : "") + (ok && !noTime && r.pick != null ? "" : " disabled") + ' aria-label="Include ' + esc(r.rec.keka) + '"></td><td>' +
+      esc(r.rec.keka) + (dates.length > 1 ? ' <span class="mi-note">' + r.rec.date + "</span>" : "") + "</td><td>" + who + "</td><td>" + (r.rec.inTime || "—") + "</td><td>" + res + "</td></tr>";
+  });
+  html += "</tbody></table>";
+  const d0 = dates[0] || "";
+  const missing = dates.length === 1 ? DB.people.filter(canEdit).filter(p => !rows.some(r => r.pick != null && DB.people[r.pick] === p && r.rec.inTime)).map(p => p.name) : [];
+  html += '<div class="mi-note">' + (dates.length === 1 ? "Day: <b>" + fmtDay(d0) + "</b>. " : "") +
+    (missing.length ? missing.length + " of your people are not in the file and will stay as they are now: " + esc(missing.join(", ")) + "." : "Everyone on your team is in the file.") + "</div>";
+  $("mi-body").innerHTML = html;
+  const n = rows.filter(r => r.on && r.pick != null && r.rec.inTime).length;
+  $("mi-go").disabled = n === 0; $("mi-go").textContent = n ? "Import " + n + (n === 1 ? " person" : " people") : "Import";
+}
+async function doImport() {
+  const up = IMP.rows.filter(r => r.on && r.pick != null && r.rec.inTime).map(r => {
+    const p = DB.people[r.pick], x = impResult(r.pick, r.rec.inTime);
+    return { day: r.rec.date, person: p.name, group_name: p.group, team: p.team, status: x.status, arrival: r.rec.inTime, updated_by: ACCESS.email, updated_at: new Date().toISOString() };
+  });
+  if (!up.length) return;
+  $("mi-go").disabled = true;
+  const r = await _supabase.from("ops_daily").upsert(up, { onConflict: "day,person" });
+  if (r.error) { $("mi-msg").textContent = "Not saved — " + r.error.message; $("mi-go").disabled = false; return; }
+  up.forEach(u => { (DB.daily[u.day] = DB.daily[u.day] || {})[u.person] = { status: u.status, arrival: u.arrival }; });
+  DB.updated = Date.now();
+  $("m-import").classList.remove("show"); render(); toast(up.length + " people imported");
+}
+function openImport() {
+  IMP = null; $("mi-file").value = ""; $("mi-body").innerHTML = ""; $("mi-msg").textContent = "";
+  $("mi-go").disabled = true; $("mi-go").textContent = "Import"; openModal("m-import", "mi-file");
+}
+$("mi-cancel").onclick = () => $("m-import").classList.remove("show");
+$("mi-file").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  $("mi-msg").textContent = "Reading…"; $("mi-body").innerHTML = "";
+  try {
+    const recs = parseKeka(await f.arrayBuffer());
+    if (!recs.length) throw new Error("No rows with a date and a name were found.");
+    IMP = { rows: buildImport(recs) };
+    $("mi-msg").textContent = recs.length + " rows read."; renderImport();
+  } catch (err) { IMP = null; $("mi-msg").textContent = err.message || String(err); $("mi-go").disabled = true; }
+};
+$("mi-body").onchange = e => {
+  const c = e.target.closest("[data-c]"), s2 = e.target.closest("select[data-n]");
+  if (c) IMP.rows[c.dataset.c].on = c.checked;
+  if (s2) { const r = IMP.rows[s2.dataset.n]; r.pick = s2.value === "" ? null : Number(s2.value); r.on = r.pick != null; }
+  renderImport();
+};
+$("mi-go").onclick = doImport;
+
 // ── Wiring ──────────────────────────────────────────────────────────────────
 function wire() {
   $("d-prev").onclick = () => { STATE.date = shiftDate(-1); render(); };
@@ -1097,6 +1232,7 @@ function wire() {
     else if (a === "edit") openLeave({ id: b.dataset.l });
   };
   $("btn-add-leave").onclick = () => openLeave({});
+  $("btn-import").onclick = openImport;
   $("btn-refresh").onclick = () => refresh(true);
   setInterval(refresh, 60000);
 }
