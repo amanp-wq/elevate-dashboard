@@ -31,6 +31,12 @@ const RESTRICTED_PAGES = {
 // never worth restricting — a page-limited user still needs to understand how
 // their own numbers are calculated.
 const ALWAYS_ALLOWED_PAGES = ["/guide.html"];
+// A page listed for a user in Admin Panel → Manage Users is a grant as well as a
+// limit, for pages that are otherwise admin-only (Funnel).
+function isGrantedPage(email, path) {
+  const list = RESTRICTED_PAGES[email];
+  return !!list && list.includes(path);
+}
 function isPageAllowed(email, path) {
   if (ALWAYS_ALLOWED_PAGES.includes(path)) return true;
   const allowed = RESTRICTED_PAGES[email];
@@ -238,7 +244,8 @@ function buildNav(email) {
     { label: "Combined", href: "/combined.html" },
     { label: "History", href: "/history.html" },
     { group: "BD", items: [
-      ...(isAdmin ? [{ label: "Funnel", href: "/funnel.html" }, { label: "BDE", href: "/bde.html" }] : []),
+      ...(isAdmin || isGrantedPage(email, "/funnel.html") ? [{ label: "Funnel", href: "/funnel.html" }] : []),
+      ...(isAdmin ? [{ label: "BDE", href: "/bde.html" }] : []),
       // BD team leads need the scorecard for their own team-health view, so this
       // one is not admin-only like the other two BD pages.
       ...(isAdmin || isBdTL ? [{ label: "BD Scorecard", href: "/bde-scorecard.html" }] : []),

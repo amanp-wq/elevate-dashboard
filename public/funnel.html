@@ -515,12 +515,12 @@ function showApp(user) {
 
 _supabase.auth.getSession().then(async ({ data: { session } }) => {
   await APP_USERS_READY;
-  if (session?.user && ADMIN_EMAILS.includes(session.user.email)) {
+  if (session?.user && (ADMIN_EMAILS.includes(session.user.email) || isGrantedPage(session.user.email, "/funnel.html"))) {
     showApp(session.user);
   } else if (session?.user) {
     _supabase.auth.signOut();
     showAuthOverlay();
-    document.getElementById("auth-error").textContent = "Access denied. Admin accounts only.";
+    document.getElementById("auth-error").textContent = "Access denied. This page is limited to admins and people granted Funnel.";
   } else {
     showAuthOverlay();   // signed out, or a token too stale to refresh
   }
@@ -528,7 +528,7 @@ _supabase.auth.getSession().then(async ({ data: { session } }) => {
 
 _supabase.auth.onAuthStateChange(async (_e, session) => {
   await APP_USERS_READY;
-  if (session?.user && ADMIN_EMAILS.includes(session.user.email)) {
+  if (session?.user && (ADMIN_EMAILS.includes(session.user.email) || isGrantedPage(session.user.email, "/funnel.html"))) {
     showApp(session.user);
   } else if (!session?.user) {
     showAuthOverlay();   // signed out, or a token too stale to refresh
