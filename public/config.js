@@ -30,7 +30,10 @@ const RESTRICTED_PAGES = {
 // The guide is documentation about pages the user can already see, so it is
 // never worth restricting — a page-limited user still needs to understand how
 // their own numbers are calculated.
-const ALWAYS_ALLOWED_PAGES = ["/guide.html"];
+// The Ops View is gated by its own ops_access table, which names who may open it
+// and what they may edit, so the page list here must not hide it: a lead with a
+// page-limited account (Tejasvi) was losing the link.
+const ALWAYS_ALLOWED_PAGES = ["/guide.html", "/ops-view.html"];
 // A page listed for a user in Admin Panel → Manage Users is a grant as well as a
 // limit, for pages that are otherwise admin-only (Funnel).
 function isGrantedPage(email, path) {

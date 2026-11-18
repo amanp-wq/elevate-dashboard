@@ -166,6 +166,13 @@
     padding: 4px 10px; font-size: 12px; cursor: pointer;
   }
   .btn-remove-user:hover { background: #ff4d6a; color: #fff; }
+  .rs-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px; }
+  .rs-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; max-width: 460px; width: 100%; padding: 24px 26px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+  .rs-box.ok { border-color: #00e67666; } .rs-box.bad { border-color: #ff4d3a88; }
+  .rs-box h3 { font-size: 17px; margin-bottom: 12px; } .rs-box.ok h3 { color: var(--green); } .rs-box.bad h3 { color: var(--accent); }
+  .rs-box ul { list-style: none; font-size: 13px; line-height: 1.7; } .rs-box li b { color: var(--text); }
+  .rs-box li { color: #b9bfd8; } .rs-box li.warn { color: var(--gold); margin-top: 6px; }
+  .rs-box button { margin-top: 18px; background: var(--accent); border: 0; color: #fff; font-weight: 700; border-radius: 10px; padding: 9px 22px; cursor: pointer; font-size: 13px; }
   .hardcoded-note { font-size: 11px; color: var(--muted); font-style: italic; }
 
   /* Tabs */
@@ -537,6 +544,26 @@ function editUser(email) {
   document.getElementById("nu-email").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
+// Pages that stay admin-only even when listed for someone, so the popup can say
+// what they will really see instead of letting a tick look like access.
+const ADMIN_ONLY_PAGES = { "/bde.html": "BDE", "/tv-board.html": "TV Board", "/manage-slides.html": "TV Slides" };
+function showResult(ok, title, lines) {
+  const old = document.getElementById("rs-bg"); if (old) old.remove();
+  const bg = document.createElement("div"); bg.className = "rs-bg"; bg.id = "rs-bg";
+  bg.innerHTML = `<div class="rs-box ${ok ? "ok" : "bad"}" role="dialog" aria-modal="true"><h3>${ok ? "✓ " : "✕ "}${title}</h3><ul>${
+    lines.map(l => `<li class="${l.warn ? "warn" : ""}">${l.t}</li>`).join("")}</ul><button type="button">OK</button></div>`;
+  bg.onclick = e => { if (e.target === bg || e.target.tagName === "BUTTON") bg.remove(); };
+  document.body.appendChild(bg);
+  bg.querySelector("button").focus();
+}
+async function readUserRow(email) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/app_users?select=email,is_admin,pages&email=eq.${encodeURIComponent(email)}`, {
+    headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
+  });
+  if (!r.ok) throw new Error("Could not read it back: " + r.status);
+  return (await r.json())[0] || null;
+}
+
 async function saveUser() {
   const email = document.getElementById("nu-email").value.trim().toLowerCase();
   const full_name = document.getElementById("nu-name").value.trim();
@@ -554,7 +581,20 @@ async function saveUser() {
       headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
       body: JSON.stringify([{ email, full_name: full_name || null, is_admin, pages, updated_at: new Date().toISOString() }])
     });
-    if (!r.ok) throw new Error("Save failed: " + r.status);
+    if (!r.ok) throw new Error("Save failed: " + r.status + (r.status === 401 || r.status === 403 ? " (not allowed to change users — sign in again as an admin)" : ""));
+    // Read it back so the popup reports what is stored, not what was sent.
+    const saved = await readUserRow(email);
+    if (!saved) throw new Error("The save went through but the row is not there when read back.");
+    const names = (saved.pages || []).map(h => (ALL_PAGES.find(x => x.href === h) || { label: h }).label);
+    const lines = [
+      { t: `<b>${email}</b> is saved.` },
+      { t: `Admin: <b>${saved.is_admin ? "Yes" : "No"}</b>` },
+      { t: `Pages: <b>${names.length ? names.join(", ") : "All (role-based)"}</b>` },
+    ];
+    if (!saved.is_admin) (saved.pages || []).filter(h => ADMIN_ONLY_PAGES[h]).forEach(h =>
+      lines.push({ warn: true, t: `${ADMIN_ONLY_PAGES[h]} is admin-only, so it will not show for them even though it is ticked.` }));
+    lines.push({ t: "They get this on their next page load; ask them to sign out and in if it does not show." });
+    showResult(true, "Saved", lines);
     statusEl.textContent = `Saved ${email}. They can sign in immediately.`;
     statusEl.classList.add("ok");
     document.getElementById("nu-email").value = "";
@@ -564,6 +604,7 @@ async function saveUser() {
     loadUsers();
   } catch(e) {
     statusEl.textContent = "Error: " + e.message; statusEl.classList.add("err");
+    showResult(false, "Not saved", [{ t: e.message }]);
   } finally {
     btn.disabled = false; btn.textContent = "Save User";
   }
@@ -577,9 +618,14 @@ async function removeUser(email) {
       method: "DELETE",
       headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${token}` }
     });
-    if (!r.ok) throw new Error("Delete failed: " + r.status);
+    if (!r.ok) throw new Error("Delete failed: " + r.status + (r.status === 401 || r.status === 403 ? " (not allowed — sign in again as an admin)" : ""));
+    const still = await readUserRow(email);
+    if (still) throw new Error("The delete did not take effect: the row is still there.");
+    showResult(true, "Removed", [{ t: `<b>${email}</b> no longer has an app_users row.` },
+      { t: "If they are also in the built-in list in the code, they keep that access." },
+      { t: "They are signed out on their next page load." }]);
     loadUsers();
-  } catch(e) { alert("Error: " + e.message); }
+  } catch(e) { showResult(false, "Not removed", [{ t: e.message }]); }
 }
 
 function switchTab(name) {
