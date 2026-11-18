@@ -1207,6 +1207,13 @@ async function fetchLeaveMap(startDate, endDate) {
     const rows = await r.json();
     const map = {};
     rows.forEach(row => { map[row.person_name] = (map[row.person_name] || 0) + 1; });
+    // The roster says "Mr Aadil Thim" but Zoho reports "Aadil Thim", so a leave
+    // saved under one name never reached the other. Also answer to the name
+    // without its title.
+    Object.keys(map).forEach(n => {
+      const bare = n.replace(/^(mr|mrs|ms|miss)\.?\s+/i, "");
+      if (bare !== n && map[bare] == null) map[bare] = map[n];
+    });
     return map;
   } catch { return {}; }
 }
