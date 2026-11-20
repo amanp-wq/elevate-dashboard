@@ -205,7 +205,7 @@
 // BD_TL_EMAILS, SALES_TEAM_MEMBERS, and buildNav() all come from /config.js.
 // This page uses SALES_TEAM_MEMBERS as TEAM_MEMBERS (BD attendance lives on
 // its own page: /attendance-bd.html).
-const TEAM_MEMBERS = SALES_TEAM_MEMBERS;
+const TEAM_MEMBERS = SALES_TEAM_MEMBERS.filter(m => !m.leftOn);   // people who have left are not marked
 
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 

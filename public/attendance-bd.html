@@ -199,7 +199,7 @@
 <script>
 // SUPABASE_URL, SUPABASE_ANON, ALLOWED_EMAILS, ADMIN_EMAILS, SALES_TL_EMAILS,
 // BD_TL_EMAILS, BD_TEAM_MEMBERS, and buildNav() all come from /config.js.
-const TEAM_MEMBERS = BD_TEAM_MEMBERS;
+const TEAM_MEMBERS = BD_TEAM_MEMBERS.filter(m => !m.leftOn);   // people who have left are not marked
 
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
